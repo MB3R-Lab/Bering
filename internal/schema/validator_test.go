@@ -19,8 +19,8 @@ func TestValidateJSON_Success(t *testing.T) {
     "schema":{
       "name":"io.mb3r.bering.model",
       "version":"1.0.0",
-      "uri":"https://schemas.mb3r.dev/bering/model/v1.0.0/model.schema.json",
-      "digest":"sha256:7dc733936a9d3f94ab92f46a30d4c8d0f5c05d60670c4247786c59a3fe7630f7"
+      "uri":"https://mb3r-lab.github.io/Bering/schema/model/v1.0.0/model.schema.json",
+      "digest":"sha256:272277c093f37580adcd2dded225bd37c86539d642d7910baad7e4228227d1a7"
     }
   }
 }`)
@@ -45,7 +45,7 @@ func TestValidateJSON_StrictDigestFail(t *testing.T) {
     "schema":{
       "name":"io.mb3r.bering.model",
       "version":"1.0.0",
-      "uri":"https://schemas.mb3r.dev/bering/model/v1.0.0/model.schema.json",
+      "uri":"https://mb3r-lab.github.io/Bering/schema/model/v1.0.0/model.schema.json",
       "digest":"sha256:deadbeef"
     }
   }
