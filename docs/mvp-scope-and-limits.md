@@ -3,7 +3,7 @@
 ## In scope
 
 - Discover model from trace files/directories.
-- Emit Sheaft-compatible `bering-model.json` (v1.0.0 contract).
+- Emit canonical `bering-model.json` (v1.0.0 contract) compatible with Sheaft and other downstream analytics tools.
 - Validate artifact with strict `metadata.schema` match.
 - Deterministic output ordering and canonical JSON serialization.
 
@@ -28,4 +28,3 @@ Result is clamped to `[0,1]` and rounded to 2 decimals.
 
 This score is informational in MVP and should not be interpreted as a calibrated
 probability of correctness.
-

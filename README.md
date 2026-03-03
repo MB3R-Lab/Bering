@@ -1,8 +1,9 @@
 # Bering
 
-Bering is the upstream model discovery tool for Sheaft.
+Bering is a model discovery and contract-producing tool for resilience analysis.
 It consumes trace artifacts and produces canonical `bering-model.json` in
-`BeringResilienceModel` v1.0.0 contract format.
+`BeringResilienceModel` v1.0.0 format for any downstream consumer.
+Sheaft is a reference consumer, not an exclusive target.
 
 ## Contract (strict)
 
@@ -57,7 +58,7 @@ go run ./cmd/bering validate \
   --input examples/outputs/bering-model.normalized.sample.json
 ```
 
-### 3) Run Sheaft manually on generated model
+### 3) Optional: run Sheaft on generated model (reference consumer)
 
 ```bash
 # from sibling Sheaft repository
