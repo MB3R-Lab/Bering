@@ -8,8 +8,8 @@ Bering pins `metadata.schema` exactly:
 
 - `name`: `io.mb3r.bering.model`
 - `version`: `1.0.0`
-- `uri`: `https://schemas.mb3r.dev/bering/model/v1.0.0/model.schema.json`
-- `digest`: `sha256:7dc733936a9d3f94ab92f46a30d4c8d0f5c05d60670c4247786c59a3fe7630f7`
+- `uri`: `https://mb3r-lab.github.io/Bering/schema/model/v1.0.0/model.schema.json`
+- `digest`: `sha256:272277c093f37580adcd2dded225bd37c86539d642d7910baad7e4228227d1a7`
 
 Any mismatch fails validation.
 
@@ -88,6 +88,19 @@ Bering output is deterministic for identical inputs and flags:
 - Raw OTel JSON: `resourceSpans/scopeSpans/spans` payload.
 
 Details: [docs/trace-input-format.md](docs/trace-input-format.md)
+
+## Schema publishing
+
+Schema publishing is automated via GitHub Pages and release tags.
+
+- Workflow: `.github/workflows/publish-schema.yml`
+- Trigger: tags matching `schema-v*` (for example `schema-v1.0.0`)
+- Published paths:
+  - `https://mb3r-lab.github.io/Bering/schema/model/v1.0.0/model.schema.json`
+  - `https://mb3r-lab.github.io/Bering/schema/model/latest/model.schema.json`
+  - `https://mb3r-lab.github.io/Bering/schema/index.json`
+
+Operational steps are documented in [docs/schema-publishing.md](docs/schema-publishing.md).
 
 ## CI and local checks
 
