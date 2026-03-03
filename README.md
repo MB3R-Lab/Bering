@@ -1,11 +1,8 @@
 # Bering
 
-Bering is a model discovery and contract-producing tool for resilience analysis.
-It consumes trace artifacts and produces canonical `bering-model.json` in
-`BeringResilienceModel` v1.0.0 format for any downstream consumer.
-Sheaft is a reference consumer, not an exclusive target.
+Bering builds a resilience model artifact from trace artifacts. The output artifact is `bering-model.json` in `BeringResilienceModel` v1.0.0 format. Use it in any downstream tooling or analytics pipeline.
 
-## Contract (strict)
+## Contract
 
 Bering pins `metadata.schema` exactly:
 
@@ -26,7 +23,7 @@ internal/discovery            model inference from normalized spans
 internal/model                model structs, semantic checks, canonical IO
 internal/schema               pinned contract constants + JSON Schema validation
 internal/jsoncanon            deterministic recursive JSON encoder
-api/schema                    canonical public schema
+api/schema                    versioned public schema
 configs                       sample configs (replicas override)
 examples                      trace fixtures + expected output artifacts
 docs                          format, heuristic, and MVP limits
@@ -58,16 +55,21 @@ go run ./cmd/bering validate \
   --input examples/outputs/bering-model.normalized.sample.json
 ```
 
-### 3) Optional: run Sheaft on generated model (reference consumer)
+### 3) Use the model in any downstream tool
 
-```bash
-# from sibling Sheaft repository
-go run ./cmd/sheaft run \
-  --model ../Bering/examples/outputs/bering-model.normalized.sample.json \
-  --policy configs/gate.policy.example.yaml \
-  --out-dir out \
-  --seed 42
-```
+Examples:
+
+- run your own analytics (topology checks, risk scoring, SLO diagnostics)
+- feed the model into simulation tooling
+- simulate failures with [Sheaft](https://github.com/MB3R-Lab/Sheaft) (one possible consumer), for example:
+  ```bash
+  # from sibling Sheaft repository
+  go run ./cmd/sheaft run \
+    --model ../Bering/examples/outputs/bering-model.normalized.sample.json \
+    --policy configs/gate.policy.example.yaml \
+    --out-dir out \
+    --seed 42
+  ```
 
 ## Deterministic output
 

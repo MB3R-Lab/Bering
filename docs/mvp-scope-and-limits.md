@@ -3,7 +3,7 @@
 ## In scope
 
 - Discover model from trace files/directories.
-- Emit canonical `bering-model.json` (v1.0.0 contract) compatible with Sheaft and other downstream analytics tools.
+- Emit contract-compliant `bering-model.json` (v1.0.0) compatible with Sheaft and other downstream analytics tools.
 - Validate artifact with strict `metadata.schema` match.
 - Deterministic output ordering and canonical JSON serialization.
 
