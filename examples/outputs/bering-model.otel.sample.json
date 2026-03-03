@@ -1,0 +1,73 @@
+{
+  "edges": [
+    {
+      "blocking": true,
+      "from": "checkout",
+      "kind": "sync",
+      "to": "inventory"
+    },
+    {
+      "blocking": false,
+      "from": "checkout",
+      "kind": "async",
+      "to": "payment"
+    },
+    {
+      "blocking": true,
+      "from": "frontend",
+      "kind": "sync",
+      "to": "checkout"
+    }
+  ],
+  "endpoints": [
+    {
+      "entry_service": "checkout",
+      "id": "checkout:POST /process",
+      "success_predicate_ref": "checkout:POST /process"
+    },
+    {
+      "entry_service": "frontend",
+      "id": "frontend:GET /checkout",
+      "success_predicate_ref": "frontend:GET /checkout"
+    },
+    {
+      "entry_service": "frontend",
+      "id": "frontend:GET /health",
+      "success_predicate_ref": "frontend:GET /health"
+    }
+  ],
+  "metadata": {
+    "confidence": 0.94,
+    "discovered_at": "2026-03-03T00:00:00Z",
+    "schema": {
+      "digest": "sha256:7dc733936a9d3f94ab92f46a30d4c8d0f5c05d60670c4247786c59a3fe7630f7",
+      "name": "io.mb3r.bering.model",
+      "uri": "https://schemas.mb3r.dev/bering/model/v1.0.0/model.schema.json",
+      "version": "1.0.0"
+    },
+    "source_ref": "bering://discover?input=examples%2Ftraces%2Fotel.sample.json",
+    "source_type": "bering"
+  },
+  "services": [
+    {
+      "id": "checkout",
+      "name": "checkout",
+      "replicas": 1
+    },
+    {
+      "id": "frontend",
+      "name": "frontend",
+      "replicas": 1
+    },
+    {
+      "id": "inventory",
+      "name": "inventory",
+      "replicas": 1
+    },
+    {
+      "id": "payment",
+      "name": "payment",
+      "replicas": 1
+    }
+  ]
+}

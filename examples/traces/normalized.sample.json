@@ -1,0 +1,59 @@
+{
+  "spans": [
+    {
+      "trace_id": "t-checkout",
+      "span_id": "frontend-1",
+      "service": "frontend",
+      "kind": "server",
+      "name": "GET /checkout",
+      "attributes": {
+        "http.request.method": "GET",
+        "http.route": "/checkout"
+      }
+    },
+    {
+      "trace_id": "t-checkout",
+      "span_id": "checkout-1",
+      "parent_span_id": "frontend-1",
+      "service": "checkout",
+      "kind": "server",
+      "name": "POST /process",
+      "attributes": {
+        "http.request.method": "POST",
+        "http.route": "/process"
+      }
+    },
+    {
+      "trace_id": "t-checkout",
+      "span_id": "payment-1",
+      "parent_span_id": "checkout-1",
+      "service": "payment",
+      "kind": "consumer",
+      "name": "kafka consume payment-events",
+      "attributes": {
+        "messaging.system": "kafka",
+        "messaging.destination": "payment-events"
+      }
+    },
+    {
+      "trace_id": "t-checkout",
+      "span_id": "inventory-1",
+      "parent_span_id": "checkout-1",
+      "service": "inventory",
+      "kind": "client",
+      "name": "reserve inventory"
+    },
+    {
+      "trace_id": "t-health",
+      "span_id": "frontend-2",
+      "service": "frontend",
+      "kind": "server",
+      "name": "GET /health",
+      "attributes": {
+        "http.request.method": "GET",
+        "http.route": "/health"
+      }
+    }
+  ]
+}
+

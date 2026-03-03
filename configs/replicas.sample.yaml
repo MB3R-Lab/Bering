@@ -1,0 +1,6 @@
+replicas:
+  frontend: 2
+  checkout: 3
+  payment: 2
+  inventory: 2
+
