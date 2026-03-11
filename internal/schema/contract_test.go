@@ -16,6 +16,14 @@ func TestEmbeddedSchemaDigestMatchesPinned(t *testing.T) {
 	}
 }
 
+func TestEmbeddedSnapshotSchemaDigestMatchesPinned(t *testing.T) {
+	t.Parallel()
+
+	if got, want := EmbeddedSnapshotSchemaDigest(), ExpectedSnapshotSchemaDigest; got != want {
+		t.Fatalf("embedded snapshot schema digest mismatch: got=%s want=%s", got, want)
+	}
+}
+
 func TestValidateStrict(t *testing.T) {
 	t.Parallel()
 
@@ -49,5 +57,19 @@ func TestExpectedSchemaURIVersionPathMatchesConstant(t *testing.T) {
 	wantSegment := fmt.Sprintf("/v%s/", ExpectedSchemaVersion)
 	if !strings.Contains(parsed.Path, wantSegment) {
 		t.Fatalf("ExpectedSchemaURI path %q must contain %q", parsed.Path, wantSegment)
+	}
+}
+
+func TestExpectedSnapshotSchemaURIVersionPathMatchesConstant(t *testing.T) {
+	t.Parallel()
+
+	parsed, err := url.Parse(ExpectedSnapshotSchemaURI)
+	if err != nil {
+		t.Fatalf("parse ExpectedSnapshotSchemaURI: %v", err)
+	}
+
+	wantSegment := fmt.Sprintf("/v%s/", ExpectedSnapshotSchemaVersion)
+	if !strings.Contains(parsed.Path, wantSegment) {
+		t.Fatalf("ExpectedSnapshotSchemaURI path %q must contain %q", parsed.Path, wantSegment)
 	}
 }

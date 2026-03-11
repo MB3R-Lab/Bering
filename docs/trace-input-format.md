@@ -1,6 +1,6 @@
-# Trace Input Format (MVP)
+# Trace Input Format
 
-Bering MVP supports two JSON input formats.
+Bering supports two batch JSON formats and one runtime network ingest path.
 
 ## 1) Normalized spans JSON
 
@@ -16,6 +16,8 @@ Top-level shape:
       "service": "frontend",
       "kind": "server",
       "name": "GET /checkout",
+      "start_time": "2026-03-11T12:00:00Z",
+      "end_time": "2026-03-11T12:00:00.050Z",
       "attributes": {
         "http.request.method": "GET",
         "http.route": "/checkout"
@@ -31,8 +33,12 @@ Accepted aliases:
 - `spanId` for `span_id`
 - `parentSpanId` for `parent_span_id`
 - `service_name` or `service.name` for `service`
+- `startTime` for `start_time`
+- `endTime` for `end_time`
 
-## 2) Raw OTel JSON payload
+Timestamp values may be RFC3339 strings.
+
+## 2) Raw OTLP JSON payload
 
 Expected hierarchy:
 
@@ -41,27 +47,44 @@ Expected hierarchy:
 - `resourceSpans[].scopeSpans[]` (or `instrumentationLibrarySpans[]`)
 - `...scopeSpans[].spans[]`
 
-Supported OTel fields:
+Supported OTLP fields:
 
 - `traceId`, `spanId`, `parentSpanId`, `name`, `kind`
-- resource/span attributes in key/value form (`key` + `value.stringValue|intValue|doubleValue|boolValue`)
+- `startTimeUnixNano`, `endTimeUnixNano`
+- resource/span attributes in key/value form
 
 `service.name` is resolved from resource attributes first, then span attributes.
 
+## 3) Runtime OTLP/HTTP ingest
+
+`bering serve` accepts OTLP/HTTP at `POST /v1/traces`.
+
+Supported request encodings:
+
+- protobuf (`application/x-protobuf`)
+- JSON (`application/json`)
+- optional `Content-Encoding: gzip`
+
+This is the primary integration path for any standard OpenTelemetry Collector or SDK exporter.
+
 ## Discovery-relevant attributes
 
-- HTTP endpoint inference:
-  - `http.request.method`, `http.method`
-  - `http.route`, `url.path`, `http.target`
-- Async edge heuristic:
-  - `messaging.system`
-  - `messaging.destination`
-  - `messaging.operation`
-  - span kind `producer` or `consumer`
+### HTTP endpoint inference
+
+- `http.request.method`, `http.method`
+- `http.route`, `url.path`, `http.target`
+- span name fallback such as `GET /checkout`
+
+### Async edge heuristic
+
+- span kind `producer` or `consumer`
+- `messaging.system`
+- `messaging.destination`
+- `messaging.operation`
 
 ## Input mode
 
-- `--input` can point to:
-  - a single JSON file
-  - a directory (all `*.json` files recursively, sorted by path)
+`--input` can point to:
 
+- a single JSON file
+- a directory (all `*.json` files recursively, sorted by path)
