@@ -80,7 +80,7 @@ func sampleRequest(start time.Time) *collecttracev1.ExportTraceServiceRequest {
 	return &collecttracev1.ExportTraceServiceRequest{
 		ResourceSpans: []*tracev1.ResourceSpans{{
 			Resource: &resourcev1.Resource{Attributes: []*commonv1.KeyValue{{
-				Key: "service.name",
+				Key:   "service.name",
 				Value: &commonv1.AnyValue{Value: &commonv1.AnyValue_StringValue{StringValue: "frontend"}},
 			}}},
 			ScopeSpans: []*tracev1.ScopeSpans{{

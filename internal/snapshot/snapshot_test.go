@@ -42,10 +42,10 @@ func TestMarshalAndParseCanonical(t *testing.T) {
 func sampleEnvelope(windowEnd string, services []ServiceRecord) Envelope {
 	end, _ := time.Parse(time.RFC3339, windowEnd)
 	mdl := model.ResilienceModel{
-		Services: []model.Service{{ID: "frontend", Name: "frontend", Replicas: services[0].Replicas}},
-		Edges:    []model.Edge{},
+		Services:  []model.Service{{ID: "frontend", Name: "frontend", Replicas: services[0].Replicas}},
+		Edges:     []model.Edge{},
 		Endpoints: []model.Endpoint{{ID: "frontend:GET /health", EntryService: "frontend", SuccessPredicateRef: "frontend:GET /health"}},
-		Metadata: model.Metadata{SourceType: "bering", SourceRef: "bering://test", DiscoveredAt: windowEnd, Confidence: 0.7, Schema: model.SchemaRef{Name: "io.mb3r.bering.model", Version: "1.0.0", URI: "https://mb3r-lab.github.io/Bering/schema/model/v1.0.0/model.schema.json", Digest: "sha256:272277c093f37580adcd2dded225bd37c86539d642d7910baad7e4228227d1a7"}},
+		Metadata:  model.Metadata{SourceType: "bering", SourceRef: "bering://test", DiscoveredAt: windowEnd, Confidence: 0.7, Schema: model.SchemaRef{Name: "io.mb3r.bering.model", Version: "1.0.0", URI: "https://mb3r-lab.github.io/Bering/schema/model/v1.0.0/model.schema.json", Digest: "sha256:272277c093f37580adcd2dded225bd37c86539d642d7910baad7e4228227d1a7"}},
 	}
 	mdl.SortDeterministic()
 	topology, _ := TopologyDigest(mdl)
@@ -70,7 +70,7 @@ func sampleEnvelope(windowEnd string, services []ServiceRecord) Envelope {
 			SourceRef:  "bering://serve",
 			EmittedAt:  end.Format(time.RFC3339),
 			Confidence: 0.7,
-			Schema: model.SchemaRef{Name: "io.mb3r.bering.snapshot", Version: "1.0.0", URI: "https://mb3r-lab.github.io/Bering/schema/snapshot/v1.0.0/snapshot.schema.json", Digest: "sha256:e698d5d313b48a93fc4fa77036db11b3836636e5a8852406f3a4800e527fb9b1"},
+			Schema:     model.SchemaRef{Name: "io.mb3r.bering.snapshot", Version: "1.0.0", URI: "https://mb3r-lab.github.io/Bering/schema/snapshot/v1.0.0/snapshot.schema.json", Digest: "sha256:e698d5d313b48a93fc4fa77036db11b3836636e5a8852406f3a4800e527fb9b1"},
 		},
 	}
 }

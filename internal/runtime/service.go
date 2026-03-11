@@ -22,13 +22,13 @@ import (
 )
 
 type Service struct {
-	cfg       config.ServeConfig
-	logger    *slog.Logger
-	metrics   *Metrics
-	engine    *Engine
-	server    *http.Server
-	listener  net.Listener
-	ready     atomic.Bool
+	cfg      config.ServeConfig
+	logger   *slog.Logger
+	metrics  *Metrics
+	engine   *Engine
+	server   *http.Server
+	listener net.Listener
+	ready    atomic.Bool
 }
 
 func NewService(cfg config.ServeConfig, overlays []overlay.File, logger *slog.Logger) (*Service, error) {

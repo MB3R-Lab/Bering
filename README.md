@@ -106,6 +106,17 @@ The runtime service exposes:
 
 The primary integration path is standard OpenTelemetry Collector or SDK exporters sending spans to Bering over OTLP/HTTP. No custom Collector build is required.
 
+### 5) Use the stable model with Sheaft
+
+```bash
+# from a sibling Sheaft repository
+go run ./cmd/sheaft run \
+  --model ../Bering/examples/outputs/bering-model.normalized.sample.json \
+  --policy configs/gate.policy.example.yaml \
+  --out-dir out \
+  --seed 42
+```
+
 ## Examples
 
 - Batch inputs: [examples/traces/normalized.sample.json](examples/traces/normalized.sample.json), [examples/traces/otel.sample.json](examples/traces/otel.sample.json)

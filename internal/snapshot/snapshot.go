@@ -138,7 +138,7 @@ type CommonMetadata struct {
 
 type ServiceMetadata struct {
 	CommonMetadata
-	FailureEligible *bool              `json:"failure_eligible,omitempty"`
+	FailureEligible  *bool             `json:"failure_eligible,omitempty"`
 	ReplicasOverride *int              `json:"replicas_override,omitempty"`
 	Attributes       map[string]string `json:"attributes,omitempty"`
 }

@@ -59,11 +59,11 @@ func (d Duration) Duration() time.Duration {
 }
 
 type ServeConfig struct {
-	Server  ServerConfig  `json:"server" yaml:"server"`
-	Runtime RuntimeConfig `json:"runtime" yaml:"runtime"`
-	Sink    SinkConfig    `json:"sink" yaml:"sink"`
-	Logging LoggingConfig `json:"logging" yaml:"logging"`
-	Overlays []string     `json:"overlays" yaml:"overlays"`
+	Server   ServerConfig  `json:"server" yaml:"server"`
+	Runtime  RuntimeConfig `json:"runtime" yaml:"runtime"`
+	Sink     SinkConfig    `json:"sink" yaml:"sink"`
+	Logging  LoggingConfig `json:"logging" yaml:"logging"`
+	Overlays []string      `json:"overlays" yaml:"overlays"`
 }
 
 type ServerConfig struct {
@@ -72,10 +72,10 @@ type ServerConfig struct {
 }
 
 type RuntimeConfig struct {
-	FlushInterval     Duration `json:"flush_interval" yaml:"flush_interval"`
-	WindowSize        Duration `json:"window_size" yaml:"window_size"`
-	MaxInMemorySpans  int      `json:"max_in_memory_spans" yaml:"max_in_memory_spans"`
-	LateSpanPolicy    string   `json:"late_span_policy" yaml:"late_span_policy"`
+	FlushInterval    Duration `json:"flush_interval" yaml:"flush_interval"`
+	WindowSize       Duration `json:"window_size" yaml:"window_size"`
+	MaxInMemorySpans int      `json:"max_in_memory_spans" yaml:"max_in_memory_spans"`
+	LateSpanPolicy   string   `json:"late_span_policy" yaml:"late_span_policy"`
 }
 
 type SinkConfig struct {
