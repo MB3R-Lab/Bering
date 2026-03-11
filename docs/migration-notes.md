@@ -16,6 +16,7 @@ You can now opt into additional discovery-side features.
 
 - `--overlay` for generic discovery metadata overlays
 - `--snapshot-out` for a snapshot envelope in batch mode
+- `bering discover` can now ingest explicit `topology_api` YAML/JSON files in addition to trace inputs
 - `bering serve` for OTLP/HTTP runtime discovery
 - optional OTLP/gRPC ingest on a separate runtime listener
 

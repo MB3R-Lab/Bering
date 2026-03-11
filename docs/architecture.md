@@ -7,8 +7,8 @@ Bering now has two user-facing flows built on one normalized discovery core.
 ### Batch flow
 
 1. `bering discover` loads trace JSON files or directories.
-2. File inputs are normalized into the internal `traces.Span` shape.
-3. The discovery engine infers services, edges, endpoints, confidence, and overlay-driven metadata.
+2. Trace inputs are normalized into the internal `traces.Span` shape, while explicit `topology_api` inputs are normalized into the same downstream model and snapshot discovery contracts.
+3. The discovery engine or adapter-specific builder produces services, edges, endpoints, confidence, and overlay-driven metadata.
 4. Bering writes the stable `io.mb3r.bering.model` artifact.
 5. Optional `--snapshot-out` also writes a `io.mb3r.bering.snapshot` envelope.
 

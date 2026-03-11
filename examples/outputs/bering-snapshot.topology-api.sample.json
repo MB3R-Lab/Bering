@@ -1,0 +1,278 @@
+{
+  "counts": {
+    "edges": 2,
+    "endpoints": 2,
+    "services": 3
+  },
+  "coverage": {
+    "confidence": 1,
+    "edge_support_min": 1,
+    "endpoint_support_min": 1,
+    "service_support_min": 1
+  },
+  "diff": {
+    "added_edges": 2,
+    "added_endpoints": 2,
+    "added_services": 3,
+    "changed_edges": 0,
+    "changed_endpoints": 0,
+    "changed_services": 0,
+    "removed_edges": 0,
+    "removed_endpoints": 0,
+    "removed_services": 0
+  },
+  "discovery": {
+    "edges": [
+      {
+        "blocking": false,
+        "from": "checkout",
+        "id": "checkout|payment|async|false",
+        "kind": "async",
+        "metadata": {},
+        "provenance": [
+          {
+            "connector": "topology_file",
+            "ref": "https://topology.internal.example/api/v1/topology",
+            "type": "topology_api"
+          }
+        ],
+        "support": {
+          "evidence": [
+            "topology_api"
+          ],
+          "observations": 1,
+          "trace_count": 0
+        },
+        "to": "payment"
+      },
+      {
+        "blocking": true,
+        "from": "frontend",
+        "id": "frontend|checkout|sync|true",
+        "kind": "sync",
+        "metadata": {
+          "weight": 0.9
+        },
+        "provenance": [
+          {
+            "connector": "topology_file",
+            "ref": "https://topology.internal.example/api/v1/topology",
+            "type": "topology_api"
+          }
+        ],
+        "support": {
+          "evidence": [
+            "topology_api"
+          ],
+          "observations": 1,
+          "trace_count": 0
+        },
+        "to": "checkout"
+      }
+    ],
+    "endpoints": [
+      {
+        "entry_service": "checkout",
+        "id": "checkout:POST /process",
+        "metadata": {
+          "predicate_ref": "checkout:POST /process"
+        },
+        "method": "POST",
+        "path": "/process",
+        "provenance": [
+          {
+            "connector": "topology_file",
+            "ref": "https://topology.internal.example/api/v1/topology",
+            "type": "topology_api"
+          }
+        ],
+        "support": {
+          "evidence": [
+            "topology_api"
+          ],
+          "observations": 1,
+          "trace_count": 0
+        }
+      },
+      {
+        "entry_service": "frontend",
+        "id": "frontend:GET /checkout",
+        "metadata": {
+          "predicate_ref": "catalog.frontend.checkout.success"
+        },
+        "method": "GET",
+        "path": "/checkout",
+        "provenance": [
+          {
+            "connector": "topology_file",
+            "ref": "https://topology.internal.example/api/v1/topology",
+            "type": "topology_api"
+          }
+        ],
+        "support": {
+          "evidence": [
+            "topology_api"
+          ],
+          "observations": 1,
+          "trace_count": 0
+        }
+      }
+    ],
+    "services": [
+      {
+        "id": "checkout",
+        "metadata": {
+          "failure_eligible": true
+        },
+        "name": "checkout",
+        "provenance": [
+          {
+            "connector": "topology_file",
+            "ref": "https://topology.internal.example/api/v1/topology",
+            "type": "topology_api"
+          }
+        ],
+        "replicas": 3,
+        "support": {
+          "evidence": [
+            "topology_api"
+          ],
+          "observations": 1,
+          "trace_count": 0
+        }
+      },
+      {
+        "id": "frontend",
+        "metadata": {
+          "labels": {
+            "team": "web"
+          }
+        },
+        "name": "frontend",
+        "provenance": [
+          {
+            "connector": "topology_file",
+            "ref": "https://topology.internal.example/api/v1/topology",
+            "type": "topology_api"
+          }
+        ],
+        "replicas": 2,
+        "support": {
+          "evidence": [
+            "topology_api",
+            "service_registry"
+          ],
+          "observations": 2,
+          "trace_count": 0
+        }
+      },
+      {
+        "id": "payment",
+        "metadata": {},
+        "name": "payment",
+        "provenance": [
+          {
+            "connector": "topology_file",
+            "ref": "https://topology.internal.example/api/v1/topology",
+            "type": "topology_api"
+          }
+        ],
+        "replicas": 1,
+        "support": {
+          "evidence": [
+            "topology_api"
+          ],
+          "observations": 1,
+          "trace_count": 0
+        }
+      }
+    ]
+  },
+  "ingest": {
+    "dropped_spans": 0,
+    "late_spans": 0,
+    "spans": 0,
+    "traces": 0
+  },
+  "metadata": {
+    "confidence": 1,
+    "emitted_at": "2026-03-11T00:00:00Z",
+    "schema": {
+      "digest": "sha256:87e4e887ed4a37b72f6136e268b73552eccb92941c4de2c6f3a514dd066ea972",
+      "name": "io.mb3r.bering.snapshot",
+      "uri": "https://mb3r-lab.github.io/Bering/schema/snapshot/v1.0.0/snapshot.schema.json",
+      "version": "1.0.0"
+    },
+    "source_ref": "bering://discover?input=examples%2Ftopology%2Ftopology-api.sample.yaml",
+    "source_type": "bering"
+  },
+  "model": {
+    "edges": [
+      {
+        "blocking": false,
+        "from": "checkout",
+        "kind": "async",
+        "to": "payment"
+      },
+      {
+        "blocking": true,
+        "from": "frontend",
+        "kind": "sync",
+        "to": "checkout"
+      }
+    ],
+    "endpoints": [
+      {
+        "entry_service": "checkout",
+        "id": "checkout:POST /process",
+        "success_predicate_ref": "checkout:POST /process"
+      },
+      {
+        "entry_service": "frontend",
+        "id": "frontend:GET /checkout",
+        "success_predicate_ref": "catalog.frontend.checkout.success"
+      }
+    ],
+    "metadata": {
+      "confidence": 1,
+      "discovered_at": "2026-03-11T00:00:00Z",
+      "schema": {
+        "digest": "sha256:272277c093f37580adcd2dded225bd37c86539d642d7910baad7e4228227d1a7",
+        "name": "io.mb3r.bering.model",
+        "uri": "https://mb3r-lab.github.io/Bering/schema/model/v1.0.0/model.schema.json",
+        "version": "1.0.0"
+      },
+      "source_ref": "bering://discover?input=examples%2Ftopology%2Ftopology-api.sample.yaml",
+      "source_type": "bering"
+    },
+    "services": [
+      {
+        "id": "checkout",
+        "name": "checkout",
+        "replicas": 3
+      },
+      {
+        "id": "frontend",
+        "name": "frontend",
+        "replicas": 2
+      },
+      {
+        "id": "payment",
+        "name": "payment",
+        "replicas": 1
+      }
+    ]
+  },
+  "snapshot_id": "snap-0d509ead6ce2fee838569211",
+  "sources": [
+    {
+      "connector": "topology_file",
+      "observations": 7,
+      "ref": "https://topology.internal.example/api/v1/topology",
+      "type": "topology_api"
+    }
+  ],
+  "topology_version": "sha256:0acf9b5ff56e51cebcf59b2976e3039a615c50e63f61756751730cac66ce121b",
+  "window_end": "2026-03-11T00:00:00Z",
+  "window_start": "2026-03-11T00:00:00Z"
+}

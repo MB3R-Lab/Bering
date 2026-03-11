@@ -1,0 +1,57 @@
+{
+  "edges": [
+    {
+      "blocking": false,
+      "from": "checkout",
+      "kind": "async",
+      "to": "payment"
+    },
+    {
+      "blocking": true,
+      "from": "frontend",
+      "kind": "sync",
+      "to": "checkout"
+    }
+  ],
+  "endpoints": [
+    {
+      "entry_service": "checkout",
+      "id": "checkout:POST /process",
+      "success_predicate_ref": "checkout:POST /process"
+    },
+    {
+      "entry_service": "frontend",
+      "id": "frontend:GET /checkout",
+      "success_predicate_ref": "catalog.frontend.checkout.success"
+    }
+  ],
+  "metadata": {
+    "confidence": 1,
+    "discovered_at": "2026-03-11T00:00:00Z",
+    "schema": {
+      "digest": "sha256:272277c093f37580adcd2dded225bd37c86539d642d7910baad7e4228227d1a7",
+      "name": "io.mb3r.bering.model",
+      "uri": "https://mb3r-lab.github.io/Bering/schema/model/v1.0.0/model.schema.json",
+      "version": "1.0.0"
+    },
+    "source_ref": "bering://discover?input=examples%2Ftopology%2Ftopology-api.sample.yaml",
+    "source_type": "bering"
+  },
+  "services": [
+    {
+      "id": "checkout",
+      "name": "checkout",
+      "replicas": 3
+    },
+    {
+      "id": "frontend",
+      "name": "frontend",
+      "replicas": 2
+    },
+    {
+      "id": "payment",
+      "name": "payment",
+      "replicas": 1
+    }
+  ]
+}

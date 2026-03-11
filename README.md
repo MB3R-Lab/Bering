@@ -4,7 +4,7 @@ Bering is a discovery and publishing layer for service topology and endpoint con
 
 It supports two operating modes:
 
-- deterministic batch discovery from trace files and directories
+- deterministic batch discovery from trace files/directories or explicit topology input files
 - long-running runtime discovery that accepts OTLP/HTTP and optional OTLP/gRPC spans and publishes rolling snapshot envelopes for observability consumers
 
 Bering owns discovery and discovery-side public contracts. It does not own simulation, gating, chaos execution, or policy decisions.
@@ -40,6 +40,7 @@ cmd/bering                    CLI entrypoint
 internal/app                  command wiring
 internal/config               serve-mode config parsing and validation
 internal/connectors/traces    file/dir trace loading and normalization
+internal/connectors/topology  non-trace topology_api file loading and normalization
 internal/connectors/otlp      OTLP request decoding into normalized spans
 internal/discovery            source-agnostic discovery engine and overlay application
 internal/model                stable core model structs, semantic checks, canonical IO
@@ -57,7 +58,7 @@ scripts/ci                    CI helper scripts
 ## Commands
 
 ```bash
-bering discover --input <trace-file|dir> [--out bering-model.json] [--snapshot-out bering-snapshot.json] [--replicas replicas.yaml|json] [--overlay overlay.yaml] [--discovered-at RFC3339]
+bering discover --input <trace-file|topology-file|dir> [--out bering-model.json] [--snapshot-out bering-snapshot.json] [--replicas replicas.yaml|json] [--overlay overlay.yaml] [--discovered-at RFC3339]
 bering validate --input <bering-model.json|bering-snapshot.json>
 bering serve --config configs/serve.sample.yaml [--listen :4318] [--grpc-listen :4317] [--window-size 30s] [--flush-interval 5s]
 ```
@@ -121,7 +122,8 @@ go run ./cmd/sheaft run \
 ## Examples
 
 - Batch inputs: [examples/traces/normalized.sample.json](examples/traces/normalized.sample.json), [examples/traces/otel.sample.json](examples/traces/otel.sample.json)
-- Batch outputs: [examples/outputs/bering-model.normalized.sample.json](examples/outputs/bering-model.normalized.sample.json), [examples/outputs/bering-snapshot.normalized.sample.json](examples/outputs/bering-snapshot.normalized.sample.json)
+- Topology input: [examples/topology/topology-api.sample.yaml](examples/topology/topology-api.sample.yaml)
+- Batch outputs: [examples/outputs/bering-model.normalized.sample.json](examples/outputs/bering-model.normalized.sample.json), [examples/outputs/bering-snapshot.normalized.sample.json](examples/outputs/bering-snapshot.normalized.sample.json), [examples/outputs/bering-model.topology-api.sample.json](examples/outputs/bering-model.topology-api.sample.json), [examples/outputs/bering-snapshot.topology-api.sample.json](examples/outputs/bering-snapshot.topology-api.sample.json)
 - Runtime config: [configs/serve.sample.yaml](configs/serve.sample.yaml)
 - Discovery overlay: [configs/discovery.overlay.sample.yaml](configs/discovery.overlay.sample.yaml)
 - Collector sidecar: [examples/collector/otelcol.sidecar.yaml](examples/collector/otelcol.sidecar.yaml)
@@ -184,6 +186,7 @@ The runtime service exports Prometheus/OpenMetrics metrics including:
 - [docs/architecture.md](docs/architecture.md)
 - [docs/runtime-config.md](docs/runtime-config.md)
 - [docs/trace-input-format.md](docs/trace-input-format.md)
+- [docs/topology-input-format.md](docs/topology-input-format.md)
 - [docs/schema-publishing.md](docs/schema-publishing.md)
 - [docs/migration-notes.md](docs/migration-notes.md)
 - [docs/mvp-scope-and-limits.md](docs/mvp-scope-and-limits.md)

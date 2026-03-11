@@ -1,0 +1,35 @@
+source:
+  type: topology_api
+  ref: https://topology.internal.example/api/v1/topology
+services:
+  - id: frontend
+    name: frontend
+    replicas: 2
+    support:
+      observations: 2
+      evidence:
+        - topology_api
+        - service_registry
+    labels:
+      team: web
+  - id: checkout
+    replicas: 3
+    failure_eligible: true
+  - id: payment
+edges:
+  - from: frontend
+    to: checkout
+    kind: sync
+    blocking: true
+    weight: 0.9
+  - from: checkout
+    to: payment
+    kind: async
+endpoints:
+  - entry_service: frontend
+    method: GET
+    path: checkout
+    predicate_ref: catalog.frontend.checkout.success
+  - entry_service: checkout
+    method: POST
+    path: /process

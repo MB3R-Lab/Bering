@@ -3,6 +3,7 @@
 ## In scope
 
 - deterministic batch discovery from trace files/directories
+- deterministic batch discovery from explicit `topology_api` files
 - long-running runtime service that accepts OTLP/HTTP spans, with optional OTLP/gRPC ingest
 - stable core model artifacts (`io.mb3r.bering.model`)
 - snapshot envelopes for observability/runtime consumers (`io.mb3r.bering.snapshot`)

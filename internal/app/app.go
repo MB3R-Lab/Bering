@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/MB3R-Lab/Bering/internal/config"
+	"github.com/MB3R-Lab/Bering/internal/connectors/topology"
 	"github.com/MB3R-Lab/Bering/internal/connectors/traces"
 	"github.com/MB3R-Lab/Bering/internal/discovery"
 	"github.com/MB3R-Lab/Bering/internal/model"
@@ -69,7 +70,7 @@ func (r Runner) runDiscover(args []string) int {
 	fs := flag.NewFlagSet("discover", flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
 
-	input := fs.String("input", "", "Path to trace input file or directory")
+	input := fs.String("input", "", "Path to discovery input file or directory")
 	out := fs.String("out", "bering-model.json", "Path to output model JSON")
 	snapshotOut := fs.String("snapshot-out", "", "Optional path to output snapshot envelope JSON")
 	replicas := fs.String("replicas", "", "Path to replicas override file (yaml or json)")
@@ -95,12 +96,6 @@ func (r Runner) runDiscover(args []string) int {
 		return ExitError
 	}
 
-	spans, err := traces.Load(*input)
-	if err != nil {
-		r.printfErr("load traces: %v\n", err)
-		return ExitError
-	}
-
 	loadedOverlays, err := overlay.LoadFiles(overlays.Values())
 	if err != nil {
 		r.printfErr("load overlays: %v\n", err)
@@ -116,13 +111,7 @@ func (r Runner) runDiscover(args []string) int {
 		}
 	}
 
-	sourceRef := discovery.BuildSourceRef(*input)
-	result, err := discovery.Discover(spans, discovery.Options{
-		SourceRef:        sourceRef,
-		DiscoveredAt:     discoveredAtValue,
-		ReplicasOverride: override,
-		Overlays:         loadedOverlays,
-	})
+	result, err := loadDiscoveryResult(*input, discoveredAtValue, override, loadedOverlays)
 	if err != nil {
 		r.printfErr("discover model: %v\n", err)
 		return ExitError
@@ -322,7 +311,7 @@ func (r Runner) printUsage() {
 	fmt.Fprintln(r.stdout, "Bering CLI")
 	fmt.Fprintln(r.stdout)
 	fmt.Fprintln(r.stdout, "Usage:")
-	fmt.Fprintln(r.stdout, "  bering discover --input <trace-file|dir> [--out bering-model.json] [--snapshot-out bering-snapshot.json] [--replicas replicas.yaml|json] [--overlay overlay.yaml] [--discovered-at RFC3339]")
+	fmt.Fprintln(r.stdout, "  bering discover --input <trace-file|topology-file|dir> [--out bering-model.json] [--snapshot-out bering-snapshot.json] [--replicas replicas.yaml|json] [--overlay overlay.yaml] [--discovered-at RFC3339]")
 	fmt.Fprintln(r.stdout, "  bering validate --input <bering-model.json|bering-snapshot.json>")
 	fmt.Fprintln(r.stdout, "  bering serve --config configs/serve.sample.yaml [--listen :8080] [--grpc-listen :4317] [--window-size 30s] [--flush-interval 5s]")
 }
@@ -409,4 +398,26 @@ func buildBatchSnapshot(result discovery.Result, discoveredAt string) (snapshot.
 	env.Diff = snapshot.ComputeDiff(nil, env)
 	env.SortDeterministic()
 	return env, nil
+}
+
+func loadDiscoveryResult(input, discoveredAt string, override map[string]int, loadedOverlays []overlay.File) (discovery.Result, error) {
+	sourceRef := discovery.BuildSourceRef(input)
+	opts := discovery.Options{
+		SourceRef:        sourceRef,
+		DiscoveredAt:     discoveredAt,
+		ReplicasOverride: override,
+		Overlays:         loadedOverlays,
+	}
+
+	spans, traceErr := traces.Load(input)
+	if traceErr == nil {
+		return discovery.Discover(spans, opts)
+	}
+
+	doc, topologyErr := topology.LoadFile(input)
+	if topologyErr == nil {
+		return discovery.DiscoverTopology(doc, opts)
+	}
+
+	return discovery.Result{}, fmt.Errorf("load input as traces: %w; as topology_api: %v", traceErr, topologyErr)
 }

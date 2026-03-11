@@ -2,6 +2,8 @@
 
 Bering supports two batch JSON formats and two runtime network ingest paths.
 
+For explicit non-trace batch topology input, see [topology-input-format.md](topology-input-format.md).
+
 ## 1) Normalized spans JSON
 
 Top-level shape:
