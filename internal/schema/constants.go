@@ -9,7 +9,7 @@ const (
 	ExpectedSnapshotSchemaName    = "io.mb3r.bering.snapshot"
 	ExpectedSnapshotSchemaVersion = "1.0.0"
 	ExpectedSnapshotSchemaURI     = "https://mb3r-lab.github.io/Bering/schema/snapshot/v1.0.0/snapshot.schema.json"
-	ExpectedSnapshotSchemaDigest  = "sha256:e698d5d313b48a93fc4fa77036db11b3836636e5a8852406f3a4800e527fb9b1"
+	ExpectedSnapshotSchemaDigest  = "sha256:87e4e887ed4a37b72f6136e268b73552eccb92941c4de2c6f3a514dd066ea972"
 )
 
 type SchemaRef struct {

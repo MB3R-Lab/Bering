@@ -1,0 +1,2 @@
+api/schema/*.json text eol=lf
+internal/schema/schema/*.json text eol=lf

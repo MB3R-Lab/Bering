@@ -70,7 +70,7 @@ func sampleEnvelope(windowEnd string, services []ServiceRecord) Envelope {
 			SourceRef:  "bering://serve",
 			EmittedAt:  end.Format(time.RFC3339),
 			Confidence: 0.7,
-			Schema:     model.SchemaRef{Name: "io.mb3r.bering.snapshot", Version: "1.0.0", URI: "https://mb3r-lab.github.io/Bering/schema/snapshot/v1.0.0/snapshot.schema.json", Digest: "sha256:e698d5d313b48a93fc4fa77036db11b3836636e5a8852406f3a4800e527fb9b1"},
+			Schema:     model.SchemaRef{Name: "io.mb3r.bering.snapshot", Version: "1.0.0", URI: "https://mb3r-lab.github.io/Bering/schema/snapshot/v1.0.0/snapshot.schema.json", Digest: "sha256:87e4e887ed4a37b72f6136e268b73552eccb92941c4de2c6f3a514dd066ea972"},
 		},
 	}
 }
