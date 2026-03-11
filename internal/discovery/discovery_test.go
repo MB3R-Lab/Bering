@@ -2,9 +2,11 @@ package discovery
 
 import (
 	"testing"
+	"time"
 
 	"github.com/MB3R-Lab/Bering/internal/connectors/traces"
 	"github.com/MB3R-Lab/Bering/internal/model"
+	"github.com/MB3R-Lab/Bering/internal/overlay"
 	"github.com/MB3R-Lab/Bering/internal/schema"
 )
 
@@ -80,4 +82,56 @@ func TestBuild_UnknownReplicaOverrideFails(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected unknown override service error, got nil")
 	}
+}
+
+func TestDiscover_OverlayAppliesRuntimeMetadata(t *testing.T) {
+	t.Parallel()
+
+	now := time.Date(2026, 3, 11, 12, 0, 0, 0, time.UTC)
+	replicas := 3
+	weight := 0.7
+	spans := []traces.Span{
+		{
+			TraceID: "t1", SpanID: "1", Service: "checkout", Name: "POST /process", Kind: "server",
+			StartTime: now, EndTime: now.Add(50 * time.Millisecond),
+			Attributes: map[string]any{"http.request.method": "POST", "http.route": "/process"},
+		},
+	}
+
+	result, err := Discover(spans, Options{
+		SourceRef:    BuildSourceRef("examples/traces/normalized.sample.json"),
+		DiscoveredAt: "2026-03-03T00:00:00Z",
+		RuntimeMode:  true,
+		Overlays: []overlay.File{{
+			Name:      "test",
+			Services:  []overlay.ServiceOverlay{{ID: "checkout", Replicas: &replicas, FailureEligible: boolPtr(true), CommonMetadata: overlay.CommonMetadata{Attributes: map[string]string{"team": "commerce"}}}},
+			Endpoints: []overlay.EndpointOverlay{{ID: "checkout:POST /process", PredicateRef: "catalog.checkout.success", Weight: &weight, CommonMetadata: overlay.CommonMetadata{Attributes: map[string]string{"verb": "write"}}}},
+		}},
+	})
+	if err != nil {
+		t.Fatalf("Discover returned error: %v", err)
+	}
+
+	if got := result.Model.Services[0].Replicas; got != 3 {
+		t.Fatalf("replicas override mismatch: got=%d", got)
+	}
+	if got := result.Model.Endpoints[0].SuccessPredicateRef; got != "catalog.checkout.success" {
+		t.Fatalf("predicate ref mismatch: got=%s", got)
+	}
+	if got := result.Discovery.Services[0].FirstSeen; got == "" {
+		t.Fatal("expected runtime first_seen to be populated")
+	}
+	if got := result.Discovery.Endpoints[0].Metadata.PredicateRef; got != "catalog.checkout.success" {
+		t.Fatalf("endpoint metadata predicate mismatch: got=%s", got)
+	}
+	if got := result.Discovery.Services[0].Metadata.Attributes["team"]; got != "commerce" {
+		t.Fatalf("service metadata attribute mismatch: got=%s", got)
+	}
+	if got := result.Discovery.Endpoints[0].Metadata.Attributes["verb"]; got != "write" {
+		t.Fatalf("endpoint metadata attribute mismatch: got=%s", got)
+	}
+}
+
+func boolPtr(v bool) *bool {
+	return &v
 }

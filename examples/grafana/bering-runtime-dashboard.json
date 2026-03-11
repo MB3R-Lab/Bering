@@ -1,0 +1,70 @@
+{
+  "annotations": {"list": []},
+  "editable": true,
+  "panels": [
+    {
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "fieldConfig": {"defaults": {"unit": "ops"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0},
+      "id": 1,
+      "options": {"legend": {"displayMode": "list", "placement": "bottom"}, "tooltip": {"mode": "single"}},
+      "targets": [
+        {"expr": "rate(spans_ingested_total[5m])", "legendFormat": "ingested/s", "refId": "A"},
+        {"expr": "rate(spans_dropped_total[5m])", "legendFormat": "dropped/s", "refId": "B"}
+      ],
+      "title": "Span Throughput",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "fieldConfig": {"defaults": {"unit": "none"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0},
+      "id": 2,
+      "options": {"legend": {"displayMode": "table", "placement": "bottom"}, "tooltip": {"mode": "single"}},
+      "targets": [
+        {"expr": "current_services", "legendFormat": "services", "refId": "A"},
+        {"expr": "current_edges", "legendFormat": "edges", "refId": "B"},
+        {"expr": "current_endpoints", "legendFormat": "endpoints", "refId": "C"}
+      ],
+      "title": "Current Topology Size",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "fieldConfig": {"defaults": {"unit": "s"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8},
+      "id": 3,
+      "options": {"legend": {"displayMode": "list", "placement": "bottom"}, "tooltip": {"mode": "single"}},
+      "targets": [
+        {"expr": "snapshot_age_seconds", "legendFormat": "snapshot age", "refId": "A"},
+        {"expr": "window_lag_seconds", "legendFormat": "window lag", "refId": "B"}
+      ],
+      "title": "Runtime Lag",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "fieldConfig": {"defaults": {"unit": "none"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8},
+      "id": 4,
+      "options": {"legend": {"displayMode": "table", "placement": "bottom"}, "tooltip": {"mode": "single"}},
+      "targets": [
+        {"expr": "diff_added_services", "legendFormat": "added services", "refId": "A"},
+        {"expr": "diff_removed_services", "legendFormat": "removed services", "refId": "B"},
+        {"expr": "diff_added_edges + diff_removed_edges", "legendFormat": "edge drift", "refId": "C"},
+        {"expr": "diff_added_endpoints + diff_removed_endpoints", "legendFormat": "endpoint drift", "refId": "D"}
+      ],
+      "title": "Topology Drift",
+      "type": "timeseries"
+    }
+  ],
+  "refresh": "15s",
+  "schemaVersion": 39,
+  "style": "dark",
+  "tags": ["bering", "topology", "runtime"],
+  "templating": {"list": []},
+  "time": {"from": "now-6h", "to": "now"},
+  "timezone": "browser",
+  "title": "Bering Runtime Health",
+  "version": 1
+}

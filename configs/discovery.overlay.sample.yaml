@@ -1,0 +1,32 @@
+name: sample-discovery-overlay
+services:
+  - id: checkout
+    replicas: 3
+    failure_eligible: true
+    labels:
+      team: commerce
+      tier: backend
+    slo_refs:
+      - slo:checkout-latency
+  - id: payment
+    labels:
+      team: payments
+      tier: backend
+edges:
+  - from: frontend
+    to: checkout
+    kind: sync
+    blocking: true
+    weight: 0.8
+    labels:
+      flow: checkout
+endpoints:
+  - id: checkout:POST /process
+    predicate_ref: catalog.checkout.success
+    weight: 0.6
+    labels:
+      workflow: purchase
+  - id: frontend:GET /checkout
+    weight: 0.4
+    labels:
+      workflow: browse

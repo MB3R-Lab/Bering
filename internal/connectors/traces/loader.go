@@ -10,6 +10,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"gopkg.in/yaml.v3"
 )
@@ -21,7 +22,19 @@ type Span struct {
 	Service      string
 	Name         string
 	Kind         string
+	StartTime    time.Time
+	EndTime      time.Time
 	Attributes   map[string]any
+}
+
+func (s Span) EventTime(fallback time.Time) time.Time {
+	if !s.EndTime.IsZero() {
+		return s.EndTime.UTC()
+	}
+	if !s.StartTime.IsZero() {
+		return s.StartTime.UTC()
+	}
+	return fallback.UTC()
 }
 
 func Load(inputPath string) ([]Span, error) {
@@ -150,6 +163,8 @@ func parseNormalized(doc any) ([]Span, bool) {
 			Service:      firstNonEmptyString(obj["service"], obj["service_name"], obj["service.name"]),
 			Name:         firstNonEmptyString(obj["name"]),
 			Kind:         strings.ToLower(strings.TrimSpace(firstNonEmptyString(obj["kind"]))),
+			StartTime:    parseTimeValue(obj["start_time"], obj["startTime"]),
+			EndTime:      parseTimeValue(obj["end_time"], obj["endTime"]),
 			Attributes:   attrs,
 		})
 	}
@@ -223,6 +238,8 @@ func parseOTLP(doc any) ([]Span, bool) {
 					Service:      service,
 					Name:         firstNonEmptyString(spanObj["name"]),
 					Kind:         kind,
+					StartTime:    parseTimeValue(spanObj["startTimeUnixNano"], spanObj["start_time_unix_nano"]),
+					EndTime:      parseTimeValue(spanObj["endTimeUnixNano"], spanObj["end_time_unix_nano"]),
 					Attributes:   mergedAttrs,
 				})
 			}
@@ -392,4 +409,32 @@ func firstNonEmptyString(values ...any) string {
 		}
 	}
 	return ""
+}
+
+func parseTimeValue(values ...any) time.Time {
+	for _, value := range values {
+		switch typed := value.(type) {
+		case string:
+			if strings.TrimSpace(typed) == "" {
+				continue
+			}
+			if parsed, err := time.Parse(time.RFC3339Nano, strings.TrimSpace(typed)); err == nil {
+				return parsed.UTC()
+			}
+			if n, err := strconv.ParseInt(strings.TrimSpace(typed), 10, 64); err == nil {
+				return time.Unix(0, n).UTC()
+			}
+		case json.Number:
+			if n, err := typed.Int64(); err == nil {
+				return time.Unix(0, n).UTC()
+			}
+		case float64:
+			return time.Unix(0, int64(typed)).UTC()
+		case int64:
+			return time.Unix(0, typed).UTC()
+		case int:
+			return time.Unix(0, int64(typed)).UTC()
+		}
+	}
+	return time.Time{}
 }

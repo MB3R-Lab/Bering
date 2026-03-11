@@ -1,0 +1,15 @@
+server:
+  listen_address: ":4318"
+  max_request_bytes: 5242880
+runtime:
+  flush_interval: 5s
+  window_size: 30s
+  max_in_memory_spans: 10000
+  late_span_policy: drop
+sink:
+  directory: out/snapshots
+  latest_path: out/latest-snapshot.json
+logging:
+  structured: true
+overlays:
+  - configs/discovery.overlay.sample.yaml
