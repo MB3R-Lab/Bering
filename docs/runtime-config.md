@@ -12,6 +12,14 @@ TCP listen address for the HTTP server.
 
 Example: `":4318"`
 
+### `server.grpc_listen_address`
+
+Optional TCP listen address for the OTLP/gRPC server.
+
+Example: `":4317"`
+
+Leave empty to disable OTLP/gRPC.
+
 ### `server.max_request_bytes`
 
 Maximum OTLP request body size in bytes after decompression.
@@ -88,6 +96,7 @@ overlays:
 
 - `--config`
 - `--listen`
+- `--grpc-listen`
 - `--flush-interval`
 - `--window-size`
 - `--max-in-memory-spans`

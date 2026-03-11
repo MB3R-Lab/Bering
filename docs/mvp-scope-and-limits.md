@@ -3,7 +3,7 @@
 ## In scope
 
 - deterministic batch discovery from trace files/directories
-- long-running runtime service that accepts OTLP/HTTP spans
+- long-running runtime service that accepts OTLP/HTTP spans, with optional OTLP/gRPC ingest
 - stable core model artifacts (`io.mb3r.bering.model`)
 - snapshot envelopes for observability/runtime consumers (`io.mb3r.bering.snapshot`)
 - generic discovery overlays for metadata and predicate references

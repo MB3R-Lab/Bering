@@ -12,6 +12,11 @@ exporters:
     endpoint: http://bering:4318
     tls:
       insecure: true
+  # Alternative OTLP/gRPC exporter when Bering is configured with grpc_listen_address.
+  otlp/bering:
+    endpoint: bering:4317
+    tls:
+      insecure: true
 
 service:
   pipelines:

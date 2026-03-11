@@ -14,6 +14,7 @@ func TestLoadServeConfigYAML(t *testing.T) {
 	path := filepath.Join(dir, "serve.yaml")
 	raw := []byte(`server:
   listen_address: "127.0.0.1:4318"
+  grpc_listen_address: "127.0.0.1:4317"
   max_request_bytes: 1048576
 runtime:
   flush_interval: 2s
@@ -39,6 +40,9 @@ overlays:
 	if cfg.Server.ListenAddress != "127.0.0.1:4318" {
 		t.Fatalf("listen address mismatch: %s", cfg.Server.ListenAddress)
 	}
+	if cfg.Server.GRPCListenAddress != "127.0.0.1:4317" {
+		t.Fatalf("gRPC listen address mismatch: %s", cfg.Server.GRPCListenAddress)
+	}
 	if got, want := cfg.Runtime.FlushInterval.Duration(), 2*time.Second; got != want {
 		t.Fatalf("flush interval mismatch: got=%s want=%s", got, want)
 	}
@@ -63,5 +67,16 @@ func TestServeConfigValidateRejectsInvalidLatePolicy(t *testing.T) {
 	cfg.Runtime.LateSpanPolicy = "unknown"
 	if err := cfg.Validate(); err == nil {
 		t.Fatal("expected validation error for invalid late policy")
+	}
+}
+
+func TestServeConfigValidateRejectsMatchingHTTPAndGRPCAddresses(t *testing.T) {
+	t.Parallel()
+
+	cfg := DefaultServeConfig()
+	cfg.Server.ListenAddress = "127.0.0.1:4318"
+	cfg.Server.GRPCListenAddress = "127.0.0.1:4318"
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("expected validation error for matching HTTP and gRPC addresses")
 	}
 }

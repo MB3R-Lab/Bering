@@ -18,7 +18,10 @@ import (
 	"github.com/MB3R-Lab/Bering/internal/connectors/traces"
 )
 
-const ConnectorName = "otlp_http"
+const (
+	HTTPConnectorName = "otlp_http"
+	GRPCConnectorName = "otlp_grpc"
+)
 
 func DecodeHTTPRequest(r *http.Request, maxBytes int64) ([]traces.Span, error) {
 	body, err := readBody(r, maxBytes)
@@ -39,10 +42,10 @@ func DecodePayload(contentType string, body []byte) ([]traces.Span, error) {
 			return nil, fmt.Errorf("decode otlp protobuf: %w", err)
 		}
 	}
-	return normalizeRequest(&req), nil
+	return NormalizeRequest(&req), nil
 }
 
-func normalizeRequest(req *collecttracev1.ExportTraceServiceRequest) []traces.Span {
+func NormalizeRequest(req *collecttracev1.ExportTraceServiceRequest) []traces.Span {
 	out := []traces.Span{}
 	for _, resourceSpans := range req.GetResourceSpans() {
 		resourceAttrs := resourceAttributes(resourceSpans.GetResource())

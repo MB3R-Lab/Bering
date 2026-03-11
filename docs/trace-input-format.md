@@ -1,6 +1,6 @@
 # Trace Input Format
 
-Bering supports two batch JSON formats and one runtime network ingest path.
+Bering supports two batch JSON formats and two runtime network ingest paths.
 
 ## 1) Normalized spans JSON
 
@@ -66,6 +66,15 @@ Supported request encodings:
 - optional `Content-Encoding: gzip`
 
 This is the primary integration path for any standard OpenTelemetry Collector or SDK exporter.
+
+## 4) Runtime OTLP/gRPC ingest
+
+`bering serve` optionally accepts OTLP/gRPC on `server.grpc_listen_address`.
+
+Supported request shape:
+
+- standard `opentelemetry.proto.collector.trace.v1.TraceService/Export`
+- protobuf OTLP payloads normalized through the same span conversion path as OTLP/HTTP
 
 ## Discovery-relevant attributes
 

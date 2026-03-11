@@ -16,6 +16,8 @@ import (
 	commonv1 "go.opentelemetry.io/proto/otlp/common/v1"
 	resourcev1 "go.opentelemetry.io/proto/otlp/resource/v1"
 	tracev1 "go.opentelemetry.io/proto/otlp/trace/v1"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/protobuf/proto"
 
 	"github.com/MB3R-Lab/Bering/internal/config"
@@ -27,6 +29,7 @@ func TestServiceEndToEndOTLPHTTP(t *testing.T) {
 	dir := t.TempDir()
 	cfg := config.DefaultServeConfig()
 	cfg.Server.ListenAddress = "127.0.0.1:0"
+	cfg.Server.GRPCListenAddress = ""
 	cfg.Runtime.WindowSize = config.Duration(150 * time.Millisecond)
 	cfg.Runtime.FlushInterval = config.Duration(25 * time.Millisecond)
 	cfg.Runtime.MaxInMemorySpans = 100
@@ -55,7 +58,7 @@ func TestServiceEndToEndOTLPHTTP(t *testing.T) {
 	}()
 
 	addr := waitForAddr(t, service, 2*time.Second)
-	postOTLPSpan(t, "http://"+addr+"/v1/traces")
+	postOTLPSpanHTTP(t, "http://"+addr+"/v1/traces")
 
 	waitForFile(t, cfg.Sink.LatestPath, 3*time.Second)
 	latestRaw, err := os.ReadFile(cfg.Sink.LatestPath)
@@ -77,6 +80,57 @@ func TestServiceEndToEndOTLPHTTP(t *testing.T) {
 	}
 }
 
+func TestServiceEndToEndOTLPGRPC(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	cfg := config.DefaultServeConfig()
+	cfg.Server.ListenAddress = "127.0.0.1:0"
+	cfg.Server.GRPCListenAddress = "127.0.0.1:0"
+	cfg.Runtime.WindowSize = config.Duration(150 * time.Millisecond)
+	cfg.Runtime.FlushInterval = config.Duration(25 * time.Millisecond)
+	cfg.Runtime.MaxInMemorySpans = 100
+	cfg.Sink.Directory = filepath.Join(dir, "snapshots")
+	cfg.Sink.LatestPath = filepath.Join(dir, "latest.json")
+
+	service, err := NewService(cfg, nil, slog.New(slog.NewTextHandler(ioDiscard{}, nil)))
+	if err != nil {
+		t.Fatalf("NewService returned error: %v", err)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	errCh := make(chan error, 1)
+	go func() { errCh <- service.Run(ctx) }()
+	defer func() {
+		cancel()
+		select {
+		case err := <-errCh:
+			if err != nil {
+				t.Fatalf("service returned error: %v", err)
+			}
+		case <-time.After(2 * time.Second):
+			t.Fatal("service did not stop in time")
+		}
+	}()
+
+	httpAddr := waitForAddr(t, service, 2*time.Second)
+	grpcAddr := waitForGRPCAddr(t, service, 2*time.Second)
+	postOTLPSpanGRPC(t, grpcAddr)
+
+	waitForFile(t, cfg.Sink.LatestPath, 3*time.Second)
+	latestRaw, err := os.ReadFile(cfg.Sink.LatestPath)
+	if err != nil {
+		t.Fatalf("read latest snapshot: %v", err)
+	}
+	if !bytes.Contains(latestRaw, []byte(`"snapshot_id"`)) {
+		t.Fatalf("latest snapshot missing snapshot_id: %s", latestRaw)
+	}
+
+	checkStatus(t, "http://"+httpAddr+"/healthz", http.StatusOK)
+	checkStatus(t, "http://"+httpAddr+"/readyz", http.StatusOK)
+}
+
 func waitForAddr(t *testing.T, service *Service, timeout time.Duration) string {
 	t.Helper()
 	deadline := time.Now().Add(timeout)
@@ -90,10 +144,55 @@ func waitForAddr(t *testing.T, service *Service, timeout time.Duration) string {
 	return ""
 }
 
-func postOTLPSpan(t *testing.T, url string) {
+func waitForGRPCAddr(t *testing.T, service *Service, timeout time.Duration) string {
 	t.Helper()
-	start := time.Now().UTC()
-	req := &collecttracev1.ExportTraceServiceRequest{
+	deadline := time.Now().Add(timeout)
+	for time.Now().Before(deadline) {
+		if addr := service.GRPCAddr(); addr != "" {
+			return addr
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	t.Fatal("service did not publish a gRPC address in time")
+	return ""
+}
+
+func postOTLPSpanHTTP(t *testing.T, url string) {
+	t.Helper()
+	raw, err := proto.Marshal(sampleOTLPRequest(time.Now().UTC()))
+	if err != nil {
+		t.Fatalf("marshal otlp request: %v", err)
+	}
+	resp, err := http.Post(url, "application/x-protobuf", bytes.NewReader(raw))
+	if err != nil {
+		t.Fatalf("post otlp span: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		t.Fatalf("unexpected status %d: %s", resp.StatusCode, body)
+	}
+}
+
+func postOTLPSpanGRPC(t *testing.T, addr string) {
+	t.Helper()
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	conn, err := grpc.DialContext(ctx, addr, grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithBlock())
+	if err != nil {
+		t.Fatalf("dial gRPC service: %v", err)
+	}
+	defer conn.Close()
+
+	client := collecttracev1.NewTraceServiceClient(conn)
+	if _, err := client.Export(ctx, sampleOTLPRequest(time.Now().UTC())); err != nil {
+		t.Fatalf("export OTLP/gRPC request: %v", err)
+	}
+}
+
+func sampleOTLPRequest(start time.Time) *collecttracev1.ExportTraceServiceRequest {
+	return &collecttracev1.ExportTraceServiceRequest{
 		ResourceSpans: []*tracev1.ResourceSpans{{
 			Resource: &resourcev1.Resource{Attributes: []*commonv1.KeyValue{{Key: "service.name", Value: &commonv1.AnyValue{Value: &commonv1.AnyValue_StringValue{StringValue: "frontend"}}}}},
 			ScopeSpans: []*tracev1.ScopeSpans{{
@@ -111,19 +210,6 @@ func postOTLPSpan(t *testing.T, url string) {
 				}},
 			}},
 		}},
-	}
-	raw, err := proto.Marshal(req)
-	if err != nil {
-		t.Fatalf("marshal otlp request: %v", err)
-	}
-	resp, err := http.Post(url, "application/x-protobuf", bytes.NewReader(raw))
-	if err != nil {
-		t.Fatalf("post otlp span: %v", err)
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		t.Fatalf("unexpected status %d: %s", resp.StatusCode, body)
 	}
 }
 

@@ -67,8 +67,9 @@ type ServeConfig struct {
 }
 
 type ServerConfig struct {
-	ListenAddress   string `json:"listen_address" yaml:"listen_address"`
-	MaxRequestBytes int64  `json:"max_request_bytes" yaml:"max_request_bytes"`
+	ListenAddress     string `json:"listen_address" yaml:"listen_address"`
+	GRPCListenAddress string `json:"grpc_listen_address" yaml:"grpc_listen_address"`
+	MaxRequestBytes   int64  `json:"max_request_bytes" yaml:"max_request_bytes"`
 }
 
 type RuntimeConfig struct {
@@ -90,8 +91,9 @@ type LoggingConfig struct {
 func DefaultServeConfig() ServeConfig {
 	return ServeConfig{
 		Server: ServerConfig{
-			ListenAddress:   ":8080",
-			MaxRequestBytes: 5 << 20,
+			ListenAddress:     ":8080",
+			GRPCListenAddress: "",
+			MaxRequestBytes:   5 << 20,
 		},
 		Runtime: RuntimeConfig{
 			FlushInterval:    Duration(5 * time.Second),
@@ -131,6 +133,9 @@ func LoadServeConfig(path string) (ServeConfig, error) {
 func (c ServeConfig) Validate() error {
 	if strings.TrimSpace(c.Server.ListenAddress) == "" {
 		return fmt.Errorf("server.listen_address cannot be empty")
+	}
+	if grpcAddress := strings.TrimSpace(c.Server.GRPCListenAddress); grpcAddress != "" && grpcAddress == strings.TrimSpace(c.Server.ListenAddress) {
+		return fmt.Errorf("server.grpc_listen_address must differ from server.listen_address")
 	}
 	if c.Server.MaxRequestBytes <= 0 {
 		return fmt.Errorf("server.max_request_bytes must be > 0")

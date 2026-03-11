@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -41,6 +42,7 @@ type windowState struct {
 	end     time.Time
 	spans   []traces.Span
 	traces  map[string]struct{}
+	sources map[string]snapshot.SourceSummary
 	dropped int
 	late    int
 }
@@ -73,14 +75,19 @@ func NewEngine(cfg EngineConfig) (*Engine, error) {
 	return &Engine{
 		cfg: cfg,
 		current: windowState{
-			start:  start,
-			end:    end,
-			traces: map[string]struct{}{},
+			start:   start,
+			end:     end,
+			traces:  map[string]struct{}{},
+			sources: map[string]snapshot.SourceSummary{},
 		},
 	}, nil
 }
 
 func (e *Engine) Ingest(ctx context.Context, spans []traces.Span, receivedAt time.Time) error {
+	return e.IngestWithSource(ctx, spans, receivedAt, snapshot.SourceSummary{})
+}
+
+func (e *Engine) IngestWithSource(ctx context.Context, spans []traces.Span, receivedAt time.Time, source snapshot.SourceSummary) error {
 	if receivedAt.IsZero() {
 		receivedAt = e.cfg.Now().UTC()
 	}
@@ -91,6 +98,7 @@ func (e *Engine) Ingest(ctx context.Context, spans []traces.Span, receivedAt tim
 
 	e.mu.Lock()
 	defer e.mu.Unlock()
+	mergeWindowSourceSummary(&e.current, defaultSourceSummary(source, e.cfg.Sources), len(spans))
 
 	dropped := 0
 	lateDropped := 0
@@ -178,7 +186,7 @@ func (e *Engine) flushCurrent(ctx context.Context, now time.Time, force bool) er
 		SourceRef:    e.cfg.SourceRef,
 		DiscoveredAt: current.end.Format(time.RFC3339),
 		Overlays:     e.cfg.Overlays,
-		Sources:      e.cfg.Sources,
+		Sources:      currentSources(current, e.cfg.Sources),
 		RuntimeMode:  true,
 	})
 	if err != nil {
@@ -254,7 +262,67 @@ func alignWindow(now time.Time, size time.Duration) (time.Time, time.Time) {
 
 func newWindow(start time.Time, size time.Duration) windowState {
 	start = start.UTC()
-	return windowState{start: start, end: start.Add(size), traces: map[string]struct{}{}}
+	return windowState{
+		start:   start,
+		end:     start.Add(size),
+		traces:  map[string]struct{}{},
+		sources: map[string]snapshot.SourceSummary{},
+	}
+}
+
+func currentSources(current windowState, fallback []snapshot.SourceSummary) []snapshot.SourceSummary {
+	if len(current.sources) == 0 {
+		return fallback
+	}
+	out := make([]snapshot.SourceSummary, 0, len(current.sources))
+	for _, item := range current.sources {
+		out = append(out, item)
+	}
+	sort.Slice(out, func(i, j int) bool {
+		left, right := out[i], out[j]
+		if left.Type != right.Type {
+			return left.Type < right.Type
+		}
+		if left.Connector != right.Connector {
+			return left.Connector < right.Connector
+		}
+		return left.Ref < right.Ref
+	})
+	return out
+}
+
+func defaultSourceSummary(source snapshot.SourceSummary, fallback []snapshot.SourceSummary) snapshot.SourceSummary {
+	if strings.TrimSpace(source.Type) != "" {
+		return source
+	}
+	if len(fallback) > 0 {
+		return fallback[0]
+	}
+	return snapshot.SourceSummary{Type: "traces", Connector: "trace_file"}
+}
+
+func mergeWindowSourceSummary(current *windowState, source snapshot.SourceSummary, observations int) {
+	if current == nil || observations <= 0 {
+		return
+	}
+	if current.sources == nil {
+		current.sources = map[string]snapshot.SourceSummary{}
+	}
+	source.Type = strings.TrimSpace(source.Type)
+	if source.Type == "" {
+		source.Type = "traces"
+	}
+	key := sourceSummaryKey(source)
+	merged := current.sources[key]
+	if merged.Type == "" {
+		merged = source
+	}
+	merged.Observations += observations
+	current.sources[key] = merged
+}
+
+func sourceSummaryKey(source snapshot.SourceSummary) string {
+	return strings.TrimSpace(source.Type) + "|" + strings.TrimSpace(source.Connector) + "|" + strings.TrimSpace(source.Ref)
 }
 
 func carryForwardObservationTimes(previous *snapshot.Envelope, current *snapshot.Envelope) {

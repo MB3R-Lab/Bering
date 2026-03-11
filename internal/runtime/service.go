@@ -11,6 +11,9 @@ import (
 	"time"
 
 	collecttracev1 "go.opentelemetry.io/proto/otlp/collector/trace/v1"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 
@@ -22,13 +25,15 @@ import (
 )
 
 type Service struct {
-	cfg      config.ServeConfig
-	logger   *slog.Logger
-	metrics  *Metrics
-	engine   *Engine
-	server   *http.Server
-	listener net.Listener
-	ready    atomic.Bool
+	cfg          config.ServeConfig
+	logger       *slog.Logger
+	metrics      *Metrics
+	engine       *Engine
+	httpServer   *http.Server
+	httpListener net.Listener
+	grpcServer   *grpc.Server
+	grpcListener net.Listener
+	ready        atomic.Bool
 }
 
 func NewService(cfg config.ServeConfig, overlays []overlay.File, logger *slog.Logger) (*Service, error) {
@@ -44,7 +49,7 @@ func NewService(cfg config.ServeConfig, overlays []overlay.File, logger *slog.Lo
 		Metrics:          metrics,
 		Logger:           logger,
 		SourceRef:        discovery.BuildServeSourceRef(cfg.Server.ListenAddress),
-		Sources:          []snapshot.SourceSummary{{Type: "traces", Connector: otlp.ConnectorName, Ref: discovery.BuildServeSourceRef(cfg.Server.ListenAddress)}},
+		Sources:          []snapshot.SourceSummary{{Type: "traces", Connector: otlp.HTTPConnectorName, Ref: discovery.BuildServeSourceRef(cfg.Server.ListenAddress)}},
 		Overlays:         overlays,
 	})
 	if err != nil {
@@ -56,23 +61,42 @@ func NewService(cfg config.ServeConfig, overlays []overlay.File, logger *slog.Lo
 	mux.HandleFunc("/healthz", service.handleHealth)
 	mux.HandleFunc("/readyz", service.handleReady)
 	mux.Handle("/metrics", metrics.Handler())
-	service.server = &http.Server{Handler: mux, ReadHeaderTimeout: 5 * time.Second}
+	service.httpServer = &http.Server{Handler: mux, ReadHeaderTimeout: 5 * time.Second}
+	if strings.TrimSpace(cfg.Server.GRPCListenAddress) != "" {
+		service.grpcServer = grpc.NewServer(grpc.MaxRecvMsgSize(grpcMaxRecvMsgSize(cfg.Server.MaxRequestBytes)))
+		collecttracev1.RegisterTraceServiceServer(service.grpcServer, grpcTraceService{service: service})
+	}
 	return service, nil
 }
 
 func (s *Service) Addr() string {
-	if s.listener == nil {
+	if s.httpListener == nil {
 		return ""
 	}
-	return s.listener.Addr().String()
+	return s.httpListener.Addr().String()
+}
+
+func (s *Service) GRPCAddr() string {
+	if s.grpcListener == nil {
+		return ""
+	}
+	return s.grpcListener.Addr().String()
 }
 
 func (s *Service) Run(ctx context.Context) error {
-	listener, err := net.Listen("tcp", s.cfg.Server.ListenAddress)
+	httpListener, err := net.Listen("tcp", s.cfg.Server.ListenAddress)
 	if err != nil {
 		return fmt.Errorf("listen on %s: %w", s.cfg.Server.ListenAddress, err)
 	}
-	s.listener = listener
+	s.httpListener = httpListener
+	if s.grpcServer != nil {
+		grpcListener, err := net.Listen("tcp", s.cfg.Server.GRPCListenAddress)
+		if err != nil {
+			_ = httpListener.Close()
+			return fmt.Errorf("listen on %s: %w", s.cfg.Server.GRPCListenAddress, err)
+		}
+		s.grpcListener = grpcListener
+	}
 	s.ready.Store(true)
 
 	errCh := make(chan error, 1)
@@ -92,20 +116,33 @@ func (s *Service) Run(ctx context.Context) error {
 		}
 	}()
 	go func() {
-		if err := s.server.Serve(listener); err != nil && err != http.ErrServerClosed {
-			errCh <- err
+		if err := s.httpServer.Serve(httpListener); err != nil && err != http.ErrServerClosed {
+			sendServeError(errCh, err)
 		}
 	}()
+	if s.grpcServer != nil {
+		go func() {
+			if err := s.grpcServer.Serve(s.grpcListener); err != nil {
+				sendServeError(errCh, err)
+			}
+		}()
+	}
 
-	s.logger.Info("bering runtime service listening", slog.String("address", listener.Addr().String()))
+	s.logger.Info("bering runtime HTTP service listening", slog.String("address", httpListener.Addr().String()))
+	if s.grpcListener != nil {
+		s.logger.Info("bering runtime gRPC service listening", slog.String("address", s.grpcListener.Addr().String()))
+	}
 
 	select {
 	case <-ctx.Done():
 		s.ready.Store(false)
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
-		if err := s.server.Shutdown(shutdownCtx); err != nil {
+		if err := s.httpServer.Shutdown(shutdownCtx); err != nil {
 			return fmt.Errorf("http shutdown: %w", err)
+		}
+		if err := stopGRPCServer(shutdownCtx, s.grpcServer); err != nil {
+			return fmt.Errorf("grpc shutdown: %w", err)
 		}
 		if err := s.engine.Close(shutdownCtx); err != nil {
 			return fmt.Errorf("flush final snapshot: %w", err)
@@ -115,7 +152,8 @@ func (s *Service) Run(ctx context.Context) error {
 		s.ready.Store(false)
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
-		_ = s.server.Shutdown(shutdownCtx)
+		_ = s.httpServer.Shutdown(shutdownCtx)
+		_ = stopGRPCServer(shutdownCtx, s.grpcServer)
 		return err
 	}
 }
@@ -131,7 +169,11 @@ func (s *Service) handleOTLP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	if err := s.engine.Ingest(r.Context(), spans, time.Now().UTC()); err != nil {
+	if err := s.engine.IngestWithSource(r.Context(), spans, time.Now().UTC(), snapshot.SourceSummary{
+		Type:      "traces",
+		Connector: otlp.HTTPConnectorName,
+		Ref:       discovery.BuildServeSourceRef(s.cfg.Server.ListenAddress),
+	}); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -179,4 +221,61 @@ func writeOTLPResponse(w http.ResponseWriter, r *http.Request) error {
 
 func stringsContainsJSON(contentType string) bool {
 	return strings.Contains(strings.ToLower(contentType), "json")
+}
+
+type grpcTraceService struct {
+	collecttracev1.UnimplementedTraceServiceServer
+	service *Service
+}
+
+func (g grpcTraceService) Export(ctx context.Context, req *collecttracev1.ExportTraceServiceRequest) (*collecttracev1.ExportTraceServiceResponse, error) {
+	spans := otlp.NormalizeRequest(req)
+	if err := g.service.engine.IngestWithSource(ctx, spans, time.Now().UTC(), snapshot.SourceSummary{
+		Type:      "traces",
+		Connector: otlp.GRPCConnectorName,
+		Ref:       discovery.BuildServeSourceRef(g.service.cfg.Server.GRPCListenAddress),
+	}); err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+	return &collecttracev1.ExportTraceServiceResponse{}, nil
+}
+
+func grpcMaxRecvMsgSize(maxBytes int64) int {
+	maxInt := int(^uint(0) >> 1)
+	if maxBytes <= 0 {
+		return maxInt
+	}
+	if maxBytes > int64(maxInt) {
+		return maxInt
+	}
+	return int(maxBytes)
+}
+
+func sendServeError(errCh chan<- error, err error) {
+	if err == nil {
+		return
+	}
+	select {
+	case errCh <- err:
+	default:
+	}
+}
+
+func stopGRPCServer(ctx context.Context, server *grpc.Server) error {
+	if server == nil {
+		return nil
+	}
+	done := make(chan struct{})
+	go func() {
+		server.GracefulStop()
+		close(done)
+	}()
+	select {
+	case <-done:
+		return nil
+	case <-ctx.Done():
+		server.Stop()
+		<-done
+		return ctx.Err()
+	}
 }

@@ -14,8 +14,8 @@ Bering now has two user-facing flows built on one normalized discovery core.
 
 ### Runtime flow
 
-1. `bering serve` accepts OTLP/HTTP `POST /v1/traces` requests.
-2. OTLP requests are normalized into the same internal `traces.Span` shape used by batch mode.
+1. `bering serve` accepts OTLP/HTTP `POST /v1/traces` requests and optional OTLP/gRPC trace export requests.
+2. Both OTLP transports are normalized into the same internal `traces.Span` shape used by batch mode.
 3. Spans are accumulated in a bounded active tumbling window.
 4. On schedule, the window closes and Bering runs discovery.
 5. Bering computes a stable topology digest, diffs against the previous snapshot, and writes the snapshot to sinks.
@@ -43,7 +43,7 @@ Fields used today:
 - timestamps: `start_time`, `end_time`
 - discovery-relevant attributes: HTTP and messaging attributes
 
-This keeps discovery logic source-agnostic. File JSON, OTLP/HTTP, and future adapters all converge on the same shape.
+This keeps discovery logic source-agnostic. File JSON, OTLP/HTTP, OTLP/gRPC, and future adapters all converge on the same shape.
 
 ## Contracts
 

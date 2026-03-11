@@ -46,7 +46,7 @@ func TestDiscoverAndValidate_NormalizedFixture(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read expected output: %v", err)
 	}
-	if !bytes.Equal(actualRaw, expectedRaw) {
+	if !bytes.Equal(normalizeNewlines(actualRaw), normalizeNewlines(expectedRaw)) {
 		t.Fatalf("discover output mismatch\nactual:\n%s\nexpected:\n%s", actualRaw, expectedRaw)
 	}
 
@@ -96,7 +96,7 @@ func TestDiscoverAndValidate_OTLPFixture(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read expected output: %v", err)
 	}
-	if !bytes.Equal(actualRaw, expectedRaw) {
+	if !bytes.Equal(normalizeNewlines(actualRaw), normalizeNewlines(expectedRaw)) {
 		t.Fatalf("discover output mismatch\nactual:\n%s\nexpected:\n%s", actualRaw, expectedRaw)
 	}
 
@@ -168,4 +168,8 @@ func repoRoot(t *testing.T) string {
 		t.Fatal("runtime.Caller failed")
 	}
 	return filepath.Clean(filepath.Join(filepath.Dir(thisFile), "..", ".."))
+}
+
+func normalizeNewlines(raw []byte) []byte {
+	return bytes.ReplaceAll(raw, []byte("\r\n"), []byte("\n"))
 }

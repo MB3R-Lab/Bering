@@ -5,7 +5,7 @@ Bering is a discovery and publishing layer for service topology and endpoint con
 It supports two operating modes:
 
 - deterministic batch discovery from trace files and directories
-- long-running runtime discovery that accepts OTLP/HTTP spans and publishes rolling snapshot envelopes for observability consumers
+- long-running runtime discovery that accepts OTLP/HTTP and optional OTLP/gRPC spans and publishes rolling snapshot envelopes for observability consumers
 
 Bering owns discovery and discovery-side public contracts. It does not own simulation, gating, chaos execution, or policy decisions.
 
@@ -40,7 +40,7 @@ cmd/bering                    CLI entrypoint
 internal/app                  command wiring
 internal/config               serve-mode config parsing and validation
 internal/connectors/traces    file/dir trace loading and normalization
-internal/connectors/otlp      OTLP/HTTP request decoding into normalized spans
+internal/connectors/otlp      OTLP request decoding into normalized spans
 internal/discovery            source-agnostic discovery engine and overlay application
 internal/model                stable core model structs, semantic checks, canonical IO
 internal/overlay              generic discovery overlay loader
@@ -59,7 +59,7 @@ scripts/ci                    CI helper scripts
 ```bash
 bering discover --input <trace-file|dir> [--out bering-model.json] [--snapshot-out bering-snapshot.json] [--replicas replicas.yaml|json] [--overlay overlay.yaml] [--discovered-at RFC3339]
 bering validate --input <bering-model.json|bering-snapshot.json>
-bering serve --config configs/serve.sample.yaml [--listen :4318] [--window-size 30s] [--flush-interval 5s]
+bering serve --config configs/serve.sample.yaml [--listen :4318] [--grpc-listen :4317] [--window-size 30s] [--flush-interval 5s]
 ```
 
 ## Quickstart
@@ -100,11 +100,12 @@ go run ./cmd/bering serve --config configs/serve.sample.yaml
 The runtime service exposes:
 
 - `POST /v1/traces` for OTLP/HTTP trace ingest
+- OTLP/gRPC trace export service on the configured gRPC address
 - `GET /healthz`
 - `GET /readyz`
 - `GET /metrics`
 
-The primary integration path is standard OpenTelemetry Collector or SDK exporters sending spans to Bering over OTLP/HTTP. No custom Collector build is required.
+The primary integration path remains standard OpenTelemetry Collector or SDK exporters sending spans to Bering over OTLP/HTTP. OTLP/gRPC is also supported for grpc-first collector topologies. No custom Collector build is required.
 
 ### 5) Use the stable model with Sheaft
 
