@@ -1,0 +1,90 @@
+# Override release naming if needed.
+nameOverride: ""
+fullnameOverride: ""
+
+replicaCount: 1
+
+image:
+  repository: ghcr.io/mb3r-lab/bering
+  tag: ""
+  digest: ""
+  pullPolicy: IfNotPresent
+
+serviceAccount:
+  create: true
+  name: ""
+  automount: false
+  annotations: {}
+
+podAnnotations: {}
+podLabels: {}
+
+podSecurityContext:
+  fsGroup: 65532
+
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 65532
+  runAsGroup: 65532
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop:
+      - ALL
+
+service:
+  type: ClusterIP
+  annotations: {}
+  ports:
+    http:
+      port: 8080
+      targetPort: 8080
+    grpc:
+      enabled: false
+      port: 4317
+      targetPort: 4317
+
+resources: {}
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+env: []
+envFrom: []
+extraArgs: []
+extraVolumes: []
+extraVolumeMounts: []
+
+persistence:
+  enabled: false
+  existingClaim: ""
+  accessModes:
+    - ReadWriteOnce
+  size: 10Gi
+  storageClassName: ""
+
+config:
+  existingConfigMap: ""
+  fileName: serve.yaml
+  server:
+    listenAddress: ""
+    grpcListenAddress: ""
+    maxRequestBytes: 5242880
+  runtime:
+    flushInterval: 5s
+    windowSize: 30s
+    maxInMemorySpans: 10000
+    lateSpanPolicy: drop
+  sink:
+    directory: /var/lib/bering/snapshots
+    latestPath: ""
+  logging:
+    structured: true
+  overlays: []
+
+serviceMonitor:
+  enabled: false
+  interval: 30s
+  scrapeTimeout: 10s
+  labels: {}

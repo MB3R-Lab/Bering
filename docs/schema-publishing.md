@@ -2,6 +2,8 @@
 
 This repository publishes the public model and snapshot schemas through GitHub Pages.
 
+GitHub Pages is a distribution surface for schema URIs, not the canonical release source of truth. The canonical release metadata for automation is the generated `contracts-manifest.json` and `release-manifest.json` in `dist/`.
+
 ## One-time repository setup
 
 1. Open `Settings -> Pages`.

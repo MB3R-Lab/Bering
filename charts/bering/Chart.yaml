@@ -1,0 +1,13 @@
+apiVersion: v2
+name: bering
+description: OCI-publishable Helm chart for the Bering discovery runtime
+type: application
+version: 0.0.0
+appVersion: 0.0.0
+keywords:
+  - topology
+  - discovery
+  - observability
+home: https://github.com/MB3R-Lab/Bering
+sources:
+  - https://github.com/MB3R-Lab/Bering

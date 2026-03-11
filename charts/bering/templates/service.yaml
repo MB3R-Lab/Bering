@@ -1,0 +1,25 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "bering.fullname" . }}
+  labels:
+    {{- include "bering.labels" . | nindent 4 }}
+  {{- with .Values.service.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  type: {{ .Values.service.type }}
+  selector:
+    {{- include "bering.selectorLabels" . | nindent 4 }}
+  ports:
+    - name: http
+      protocol: TCP
+      port: {{ .Values.service.ports.http.port }}
+      targetPort: {{ .Values.service.ports.http.targetPort }}
+    {{- if .Values.service.ports.grpc.enabled }}
+    - name: otlp-grpc
+      protocol: TCP
+      port: {{ .Values.service.ports.grpc.port }}
+      targetPort: {{ .Values.service.ports.grpc.targetPort }}
+    {{- end }}

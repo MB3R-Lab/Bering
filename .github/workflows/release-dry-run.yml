@@ -1,0 +1,72 @@
+name: Release Dry Run
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  dry-run:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      VERSION: 0.0.0-dev
+      PUBLISH_OCI: "0"
+      GORELEASER_VERSION: v2.14.3
+      SYFT_VERSION: v1.40.0
+      HELM_VERSION: v3.19.1
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Install GoReleaser
+        run: go install github.com/goreleaser/goreleaser/v2@${{ env.GORELEASER_VERSION }}
+
+      - name: Install Syft
+        run: go install github.com/anchore/syft/cmd/syft@${{ env.SYFT_VERSION }}
+
+      - name: Install Helm
+        shell: bash
+        run: |
+          set -euo pipefail
+          export DESIRED_VERSION="${HELM_VERSION}"
+          curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+
+      - name: Add Go bin to PATH
+        shell: bash
+        run: echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+
+      - name: Run Release Dry Run
+        shell: bash
+        env:
+          GIT_SHA: ${{ github.sha }}
+          IMAGE_REPOSITORY: ghcr.io/${{ github.repository }}
+          CHART_OCI_REPOSITORY: oci://ghcr.io/${{ github.repository_owner }}/charts
+        run: |
+          set -euo pipefail
+          BUILD_DATE="$(git show -s --format=%cI HEAD)"
+          IMAGE_REPOSITORY="$(echo "${IMAGE_REPOSITORY}" | tr '[:upper:]' '[:lower:]')"
+          CHART_OCI_REPOSITORY="$(echo "${CHART_OCI_REPOSITORY}" | tr '[:upper:]' '[:lower:]')"
+          make release-dry-run \
+            VERSION="${VERSION}" \
+            BUILD_DATE="${BUILD_DATE}" \
+            GIT_SHA="${GIT_SHA}" \
+            IMAGE_REPOSITORY="${IMAGE_REPOSITORY}" \
+            CHART_OCI_REPOSITORY="${CHART_OCI_REPOSITORY}"
+
+      - name: Upload Dist Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-dry-run-dist
+          path: dist
+          if-no-files-found: error

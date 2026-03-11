@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:io.mb3r.bering:contracts-manifest:1.0.0",
+  "title": "BeringContractsManifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "product_name",
+    "app_version",
+    "generated_at",
+    "contracts"
+  ],
+  "properties": {
+    "schema": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "version", "uri"],
+      "properties": {
+        "name": { "const": "io.mb3r.bering.contracts-manifest" },
+        "version": { "const": "1.0.0" },
+        "uri": { "const": "urn:io.mb3r.bering:contracts-manifest:1.0.0" }
+      }
+    },
+    "product_name": { "type": "string", "const": "bering" },
+    "app_version": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(?:-[0-9A-Za-z.-]+)?(?:\\+[0-9A-Za-z.-]+)?$"
+    },
+    "generated_at": { "type": "string", "format": "date-time" },
+    "contracts": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "version", "kind", "file", "uri", "digest"],
+        "properties": {
+          "name": { "type": "string" },
+          "version": { "type": "string" },
+          "kind": { "type": "string" },
+          "file": { "type": "string" },
+          "uri": { "type": "string", "format": "uri" },
+          "digest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" }
+        }
+      }
+    }
+  }
+}

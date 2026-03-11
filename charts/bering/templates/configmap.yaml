@@ -1,0 +1,30 @@
+{{- if not .Values.config.existingConfigMap }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "bering.configMapName" . }}
+  labels:
+    {{- include "bering.labels" . | nindent 4 }}
+data:
+  {{ .Values.config.fileName }}: |
+    server:
+      listen_address: {{ include "bering.httpListenAddress" . | quote }}
+      grpc_listen_address: {{ include "bering.grpcListenAddress" . | quote }}
+      max_request_bytes: {{ .Values.config.server.maxRequestBytes }}
+    runtime:
+      flush_interval: {{ .Values.config.runtime.flushInterval | quote }}
+      window_size: {{ .Values.config.runtime.windowSize | quote }}
+      max_in_memory_spans: {{ .Values.config.runtime.maxInMemorySpans }}
+      late_span_policy: {{ .Values.config.runtime.lateSpanPolicy | quote }}
+    sink:
+      directory: {{ .Values.config.sink.directory | quote }}
+      latest_path: {{ .Values.config.sink.latestPath | quote }}
+    logging:
+      structured: {{ .Values.config.logging.structured }}
+{{- if .Values.config.overlays }}
+    overlays:
+{{ toYaml .Values.config.overlays | nindent 6 }}
+{{- else }}
+    overlays: []
+{{- end }}
+{{- end }}

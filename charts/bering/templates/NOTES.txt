@@ -1,0 +1,8 @@
+Bering has been deployed.
+
+Release name: {{ .Release.Name }}
+Service: {{ include "bering.fullname" . }}
+Image: {{ include "bering.image" . }}
+
+The runtime entrypoint remains the container default binary, with Helm supplying:
+  bering serve --config /etc/bering/{{ .Values.config.fileName }}

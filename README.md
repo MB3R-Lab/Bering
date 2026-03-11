@@ -184,12 +184,16 @@ The runtime service exports Prometheus/OpenMetrics metrics including:
 ## Additional docs
 
 - [docs/architecture.md](docs/architecture.md)
+- [docs/install.md](docs/install.md)
+- [docs/release-assets.md](docs/release-assets.md)
 - [docs/runtime-config.md](docs/runtime-config.md)
 - [docs/trace-input-format.md](docs/trace-input-format.md)
 - [docs/topology-input-format.md](docs/topology-input-format.md)
 - [docs/schema-publishing.md](docs/schema-publishing.md)
 - [docs/migration-notes.md](docs/migration-notes.md)
 - [docs/mvp-scope-and-limits.md](docs/mvp-scope-and-limits.md)
+- [RELEASING.md](RELEASING.md)
+- [VERSIONING.md](VERSIONING.md)
 
 ## CI and local checks
 
@@ -197,6 +201,7 @@ The runtime service exports Prometheus/OpenMetrics metrics including:
 make lint
 make test
 make build
+make release-dry-run
 ```
 
 ## License
