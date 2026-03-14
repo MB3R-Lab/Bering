@@ -61,8 +61,14 @@ func ValidateRelease(opts ValidateOptions) error {
 	if releaseManifest.AppVersion != opts.AppVersion {
 		return fmt.Errorf("release manifest app version mismatch: got=%s want=%s", releaseManifest.AppVersion, opts.AppVersion)
 	}
-	if strings.TrimSpace(opts.BuildDate) != "" && releaseManifest.BuildDate != strings.TrimSpace(opts.BuildDate) {
-		return fmt.Errorf("release manifest build date mismatch: got=%s want=%s", releaseManifest.BuildDate, strings.TrimSpace(opts.BuildDate))
+	if strings.TrimSpace(opts.BuildDate) != "" {
+		expectedBuildDate, err := normalizeBuildDate(opts.BuildDate)
+		if err != nil {
+			return err
+		}
+		if releaseManifest.BuildDate != expectedBuildDate {
+			return fmt.Errorf("release manifest build date mismatch: got=%s want=%s", releaseManifest.BuildDate, expectedBuildDate)
+		}
 	}
 	if !contractsEqual(releaseManifest.Contracts, contractsManifest.Contracts) {
 		return fmt.Errorf("release manifest contracts do not match contracts manifest")
@@ -247,4 +253,12 @@ func readJSON(path string, target any) error {
 		return err
 	}
 	return json.Unmarshal(raw, target)
+}
+
+func normalizeBuildDate(value string) (string, error) {
+	ts, err := parseBuildDate(value)
+	if err != nil {
+		return "", err
+	}
+	return ts.Format(timeRFC3339), nil
 }

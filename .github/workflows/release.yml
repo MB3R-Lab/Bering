@@ -92,10 +92,10 @@ jobs:
           done
           if gh release view "${GITHUB_REF_NAME}" >/dev/null 2>&1; then
             gh release upload "${GITHUB_REF_NAME}" "${args[@]}" --clobber
-            gh release edit "${GITHUB_REF_NAME}" --title "${GITHUB_REF_NAME}" --notes-file dist/release-notes.md
+            gh release edit "${GITHUB_REF_NAME}" --title "Bering ${GITHUB_REF_NAME}" --notes-file dist/release-notes.md
           else
             gh release create "${GITHUB_REF_NAME}" \
               "${args[@]}" \
-              --title "${GITHUB_REF_NAME}" \
+              --title "Bering ${GITHUB_REF_NAME}" \
               --notes-file dist/release-notes.md
           fi

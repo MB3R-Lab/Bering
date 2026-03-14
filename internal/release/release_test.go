@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 	"time"
 )
@@ -154,6 +155,89 @@ func TestValidateReleaseFailsOnChecksumDrift(t *testing.T) {
 		BuildDate:  testBuildDate,
 	}); err == nil {
 		t.Fatal("expected checksum validation failure")
+	}
+}
+
+func TestValidateReleaseNormalizesBuildDate(t *testing.T) {
+	t.Parallel()
+
+	repoRoot := testRepoRoot(t)
+	distDir := filepath.Join(t.TempDir(), "dist")
+	if err := ensureDir(distDir); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, _, err := GenerateContractsPack(ContractsPackOptions{
+		RepoRoot:   repoRoot,
+		DistDir:    distDir,
+		AppVersion: testVersion,
+		BuildDate:  testBuildDate,
+	}); err != nil {
+		t.Fatalf("generate contracts pack: %v", err)
+	}
+
+	writeTestGoreleaserArtifacts(t, distDir)
+	writeTestChartMetadata(t, distDir)
+	writeTestOCIImageMetadata(t, distDir)
+
+	if _, err := GenerateReleaseManifest(ReleaseManifestOptions{
+		RepoRoot:   repoRoot,
+		DistDir:    distDir,
+		AppVersion: testVersion,
+		GitCommit:  testGitSHA,
+		GitTag:     TagForVersion(testVersion),
+		BuildDate:  testBuildDate,
+	}); err != nil {
+		t.Fatalf("generate release manifest: %v", err)
+	}
+
+	if err := ValidateRelease(ValidateOptions{
+		RepoRoot:   repoRoot,
+		DistDir:    distDir,
+		AppVersion: testVersion,
+		BuildDate:  "2026-03-11T15:00:00+03:00",
+	}); err != nil {
+		t.Fatalf("validate release with equivalent timestamp: %v", err)
+	}
+}
+
+func TestExtractChangelogSection(t *testing.T) {
+	t.Parallel()
+
+	markdown := strings.Join([]string{
+		"# Changelog",
+		"",
+		"## v0.1.0",
+		"",
+		"First public release.",
+		"",
+		"## v0.0.1",
+		"",
+		"Bootstrap.",
+		"",
+	}, "\n")
+
+	section, ok := extractChangelogSection(markdown, "0.1.0")
+	if !ok {
+		t.Fatal("expected changelog section to be found")
+	}
+
+	want := strings.Join([]string{
+		"## v0.1.0",
+		"",
+		"First public release.",
+		"",
+	}, "\n")
+	if section != want {
+		t.Fatalf("unexpected changelog section:\nwant:\n%s\ngot:\n%s", want, section)
+	}
+}
+
+func TestExtractChangelogSectionMissing(t *testing.T) {
+	t.Parallel()
+
+	if section, ok := extractChangelogSection("# Changelog\n", "9.9.9"); ok || section != "" {
+		t.Fatalf("expected missing section, got ok=%t section=%q", ok, section)
 	}
 }
 

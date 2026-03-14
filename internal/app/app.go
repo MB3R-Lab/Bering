@@ -313,7 +313,7 @@ func (r Runner) printUsage() {
 	fmt.Fprintln(r.stdout, "Usage:")
 	fmt.Fprintln(r.stdout, "  bering discover --input <trace-file|topology-file|dir> [--out bering-model.json] [--snapshot-out bering-snapshot.json] [--replicas replicas.yaml|json] [--overlay overlay.yaml] [--discovered-at RFC3339]")
 	fmt.Fprintln(r.stdout, "  bering validate --input <bering-model.json|bering-snapshot.json>")
-	fmt.Fprintln(r.stdout, "  bering serve --config configs/serve.sample.yaml [--listen :8080] [--grpc-listen :4317] [--window-size 30s] [--flush-interval 5s]")
+	fmt.Fprintln(r.stdout, "  bering serve --config configs/serve.sample.yaml [--listen :4318] [--grpc-listen :4317] [--window-size 30s] [--flush-interval 5s]")
 }
 
 func (r Runner) printf(format string, args ...any) {

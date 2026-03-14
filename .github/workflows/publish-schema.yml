@@ -36,11 +36,14 @@ jobs:
             grep -E "^[[:space:]]*${key}[[:space:]]*=" internal/schema/constants.go | sed -E 's/.*"([^"]+)".*/\1/'
           }
 
-          SCHEMA_VERSION="$(extract_const ExpectedSchemaVersion)"
-          SCHEMA_URI="$(extract_const ExpectedSchemaURI)"
-          SCHEMA_DIGEST="$(extract_const ExpectedSchemaDigest)"
+          MODEL_SCHEMA_VERSION="$(extract_const ExpectedSchemaVersion)"
+          MODEL_SCHEMA_URI="$(extract_const ExpectedSchemaURI)"
+          MODEL_SCHEMA_DIGEST="$(extract_const ExpectedSchemaDigest)"
+          SNAPSHOT_SCHEMA_VERSION="$(extract_const ExpectedSnapshotSchemaVersion)"
+          SNAPSHOT_SCHEMA_URI="$(extract_const ExpectedSnapshotSchemaURI)"
+          SNAPSHOT_SCHEMA_DIGEST="$(extract_const ExpectedSnapshotSchemaDigest)"
 
-          if [[ -z "${SCHEMA_VERSION}" || -z "${SCHEMA_URI}" || -z "${SCHEMA_DIGEST}" ]]; then
+          if [[ -z "${MODEL_SCHEMA_VERSION}" || -z "${MODEL_SCHEMA_URI}" || -z "${MODEL_SCHEMA_DIGEST}" || -z "${SNAPSHOT_SCHEMA_VERSION}" || -z "${SNAPSHOT_SCHEMA_URI}" || -z "${SNAPSHOT_SCHEMA_DIGEST}" ]]; then
             echo "failed to resolve schema constants from internal/schema/constants.go"
             exit 1
           fi
@@ -51,24 +54,29 @@ jobs:
               exit 1
             fi
             TAG_VERSION="${GITHUB_REF_NAME#schema-v}"
-            if [[ "${TAG_VERSION}" != "${SCHEMA_VERSION}" ]]; then
-              echo "tag version mismatch: tag=${TAG_VERSION} schema=${SCHEMA_VERSION}"
+            if [[ "${TAG_VERSION}" != "${MODEL_SCHEMA_VERSION}" || "${TAG_VERSION}" != "${SNAPSHOT_SCHEMA_VERSION}" ]]; then
+              echo "tag version mismatch: tag=${TAG_VERSION} model=${MODEL_SCHEMA_VERSION} snapshot=${SNAPSHOT_SCHEMA_VERSION}"
               exit 1
             fi
           else
-            TAG_VERSION="${SCHEMA_VERSION}"
+            TAG_VERSION="${MODEL_SCHEMA_VERSION}"
           fi
 
-          echo "schema_version=${SCHEMA_VERSION}" >> "${GITHUB_OUTPUT}"
-          echo "schema_uri=${SCHEMA_URI}" >> "${GITHUB_OUTPUT}"
-          echo "schema_digest=${SCHEMA_DIGEST}" >> "${GITHUB_OUTPUT}"
+          echo "model_schema_version=${MODEL_SCHEMA_VERSION}" >> "${GITHUB_OUTPUT}"
+          echo "model_schema_uri=${MODEL_SCHEMA_URI}" >> "${GITHUB_OUTPUT}"
+          echo "model_schema_digest=${MODEL_SCHEMA_DIGEST}" >> "${GITHUB_OUTPUT}"
+          echo "snapshot_schema_version=${SNAPSHOT_SCHEMA_VERSION}" >> "${GITHUB_OUTPUT}"
+          echo "snapshot_schema_uri=${SNAPSHOT_SCHEMA_URI}" >> "${GITHUB_OUTPUT}"
+          echo "snapshot_schema_digest=${SNAPSHOT_SCHEMA_DIGEST}" >> "${GITHUB_OUTPUT}"
           echo "tag_version=${TAG_VERSION}" >> "${GITHUB_OUTPUT}"
 
       - name: Validate schema JSON and $id binding
         shell: bash
         env:
-          EXPECTED_URI: ${{ steps.contract.outputs.schema_uri }}
-          EXPECTED_DIGEST: ${{ steps.contract.outputs.schema_digest }}
+          EXPECTED_MODEL_URI: ${{ steps.contract.outputs.model_schema_uri }}
+          EXPECTED_MODEL_DIGEST: ${{ steps.contract.outputs.model_schema_digest }}
+          EXPECTED_SNAPSHOT_URI: ${{ steps.contract.outputs.snapshot_schema_uri }}
+          EXPECTED_SNAPSHOT_DIGEST: ${{ steps.contract.outputs.snapshot_schema_digest }}
         run: |
           set -euo pipefail
           python - <<'PY'
@@ -77,45 +85,93 @@ jobs:
           import os
           from pathlib import Path
 
-          schema_path = Path("api/schema/model.schema.json")
-          raw = schema_path.read_bytes()
-          payload = json.loads(raw.decode("utf-8"))
-          expected_uri = os.environ["EXPECTED_URI"]
-          actual_uri = payload.get("$id")
-          if actual_uri != expected_uri:
-              raise SystemExit(f"schema $id mismatch: got={actual_uri!r} want={expected_uri!r}")
+          checks = [
+              (
+                  Path("api/schema/model.schema.json"),
+                  os.environ["EXPECTED_MODEL_URI"],
+                  os.environ["EXPECTED_MODEL_DIGEST"],
+              ),
+              (
+                  Path("api/schema/snapshot.schema.json"),
+                  os.environ["EXPECTED_SNAPSHOT_URI"],
+                  os.environ["EXPECTED_SNAPSHOT_DIGEST"],
+              ),
+          ]
 
-          digest = "sha256:" + hashlib.sha256(raw).hexdigest()
-          expected_digest = os.environ["EXPECTED_DIGEST"]
-          if digest != expected_digest:
-              raise SystemExit(f"schema digest mismatch: got={digest!r} want={expected_digest!r}")
+          for schema_path, expected_uri, expected_digest in checks:
+              raw = schema_path.read_bytes()
+              payload = json.loads(raw.decode("utf-8"))
+              actual_uri = payload.get("$id")
+              if actual_uri != expected_uri:
+                  raise SystemExit(
+                      f"schema $id mismatch for {schema_path}: got={actual_uri!r} want={expected_uri!r}"
+                  )
+
+              digest = "sha256:" + hashlib.sha256(raw).hexdigest()
+              if digest != expected_digest:
+                  raise SystemExit(
+                      f"schema digest mismatch for {schema_path}: got={digest!r} want={expected_digest!r}"
+                  )
           PY
 
       - name: Build publish artifact
         shell: bash
         env:
-          SCHEMA_VERSION: ${{ steps.contract.outputs.schema_version }}
-          SCHEMA_URI: ${{ steps.contract.outputs.schema_uri }}
-          SCHEMA_DIGEST: ${{ steps.contract.outputs.schema_digest }}
+          MODEL_SCHEMA_VERSION: ${{ steps.contract.outputs.model_schema_version }}
+          MODEL_SCHEMA_URI: ${{ steps.contract.outputs.model_schema_uri }}
+          MODEL_SCHEMA_DIGEST: ${{ steps.contract.outputs.model_schema_digest }}
+          SNAPSHOT_SCHEMA_VERSION: ${{ steps.contract.outputs.snapshot_schema_version }}
+          SNAPSHOT_SCHEMA_URI: ${{ steps.contract.outputs.snapshot_schema_uri }}
+          SNAPSHOT_SCHEMA_DIGEST: ${{ steps.contract.outputs.snapshot_schema_digest }}
         run: |
           set -euo pipefail
 
           ROOT="out"
-          VERSION_DIR="${ROOT}/schema/model/v${SCHEMA_VERSION}"
-          LATEST_DIR="${ROOT}/schema/model/latest"
+          MODEL_VERSION_DIR="${ROOT}/schema/model/v${MODEL_SCHEMA_VERSION}"
+          MODEL_LATEST_DIR="${ROOT}/schema/model/latest"
+          SNAPSHOT_VERSION_DIR="${ROOT}/schema/snapshot/v${SNAPSHOT_SCHEMA_VERSION}"
+          SNAPSHOT_LATEST_DIR="${ROOT}/schema/snapshot/latest"
 
-          mkdir -p "${VERSION_DIR}" "${LATEST_DIR}" "${ROOT}/schema"
+          mkdir -p "${MODEL_VERSION_DIR}" "${MODEL_LATEST_DIR}" "${SNAPSHOT_VERSION_DIR}" "${SNAPSHOT_LATEST_DIR}" "${ROOT}/schema"
 
-          cp api/schema/model.schema.json "${VERSION_DIR}/model.schema.json"
-          cp api/schema/model.schema.json "${LATEST_DIR}/model.schema.json"
+          cp api/schema/model.schema.json "${MODEL_VERSION_DIR}/model.schema.json"
+          cp api/schema/model.schema.json "${MODEL_LATEST_DIR}/model.schema.json"
+          cp api/schema/snapshot.schema.json "${SNAPSHOT_VERSION_DIR}/snapshot.schema.json"
+          cp api/schema/snapshot.schema.json "${SNAPSHOT_LATEST_DIR}/snapshot.schema.json"
 
           UPDATED_AT="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
           cat > "${ROOT}/schema/index.json" <<EOF
           {
             "name": "io.mb3r.bering.model",
-            "version": "${SCHEMA_VERSION}",
-            "uri": "${SCHEMA_URI}",
-            "digest": "${SCHEMA_DIGEST}",
+            "version": "${MODEL_SCHEMA_VERSION}",
+            "uri": "${MODEL_SCHEMA_URI}",
+            "digest": "${MODEL_SCHEMA_DIGEST}",
+            "model": {
+              "name": "io.mb3r.bering.model",
+              "version": "${MODEL_SCHEMA_VERSION}",
+              "uri": "${MODEL_SCHEMA_URI}",
+              "digest": "${MODEL_SCHEMA_DIGEST}"
+            },
+            "snapshot": {
+              "name": "io.mb3r.bering.snapshot",
+              "version": "${SNAPSHOT_SCHEMA_VERSION}",
+              "uri": "${SNAPSHOT_SCHEMA_URI}",
+              "digest": "${SNAPSHOT_SCHEMA_DIGEST}"
+            },
+            "contracts": [
+              {
+                "name": "io.mb3r.bering.model",
+                "version": "${MODEL_SCHEMA_VERSION}",
+                "uri": "${MODEL_SCHEMA_URI}",
+                "digest": "${MODEL_SCHEMA_DIGEST}"
+              },
+              {
+                "name": "io.mb3r.bering.snapshot",
+                "version": "${SNAPSHOT_SCHEMA_VERSION}",
+                "uri": "${SNAPSHOT_SCHEMA_URI}",
+                "digest": "${SNAPSHOT_SCHEMA_DIGEST}"
+              }
+            ],
             "updated_at": "${UPDATED_AT}"
           }
           EOF

@@ -2,6 +2,17 @@
 
 Bering separates product release versioning from public schema contract versioning.
 
+For the first public product release:
+
+- product release tag: `v0.1.0`
+- product version in release automation: `0.1.0`
+- schema publishing tag: `schema-v1.0.0`
+- emitted schema contracts:
+  - `io.mb3r.bering.model@1.0.0`
+  - `io.mb3r.bering.snapshot@1.0.0`
+
+Do not infer a schema contract version from the product release tag.
+
 ## App Version
 
 - App releases use SemVer: `X.Y.Z`
@@ -9,6 +20,11 @@ Bering separates product release versioning from public schema contract versioni
 - `VERSION` in local and CI entrypoints is always the bare SemVer value without the leading `v`
 
 App version changes govern the Bering CLI, the runtime service behavior, the install surface, release automation, and the Helm chart `appVersion`.
+
+Examples:
+
+- product release `v0.1.0` identifies the first public Bering release
+- `dist/release-manifest.json` records `"app_version": "0.1.0"`
 
 ## Schema Contract Versions
 
@@ -22,6 +38,13 @@ Each schema contract has its own version, URI, and digest. Those values are inde
 - [internal/schema/constants.go](internal/schema/constants.go)
 - `dist/contracts-manifest.json`
 - `dist/release-manifest.json`
+- the published artifact payloads themselves in `metadata.schema`
+
+Examples:
+
+- Bering `v0.1.0` still emits `io.mb3r.bering.model@1.0.0`
+- Bering `v0.1.0` still emits `io.mb3r.bering.snapshot@1.0.0`
+- `schema-v1.0.0` publishes the schema files to GitHub Pages; it is not a product release tag
 
 Rules:
 

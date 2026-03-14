@@ -2,6 +2,16 @@
 
 The release payload is designed for both humans and automation.
 
+Release archives are built through GoReleaser and the tag-driven GitHub Actions release workflow.
+
+Binary release targets:
+
+- `linux/amd64`
+- `linux/arm64`
+- `darwin/amd64`
+- `darwin/arm64`
+- `windows/amd64`
+
 ## Primary Assets
 
 - `bering_<version>_<os>_<arch>.tar.gz`

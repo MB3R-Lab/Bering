@@ -1,114 +1,124 @@
 # Bering
 
-Bering is a discovery and publishing layer for service topology and endpoint contracts.
+`Bering v0.1.0` is the first public product release of Bering: a discovery and publishing layer for service topology and endpoint contracts.
 
-It supports two operating modes:
+Bering turns trace input or explicit topology input into stable JSON artifacts, and it can also run as a long-lived runtime service that emits rolling discovery snapshots.
 
-- deterministic batch discovery from trace files/directories or explicit topology input files
-- long-running runtime discovery that accepts OTLP/HTTP and optional OTLP/gRPC spans and publishes rolling snapshot envelopes for observability consumers
+## What Bering Does
 
-Bering owns discovery and discovery-side public contracts. It does not own simulation, gating, chaos execution, or policy decisions.
+- deterministic batch discovery from trace files, trace directories, or explicit `topology_api` inputs
+- validation of Bering JSON artifacts against pinned public schemas
+- runtime OTLP ingest over HTTP, with optional OTLP/gRPC ingest
+- publishing of stable topology and snapshot artifacts for downstream tooling
+- discovery-side enrichment through additive overlays
 
-## Public Artifacts
+## Where Bering Stops
 
-Bering currently publishes two versioned JSON artifact types.
+Bering owns discovery and discovery-side public contracts. It does not own simulation, policy evaluation, gating, chaos execution, or benchmark-specific rules.
 
-### Core model
+## Product Version vs Schema Version
 
-- `name`: `io.mb3r.bering.model`
-- `version`: `1.0.0`
-- `uri`: `https://mb3r-lab.github.io/Bering/schema/model/v1.0.0/model.schema.json`
-- `digest`: `sha256:272277c093f37580adcd2dded225bd37c86539d642d7910baad7e4228227d1a7`
+Do not treat the product release tag as the schema contract version.
 
-This remains the simple stable topology artifact for file-based users and downstream tools such as Sheaft.
+- Product release for this repository: `Bering v0.1.0`
+- Product git tag / GitHub Release: `v0.1.0`
+- Public schema contracts emitted by this release remain:
+  - `io.mb3r.bering.model@1.0.0`
+  - `io.mb3r.bering.snapshot@1.0.0`
+- Schema publishing tag remains separate: `schema-v1.0.0`
 
-### Snapshot envelope
+In other words: Bering `v0.1.0` ships a first public product release while continuing to emit the already-stable schema contracts at `1.0.0`.
 
-- `name`: `io.mb3r.bering.snapshot`
-- `version`: `1.0.0`
-- `uri`: `https://mb3r-lab.github.io/Bering/schema/snapshot/v1.0.0/snapshot.schema.json`
-- `digest`: `sha256:87e4e887ed4a37b72f6136e268b73552eccb92941c4de2c6f3a514dd066ea972`
+## Installation
 
-This wraps the core model with runtime window metadata, ingest counts, support summaries, provenance, and topology diffs.
+### Release binaries
 
-`bering validate` accepts either artifact type.
+Download a release asset from GitHub Releases and verify it with `release-checksums.txt`.
 
-## Repository layout
+Minimum supported release archives:
 
-```text
-cmd/bering                    CLI entrypoint
-internal/app                  command wiring
-internal/config               serve-mode config parsing and validation
-internal/connectors/traces    file/dir trace loading and normalization
-internal/connectors/topology  non-trace topology_api file loading and normalization
-internal/connectors/otlp      OTLP request decoding into normalized spans
-internal/discovery            source-agnostic discovery engine and overlay application
-internal/model                stable core model structs, semantic checks, canonical IO
-internal/overlay              generic discovery overlay loader
-internal/runtime              long-running service, tumbling windows, sinks, metrics
-internal/schema               pinned contract constants + JSON Schema validation
-internal/snapshot             snapshot envelope structs, diffing, canonical IO
-api/schema                    public schemas published via GitHub Pages
-configs                       sample serve and overlay configs
-examples                      traces, outputs, collector/prometheus/grafana examples
-docs                          architecture, contract, config, migration, limits
-scripts/ci                    CI helper scripts
-```
+- `linux/amd64`
+- `linux/arm64`
+- `darwin/amd64`
+- `darwin/arm64`
 
-## Commands
+Also packaged today:
+
+- `windows/amd64`
+
+Example:
 
 ```bash
-bering discover --input <trace-file|topology-file|dir> [--out bering-model.json] [--snapshot-out bering-snapshot.json] [--replicas replicas.yaml|json] [--overlay overlay.yaml] [--discovered-at RFC3339]
-bering validate --input <bering-model.json|bering-snapshot.json>
-bering serve --config configs/serve.sample.yaml [--listen :4318] [--grpc-listen :4317] [--window-size 30s] [--flush-interval 5s]
+tar -xzf bering_0.1.0_linux_amd64.tar.gz
+./bering help
 ```
 
-## Quickstart
+### Build from source
 
-### 1) Batch discovery from traces
+```bash
+go build ./cmd/bering
+```
+
+### OCI image
+
+The release pipeline also publishes an OCI image and OCI Helm chart. See [docs/install.md](docs/install.md) for example commands.
+
+## First Run
+
+### 1) Batch discovery from checked-in traces
 
 ```bash
 go run ./cmd/bering discover \
   --input examples/traces/normalized.sample.json \
-  --out examples/outputs/bering-model.normalized.sample.json \
+  --out out/bering-model.json \
   --discovered-at 2026-03-03T00:00:00Z
 ```
 
-### 2) Validate the model artifact
+Expected result: a deterministic `io.mb3r.bering.model@1.0.0` artifact.
+
+### 2) Validate an artifact
 
 ```bash
 go run ./cmd/bering validate \
   --input examples/outputs/bering-model.normalized.sample.json
 ```
 
-### 3) Generate a snapshot envelope in batch mode
+`bering validate` accepts both the model artifact and the snapshot envelope.
+
+### 3) Batch discovery with snapshot output and overlay
 
 ```bash
 go run ./cmd/bering discover \
   --input examples/traces/normalized.sample.json \
   --out out/bering-model.json \
-  --snapshot-out examples/outputs/bering-snapshot.normalized.sample.json \
+  --snapshot-out out/bering-snapshot.json \
   --overlay configs/discovery.overlay.sample.yaml \
   --discovered-at 2026-03-03T00:00:00Z
 ```
 
-### 4) Run the runtime service
+Expected result: a model artifact plus an `io.mb3r.bering.snapshot@1.0.0` envelope.
+
+### 4) Run runtime mode
 
 ```bash
 go run ./cmd/bering serve --config configs/serve.sample.yaml
 ```
 
-The runtime service exposes:
+The sample runtime config listens on:
 
-- `POST /v1/traces` for OTLP/HTTP trace ingest
-- OTLP/gRPC trace export service on the configured gRPC address
+- HTTP: `:4318`
+- OTLP/gRPC: `:4317`
+
+Useful endpoints:
+
+- `POST /v1/traces`
 - `GET /healthz`
 - `GET /readyz`
 - `GET /metrics`
 
-The primary integration path remains standard OpenTelemetry Collector or SDK exporters sending spans to Bering over OTLP/HTTP. OTLP/gRPC is also supported for grpc-first collector topologies. No custom Collector build is required.
+### 5) Use the result with Sheaft
 
-### 5) Use the stable model with Sheaft
+The main downstream handoff is the stable model artifact:
 
 ```bash
 # from a sibling Sheaft repository
@@ -118,6 +128,45 @@ go run ./cmd/sheaft run \
   --out-dir out \
   --seed 42
 ```
+
+## Published Artifacts
+
+### Core model
+
+- `name`: `io.mb3r.bering.model`
+- `version`: `1.0.0`
+- `uri`: `https://mb3r-lab.github.io/Bering/schema/model/v1.0.0/model.schema.json`
+- `digest`: `sha256:272277c093f37580adcd2dded225bd37c86539d642d7910baad7e4228227d1a7`
+
+This is the stable topology artifact intended for file-based consumers and tools such as Sheaft.
+
+### Snapshot envelope
+
+- `name`: `io.mb3r.bering.snapshot`
+- `version`: `1.0.0`
+- `uri`: `https://mb3r-lab.github.io/Bering/schema/snapshot/v1.0.0/snapshot.schema.json`
+- `digest`: `sha256:87e4e887ed4a37b72f6136e268b73552eccb92941c4de2c6f3a514dd066ea972`
+
+This wraps the model with runtime window metadata, ingest counts, coverage, provenance, and topology diffs.
+
+## Release Packaging
+
+Public release packaging is reproducible through GoReleaser plus GitHub Actions:
+
+- [`.goreleaser.yaml`](.goreleaser.yaml) builds release archives for `linux/amd64`, `linux/arm64`, `darwin/amd64`, `darwin/arm64`, and `windows/amd64`
+- [`.github/workflows/release-dry-run.yml`](.github/workflows/release-dry-run.yml) validates the release path without publishing
+- [`.github/workflows/release.yml`](.github/workflows/release.yml) builds the same payload from `vX.Y.Z` tags and publishes release assets plus OCI artifacts
+
+Release outputs include:
+
+- binary archives
+- archive SBOMs
+- archive checksums
+- contracts pack
+- Helm chart package metadata
+- OCI image metadata
+- `release-manifest.json`
+- `release-notes.md`
 
 ## Examples
 
@@ -130,79 +179,28 @@ go run ./cmd/sheaft run \
 - Prometheus scrape config: [examples/prometheus/bering.prometheus.yml](examples/prometheus/bering.prometheus.yml)
 - Grafana dashboard: [examples/grafana/bering-runtime-dashboard.json](examples/grafana/bering-runtime-dashboard.json)
 
-## Determinism and Runtime Tradeoffs
+## Additional Docs
 
-Batch output remains deterministic for identical inputs and flags:
-
-- services sorted by `id`
-- edges sorted by `(from,to,kind,blocking)`
-- endpoints sorted by `id`
-- canonical JSON output with stable object-key ordering
-- optional `--discovered-at` for reproducible timestamps
-
-Runtime mode is intentionally bounded, not lossless:
-
-- one active tumbling window is retained in memory
-- the previous emitted snapshot is retained for diffs and carry-forward runtime timestamps
-- `runtime.max_in_memory_spans` bounds retained spans per active window
-- late spans follow `drop` or `current_window` policy
-- spans beyond the configured in-memory cap are dropped and surfaced via metrics/logs
-- empty windows are advanced without emitting empty snapshots
-
-## Discovery overlays
-
-Discovery overlays are additive metadata inputs with explicit precedence by file order. They are intended for discovery-side enrichment, not policy evaluation.
-
-Supported examples include:
-
-- service labels and failure-eligibility labels
-- endpoint predicate references
-- workload or endpoint weights
-- SLO references or tags
-- replica overrides
-
-See [configs/discovery.overlay.sample.yaml](configs/discovery.overlay.sample.yaml).
-
-## Metrics
-
-The runtime service exports Prometheus/OpenMetrics metrics including:
-
-- `spans_ingested_total`
-- `spans_dropped_total`
-- `snapshots_emitted_total`
-- `snapshot_build_duration_seconds`
-- `current_services`
-- `current_edges`
-- `current_endpoints`
-- `window_lag_seconds`
-- `last_snapshot_unixtime`
-- `snapshot_age_seconds`
-- `diff_added_*`
-- `diff_removed_*`
-- `diff_changed_*`
-
-## Additional docs
-
-- [docs/architecture.md](docs/architecture.md)
 - [docs/install.md](docs/install.md)
-- [docs/release-assets.md](docs/release-assets.md)
 - [docs/runtime-config.md](docs/runtime-config.md)
+- [docs/release-assets.md](docs/release-assets.md)
+- [docs/schema-publishing.md](docs/schema-publishing.md)
 - [docs/trace-input-format.md](docs/trace-input-format.md)
 - [docs/topology-input-format.md](docs/topology-input-format.md)
-- [docs/schema-publishing.md](docs/schema-publishing.md)
-- [docs/migration-notes.md](docs/migration-notes.md)
 - [docs/mvp-scope-and-limits.md](docs/mvp-scope-and-limits.md)
+- [docs/architecture.md](docs/architecture.md)
 - [RELEASING.md](RELEASING.md)
 - [VERSIONING.md](VERSIONING.md)
+- [CHANGELOG.md](CHANGELOG.md)
 
-## CI and local checks
+## CI and Local Checks
 
 ```bash
-make lint
-make test
-make build
-make release-dry-run
+go test ./...
+go build ./cmd/bering
 ```
+
+The full release path is documented in [RELEASING.md](RELEASING.md).
 
 ## License
 

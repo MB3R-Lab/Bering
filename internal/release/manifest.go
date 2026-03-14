@@ -71,7 +71,11 @@ func GenerateReleaseManifest(opts ReleaseManifestOptions) (ReleaseManifest, erro
 	binaries := buildBinaryArtifacts(opts.DistDir, artifacts)
 	notes := defaultReleaseNotes(opts, chartMetadata, imageManifest)
 	notesPath := filepath.Join(opts.DistDir, ReleaseNotesName)
-	if err := os.WriteFile(notesPath, []byte(renderReleaseNotesMarkdown(opts.AppVersion, notes)), 0o644); err != nil {
+	notesMarkdown, err := releaseNotesMarkdown(opts.RepoRoot, opts.AppVersion, notes)
+	if err != nil {
+		return ReleaseManifest{}, err
+	}
+	if err := os.WriteFile(notesPath, []byte(notesMarkdown), 0o644); err != nil {
 		return ReleaseManifest{}, err
 	}
 
@@ -372,6 +376,71 @@ func renderReleaseNotesMarkdown(version string, notes ReleaseNotes) string {
 	}
 	lines = append(lines, "", "Release tag: "+TagForVersion(version), "")
 	return strings.Join(lines, "\n")
+}
+
+func releaseNotesMarkdown(repoRoot, version string, notes ReleaseNotes) (string, error) {
+	curated, ok, err := loadChangelogReleaseNotes(repoRoot, version)
+	if err != nil {
+		return "", err
+	}
+	if ok {
+		return curated, nil
+	}
+	return renderReleaseNotesMarkdown(version, notes), nil
+}
+
+func loadChangelogReleaseNotes(repoRoot, version string) (string, bool, error) {
+	path := filepath.Join(repoRoot, "CHANGELOG.md")
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return "", false, nil
+		}
+		return "", false, fmt.Errorf("read changelog: %w", err)
+	}
+	section, ok := extractChangelogSection(string(raw), version)
+	return section, ok, nil
+}
+
+func extractChangelogSection(markdown, version string) (string, bool) {
+	lines := strings.Split(strings.ReplaceAll(markdown, "\r\n", "\n"), "\n")
+	headings := []string{
+		"## v" + strings.TrimSpace(version),
+		"## [v" + strings.TrimSpace(version) + "]",
+		"## " + strings.TrimSpace(version),
+		"## [" + strings.TrimSpace(version) + "]",
+	}
+
+	start := -1
+	for i, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		for _, heading := range headings {
+			if trimmed == heading {
+				start = i
+				break
+			}
+		}
+		if start >= 0 {
+			break
+		}
+	}
+	if start < 0 {
+		return "", false
+	}
+
+	end := len(lines)
+	for i := start + 1; i < len(lines); i++ {
+		if strings.HasPrefix(strings.TrimSpace(lines[i]), "## ") {
+			end = i
+			break
+		}
+	}
+
+	section := strings.TrimSpace(strings.Join(lines[start:end], "\n"))
+	if section == "" {
+		return "", false
+	}
+	return section + "\n", true
 }
 
 func targetKey(goos, goarch string) string {

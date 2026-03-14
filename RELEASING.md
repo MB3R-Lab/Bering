@@ -4,6 +4,13 @@ Bering release automation is tag-driven and platform-neutral.
 
 The canonical source of truth is the local `dist/` payload plus `dist/release-manifest.json`. GitHub Releases, OCI registries, GitLab CI, and Jenkins are publishers around that payload, not alternate metadata authorities.
 
+Product releases and schema publishing are separate operations:
+
+- product release tags: `vX.Y.Z`
+- schema publishing tags: `schema-vA.B.C`
+
+For the first public product release, use `v0.1.0` for the product release and keep the public schema contracts pinned at `1.0.0`.
+
 ## Prerequisites
 
 Local release entrypoints expect these tools on `PATH`:
@@ -21,7 +28,7 @@ Dry-run without publishing:
 
 ```bash
 make release-dry-run \
-  VERSION=1.2.3 \
+  VERSION=0.1.0 \
   GIT_SHA="$(git rev-parse HEAD)" \
   BUILD_DATE="$(git show -s --format=%cI HEAD)"
 ```
@@ -30,7 +37,7 @@ Full local release payload with OCI publish:
 
 ```bash
 make release-local \
-  VERSION=1.2.3 \
+  VERSION=0.1.0 \
   GIT_SHA="$(git rev-parse HEAD)" \
   BUILD_DATE="$(git show -s --format=%cI HEAD)" \
   IMAGE_REPOSITORY=registry.example.com/bering \
@@ -42,21 +49,23 @@ If the chart version must intentionally differ from the app version:
 
 ```bash
 make chart-package \
-  VERSION=1.2.3 \
-  CHART_VERSION=1.2.4 \
+  VERSION=0.1.0 \
+  CHART_VERSION=0.1.1 \
   ALLOW_CHART_VERSION_MISMATCH=1
 ```
 
 ## Release Flow
 
 1. Run `make release-dry-run`.
-2. Create and push a SemVer tag: `vX.Y.Z`.
+2. Create and push a SemVer product tag: `vX.Y.Z`.
 3. CI runs tests and produces the same `dist/` payload via `make release-local`.
 4. CI publishes:
    - GitHub Release assets from `dist/release-assets.txt`
    - OCI image tags
    - OCI Helm chart
 5. Consumers use `release-manifest.json` to discover the released payload.
+
+Schema contract publication to GitHub Pages is handled separately by `schema-v*` tags and [`.github/workflows/publish-schema.yml`](.github/workflows/publish-schema.yml).
 
 ## Environment
 
@@ -70,6 +79,8 @@ These variables control the release payload:
 - `PUBLISH_OCI=1`: publish OCI image and chart instead of creating local-only metadata
 - `CHART_VERSION`: optional explicit chart version
 - `ALLOW_CHART_VERSION_MISMATCH=1`: required when `CHART_VERSION != VERSION`
+
+For `v0.1.0`, `VERSION=0.1.0` while the emitted public schema contracts remain `1.0.0`.
 
 ## Expected Output
 
