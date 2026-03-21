@@ -13,28 +13,38 @@ import (
 	"github.com/MB3R-Lab/Bering/internal/discovery"
 	"github.com/MB3R-Lab/Bering/internal/model"
 	"github.com/MB3R-Lab/Bering/internal/overlay"
+	"github.com/MB3R-Lab/Bering/internal/reconciliation"
 	"github.com/MB3R-Lab/Bering/internal/schema"
 	"github.com/MB3R-Lab/Bering/internal/snapshot"
 )
 
 type EngineConfig struct {
-	WindowSize       time.Duration
-	MaxInMemorySpans int
-	LateSpanPolicy   string
-	Sink             SnapshotSink
-	Metrics          *Metrics
-	Logger           *slog.Logger
-	Now              func() time.Time
-	SourceRef        string
-	Sources          []snapshot.SourceSummary
-	Overlays         []overlay.File
+	WindowSize               time.Duration
+	MaxInMemorySpans         int
+	LateSpanPolicy           string
+	Sink                     SnapshotSink
+	Metrics                  *Metrics
+	Logger                   *slog.Logger
+	Now                      func() time.Time
+	SourceRef                string
+	Sources                  []snapshot.SourceSummary
+	Overlays                 []overlay.File
+	ReconciliationConfig     reconciliation.Config
+	ReconciliationReportPath string
+	RawWindowPath            string
+	StableCorePath           string
 }
 
 type Engine struct {
-	cfg      EngineConfig
-	mu       sync.Mutex
-	current  windowState
-	previous *snapshot.Envelope
+	cfg            EngineConfig
+	mu             sync.Mutex
+	flushMu        sync.Mutex
+	current        windowState
+	previous       *snapshot.Envelope
+	previousRaw    *snapshot.Envelope
+	previousStable *snapshot.Envelope
+	reconciler     *reconciliation.Reconciler
+	latestReport   reconciliation.Report
 }
 
 type windowState struct {
@@ -71,9 +81,18 @@ func NewEngine(cfg EngineConfig) (*Engine, error) {
 	if cfg.Now == nil {
 		cfg.Now = time.Now
 	}
+	var reconcilerInstance *reconciliation.Reconciler
+	if cfg.ReconciliationConfig.Enabled {
+		var err error
+		reconcilerInstance, err = reconciliation.New(cfg.ReconciliationConfig)
+		if err != nil {
+			return nil, fmt.Errorf("create reconciler: %w", err)
+		}
+	}
 	start, end := alignWindow(cfg.Now().UTC(), cfg.WindowSize)
 	return &Engine{
-		cfg: cfg,
+		cfg:        cfg,
+		reconciler: reconcilerInstance,
 		current: windowState{
 			start:   start,
 			end:     end,
@@ -142,14 +161,33 @@ func (e *Engine) IngestWithSource(ctx context.Context, spans []traces.Span, rece
 }
 
 func (e *Engine) FlushDue(ctx context.Context) error {
-	return e.flushDue(ctx, e.cfg.Now().UTC())
+	e.flushMu.Lock()
+	defer e.flushMu.Unlock()
+	return e.flushDueLocked(ctx, e.cfg.Now().UTC())
 }
 
 func (e *Engine) Close(ctx context.Context) error {
+	e.flushMu.Lock()
+	defer e.flushMu.Unlock()
 	return e.flushCurrent(ctx, e.cfg.Now().UTC(), true)
 }
 
+func (e *Engine) LatestReconciliationReport() (reconciliation.Report, bool) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	if e.latestReport.FormatVersion == 0 {
+		return reconciliation.Report{}, false
+	}
+	return e.latestReport, true
+}
+
 func (e *Engine) flushDue(ctx context.Context, now time.Time) error {
+	e.flushMu.Lock()
+	defer e.flushMu.Unlock()
+	return e.flushDueLocked(ctx, now)
+}
+
+func (e *Engine) flushDueLocked(ctx context.Context, now time.Time) error {
 	for {
 		e.mu.Lock()
 		currentEnd := e.current.end
@@ -168,33 +206,145 @@ func (e *Engine) flushDue(ctx context.Context, now time.Time) error {
 func (e *Engine) flushCurrent(ctx context.Context, now time.Time, force bool) error {
 	e.mu.Lock()
 	current := e.current
-	if len(current.spans) == 0 && !force {
+	if len(current.spans) == 0 && !force && e.reconciler == nil {
 		e.current = newWindow(current.end, e.cfg.WindowSize)
 		e.mu.Unlock()
 		return nil
 	}
-	if len(current.spans) == 0 && force {
+	if len(current.spans) == 0 && force && e.reconciler == nil {
 		e.mu.Unlock()
 		return nil
 	}
 	e.current = newWindow(current.end, e.cfg.WindowSize)
 	previous := e.previous
+	previousRaw := e.previousRaw
+	previousStable := e.previousStable
 	e.mu.Unlock()
 
 	started := e.cfg.Now().UTC()
-	result, err := discovery.Discover(current.spans, discovery.Options{
-		SourceRef:    e.cfg.SourceRef,
-		DiscoveredAt: current.end.Format(time.RFC3339),
-		Overlays:     e.cfg.Overlays,
-		Sources:      currentSources(current, e.cfg.Sources),
-		RuntimeMode:  true,
+	var (
+		result discovery.Result
+		err    error
+	)
+	if len(current.spans) > 0 {
+		result, err = discovery.Discover(current.spans, discovery.Options{
+			SourceRef:    e.cfg.SourceRef,
+			DiscoveredAt: current.end.Format(time.RFC3339),
+			Overlays:     e.cfg.Overlays,
+			Sources:      currentSources(current, e.cfg.Sources),
+			RuntimeMode:  true,
+		})
+		if err != nil {
+			return fmt.Errorf("build snapshot discovery result: %w", err)
+		}
+	}
+
+	if e.reconciler != nil {
+		return e.flushReconciled(ctx, current, result, previous, previousRaw, previousStable, started)
+	}
+	env, err := e.buildSnapshotEnvelope(current, result, previous, started)
+	if err != nil {
+		return err
+	}
+	return e.writePrimarySnapshot(ctx, env, started)
+}
+
+func (e *Engine) flushReconciled(ctx context.Context, current windowState, raw discovery.Result, previous, previousRaw, previousStable *snapshot.Envelope, started time.Time) error {
+	reconciliationResult, err := e.reconciler.Process(reconciliation.Observation{
+		WindowStart: current.start,
+		WindowEnd:   current.end,
+		Result:      raw,
+		Ingest: snapshot.IngestSummary{
+			Spans:        len(current.spans),
+			Traces:       len(current.traces),
+			DroppedSpans: current.dropped,
+			LateSpans:    current.late,
+		},
 	})
 	if err != nil {
-		return fmt.Errorf("build snapshot discovery result: %w", err)
+		return fmt.Errorf("run reconciliation: %w", err)
 	}
+	if err := reconciliation.WriteReport(e.cfg.ReconciliationReportPath, reconciliationResult.Report); err != nil {
+		return err
+	}
+	e.cfg.Metrics.RecordReconciliation(reconciliationResult.Report)
+
+	if len(reconciliationResult.RawWindow.Model.Services) > 0 {
+		rawEnv, err := e.buildProjectionSnapshot(current, reconciliationResult.RawWindow, previousRaw, started)
+		if err != nil {
+			return err
+		}
+		if err := WriteProjectionView(e.cfg.RawWindowPath, ProjectionView{
+			Name:              string(reconciliationResult.RawWindow.Name),
+			Observation:       reconciliationResult.Report.Versions.ObservationVersion,
+			StructuralVersion: reconciliationResult.Report.Versions.ObservationVersion,
+			Available:         true,
+			TopologyVersion:   rawEnv.TopologyVersion,
+			Snapshot:          &rawEnv,
+		}); err != nil {
+			return err
+		}
+		copyRaw := rawEnv
+		e.mu.Lock()
+		e.previousRaw = &copyRaw
+		e.mu.Unlock()
+	} else if err := WriteProjectionView(e.cfg.RawWindowPath, ProjectionView{
+		Name:              "raw_window",
+		Observation:       reconciliationResult.Report.Versions.ObservationVersion,
+		StructuralVersion: reconciliationResult.Report.Versions.ObservationVersion,
+		Available:         false,
+	}); err != nil {
+		return err
+	}
+
+	if len(reconciliationResult.StableCore.Model.Services) > 0 {
+		stableEnv, err := e.buildProjectionSnapshot(current, reconciliationResult.StableCore, previousStable, started)
+		if err != nil {
+			return err
+		}
+		if err := WriteProjectionView(e.cfg.StableCorePath, ProjectionView{
+			Name:              string(reconciliationResult.StableCore.Name),
+			Observation:       reconciliationResult.Report.Versions.ObservationVersion,
+			StructuralVersion: reconciliationResult.Report.Versions.StableCoreVersion,
+			Available:         true,
+			TopologyVersion:   stableEnv.TopologyVersion,
+			Snapshot:          &stableEnv,
+		}); err != nil {
+			return err
+		}
+		copyStable := stableEnv
+		e.mu.Lock()
+		e.previousStable = &copyStable
+		e.mu.Unlock()
+	} else if err := WriteProjectionView(e.cfg.StableCorePath, ProjectionView{
+		Name:              "stable_core",
+		Observation:       reconciliationResult.Report.Versions.ObservationVersion,
+		StructuralVersion: reconciliationResult.Report.Versions.StableCoreVersion,
+		Available:         false,
+	}); err != nil {
+		return err
+	}
+
+	if len(reconciliationResult.GuardrailUnion.Model.Services) == 0 {
+		e.mu.Lock()
+		e.latestReport = reconciliationResult.Report
+		e.mu.Unlock()
+		return nil
+	}
+	env, err := e.buildProjectionSnapshot(current, reconciliationResult.GuardrailUnion, previous, started)
+	if err != nil {
+		return err
+	}
+	e.mu.Lock()
+	e.latestReport = reconciliationResult.Report
+	e.mu.Unlock()
+	return e.writePrimarySnapshot(ctx, env, started)
+}
+
+func (e *Engine) buildSnapshotEnvelope(current windowState, result discovery.Result, previous *snapshot.Envelope, started time.Time) (snapshot.Envelope, error) {
 	topologyVersion, err := snapshot.TopologyDigest(result.Model)
 	if err != nil {
-		return fmt.Errorf("compute topology digest: %w", err)
+		return snapshot.Envelope{}, fmt.Errorf("compute topology digest: %w", err)
 	}
 	env := snapshot.Envelope{
 		SnapshotID:      snapshot.BuildSnapshotID(current.start.Format(time.RFC3339), current.end.Format(time.RFC3339), topologyVersion),
@@ -232,6 +382,45 @@ func (e *Engine) flushCurrent(ctx context.Context, now time.Time, force bool) er
 	carryForwardObservationTimes(previous, &env)
 	env.Diff = snapshot.ComputeDiff(previous, env)
 	env.SortDeterministic()
+	return env, nil
+}
+
+func (e *Engine) buildProjectionSnapshot(current windowState, projection reconciliation.Projection, previous *snapshot.Envelope, started time.Time) (snapshot.Envelope, error) {
+	env := snapshot.Envelope{
+		SnapshotID:      snapshot.BuildSnapshotID(current.start.Format(time.RFC3339), current.end.Format(time.RFC3339), projection.TopologyVersion),
+		TopologyVersion: projection.TopologyVersion,
+		WindowStart:     current.start.Format(time.RFC3339),
+		WindowEnd:       current.end.Format(time.RFC3339),
+		Ingest: snapshot.IngestSummary{
+			Spans:        len(current.spans),
+			Traces:       len(current.traces),
+			DroppedSpans: current.dropped,
+			LateSpans:    current.late,
+		},
+		Counts:    projection.Counts,
+		Coverage:  projection.Coverage,
+		Sources:   projection.Sources,
+		Discovery: projection.Discovery,
+		Model:     projection.Model,
+		Metadata: snapshot.Metadata{
+			SourceType: discovery.SourceTypeBering,
+			SourceRef:  e.cfg.SourceRef,
+			EmittedAt:  started.Format(time.RFC3339),
+			Confidence: projection.Model.Metadata.Confidence,
+			Schema: model.SchemaRef{
+				Name:    schema.ExpectedSnapshotSchemaName,
+				Version: schema.ExpectedSnapshotSchemaVersion,
+				URI:     schema.ExpectedSnapshotSchemaURI,
+				Digest:  schema.ExpectedSnapshotSchemaDigest,
+			},
+		},
+	}
+	env.Diff = snapshot.ComputeDiff(previous, env)
+	env.SortDeterministic()
+	return env, nil
+}
+
+func (e *Engine) writePrimarySnapshot(ctx context.Context, env snapshot.Envelope, started time.Time) error {
 	if err := e.cfg.Sink.Write(ctx, env); err != nil {
 		return err
 	}

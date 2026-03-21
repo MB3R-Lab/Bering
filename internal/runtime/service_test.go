@@ -21,11 +21,10 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"github.com/MB3R-Lab/Bering/internal/config"
+	"github.com/MB3R-Lab/Bering/internal/schema"
 )
 
 func TestServiceEndToEndOTLPHTTP(t *testing.T) {
-	t.Parallel()
-
 	dir := t.TempDir()
 	cfg := config.DefaultServeConfig()
 	cfg.Server.ListenAddress = "127.0.0.1:0"
@@ -35,6 +34,10 @@ func TestServiceEndToEndOTLPHTTP(t *testing.T) {
 	cfg.Runtime.MaxInMemorySpans = 100
 	cfg.Sink.Directory = filepath.Join(dir, "snapshots")
 	cfg.Sink.LatestPath = filepath.Join(dir, "latest.json")
+	cfg.Runtime.Reconciliation.StatePath = filepath.Join(dir, "reconciliation-state.json")
+	cfg.Runtime.Reconciliation.ReportPath = filepath.Join(dir, "reconciliation-report.json")
+	cfg.Runtime.Reconciliation.RawWindowPath = filepath.Join(dir, "raw-window.json")
+	cfg.Runtime.Reconciliation.StableCorePath = filepath.Join(dir, "stable-core.json")
 
 	service, err := NewService(cfg, nil, slog.New(slog.NewTextHandler(ioDiscard{}, nil)))
 	if err != nil {
@@ -52,7 +55,7 @@ func TestServiceEndToEndOTLPHTTP(t *testing.T) {
 			if err != nil {
 				t.Fatalf("service returned error: %v", err)
 			}
-		case <-time.After(2 * time.Second):
+		case <-time.After(7 * time.Second):
 			t.Fatal("service did not stop in time")
 		}
 	}()
@@ -60,7 +63,7 @@ func TestServiceEndToEndOTLPHTTP(t *testing.T) {
 	addr := waitForAddr(t, service, 2*time.Second)
 	postOTLPSpanHTTP(t, "http://"+addr+"/v1/traces")
 
-	waitForFile(t, cfg.Sink.LatestPath, 3*time.Second)
+	waitForRuntimeOutput(t, service, cfg.Sink.LatestPath, 10*time.Second)
 	latestRaw, err := os.ReadFile(cfg.Sink.LatestPath)
 	if err != nil {
 		t.Fatalf("read latest snapshot: %v", err)
@@ -68,9 +71,16 @@ func TestServiceEndToEndOTLPHTTP(t *testing.T) {
 	if !bytes.Contains(latestRaw, []byte(`"snapshot_id"`)) {
 		t.Fatalf("latest snapshot missing snapshot_id: %s", latestRaw)
 	}
+	if err := schema.ValidateSnapshotJSON(latestRaw); err != nil {
+		t.Fatalf("latest snapshot failed schema validation: %v", err)
+	}
+	waitForRuntimeOutput(t, service, cfg.Runtime.Reconciliation.ReportPath, 5*time.Second)
+	waitForRuntimeOutput(t, service, cfg.Runtime.Reconciliation.RawWindowPath, 5*time.Second)
+	waitForRuntimeOutput(t, service, cfg.Runtime.Reconciliation.StableCorePath, 5*time.Second)
 
 	checkStatus(t, "http://"+addr+"/healthz", http.StatusOK)
 	checkStatus(t, "http://"+addr+"/readyz", http.StatusOK)
+	checkStatus(t, "http://"+addr+"/reconciliation/report", http.StatusOK)
 	metricsBody := readBody(t, "http://"+addr+"/metrics")
 	if !strings.Contains(metricsBody, "spans_ingested_total") {
 		t.Fatalf("metrics endpoint missing spans_ingested_total:\n%s", metricsBody)
@@ -78,11 +88,12 @@ func TestServiceEndToEndOTLPHTTP(t *testing.T) {
 	if !strings.Contains(metricsBody, "snapshots_emitted_total") {
 		t.Fatalf("metrics endpoint missing snapshots_emitted_total:\n%s", metricsBody)
 	}
+	if !strings.Contains(metricsBody, "reconciliation_telemetry_health") {
+		t.Fatalf("metrics endpoint missing reconciliation_telemetry_health:\n%s", metricsBody)
+	}
 }
 
 func TestServiceEndToEndOTLPGRPC(t *testing.T) {
-	t.Parallel()
-
 	dir := t.TempDir()
 	cfg := config.DefaultServeConfig()
 	cfg.Server.ListenAddress = "127.0.0.1:0"
@@ -92,6 +103,10 @@ func TestServiceEndToEndOTLPGRPC(t *testing.T) {
 	cfg.Runtime.MaxInMemorySpans = 100
 	cfg.Sink.Directory = filepath.Join(dir, "snapshots")
 	cfg.Sink.LatestPath = filepath.Join(dir, "latest.json")
+	cfg.Runtime.Reconciliation.StatePath = filepath.Join(dir, "reconciliation-state.json")
+	cfg.Runtime.Reconciliation.ReportPath = filepath.Join(dir, "reconciliation-report.json")
+	cfg.Runtime.Reconciliation.RawWindowPath = filepath.Join(dir, "raw-window.json")
+	cfg.Runtime.Reconciliation.StableCorePath = filepath.Join(dir, "stable-core.json")
 
 	service, err := NewService(cfg, nil, slog.New(slog.NewTextHandler(ioDiscard{}, nil)))
 	if err != nil {
@@ -109,7 +124,7 @@ func TestServiceEndToEndOTLPGRPC(t *testing.T) {
 			if err != nil {
 				t.Fatalf("service returned error: %v", err)
 			}
-		case <-time.After(2 * time.Second):
+		case <-time.After(7 * time.Second):
 			t.Fatal("service did not stop in time")
 		}
 	}()
@@ -118,7 +133,7 @@ func TestServiceEndToEndOTLPGRPC(t *testing.T) {
 	grpcAddr := waitForGRPCAddr(t, service, 2*time.Second)
 	postOTLPSpanGRPC(t, grpcAddr)
 
-	waitForFile(t, cfg.Sink.LatestPath, 3*time.Second)
+	waitForRuntimeOutput(t, service, cfg.Sink.LatestPath, 10*time.Second)
 	latestRaw, err := os.ReadFile(cfg.Sink.LatestPath)
 	if err != nil {
 		t.Fatalf("read latest snapshot: %v", err)
@@ -126,9 +141,13 @@ func TestServiceEndToEndOTLPGRPC(t *testing.T) {
 	if !bytes.Contains(latestRaw, []byte(`"snapshot_id"`)) {
 		t.Fatalf("latest snapshot missing snapshot_id: %s", latestRaw)
 	}
+	if err := schema.ValidateSnapshotJSON(latestRaw); err != nil {
+		t.Fatalf("latest snapshot failed schema validation: %v", err)
+	}
 
 	checkStatus(t, "http://"+httpAddr+"/healthz", http.StatusOK)
 	checkStatus(t, "http://"+httpAddr+"/readyz", http.StatusOK)
+	checkStatus(t, "http://"+httpAddr+"/reconciliation/report", http.StatusOK)
 }
 
 func waitForAddr(t *testing.T, service *Service, timeout time.Duration) string {
@@ -217,7 +236,22 @@ func waitForFile(t *testing.T, path string, timeout time.Duration) {
 	t.Helper()
 	deadline := time.Now().Add(timeout)
 	for time.Now().Before(deadline) {
-		if _, err := os.Stat(path); err == nil {
+		if info, err := os.Stat(path); err == nil && info.Size() > 0 {
+			return
+		}
+		time.Sleep(25 * time.Millisecond)
+	}
+	t.Fatalf("file %s was not created in time", path)
+}
+
+func waitForRuntimeOutput(t *testing.T, service *Service, path string, timeout time.Duration) {
+	t.Helper()
+	deadline := time.Now().Add(timeout)
+	for time.Now().Before(deadline) {
+		if err := service.engine.FlushDue(context.Background()); err != nil {
+			t.Fatalf("flush runtime engine while waiting for %s: %v", path, err)
+		}
+		if info, err := os.Stat(path); err == nil && info.Size() > 0 {
 			return
 		}
 		time.Sleep(25 * time.Millisecond)

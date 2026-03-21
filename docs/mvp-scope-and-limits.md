@@ -9,6 +9,7 @@
 - snapshot envelopes for observability/runtime consumers (`io.mb3r.bering.snapshot`)
 - generic discovery overlays for metadata and predicate references
 - Prometheus/OpenMetrics runtime metrics and health endpoints
+- evidence-weighted runtime reconciliation for trace gaps with bounded state retention
 
 ## Explicitly out of scope
 
@@ -43,3 +44,13 @@ Runtime mode intentionally keeps memory bounded.
 - empty windows are advanced without emitting empty artifacts
 
 These are operational tradeoffs, not bugs. They keep Bering in the role of a discovery/publishing layer.
+
+## Runtime reconciliation limits
+
+Runtime reconciliation is conservative by design.
+
+- absence in one window does not automatically delete topology
+- misses only count when the entity had a meaningful opportunity to appear
+- telemetry instability can freeze or heavily damp retirement
+- the default runtime publication path stays conservative for downstream consumers
+- retired entities are evicted after bounded retention; the runtime is not a history store

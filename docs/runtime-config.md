@@ -61,6 +61,28 @@ Allowed values:
 
 `drop` keeps window boundaries strict. `current_window` preserves more evidence at the cost of blur between scheduled windows.
 
+### `runtime.reconciliation`
+
+Controls evidence-weighted reconciliation for runtime publication.
+
+Suggested fields:
+
+- `enabled`: toggle the reconciliation module on or off
+- `state_path`: JSON file used to persist reconciliation state between windows and restarts
+- `report_path`: machine-readable report file for the latest reconciliation result
+- `decay_half_life`: controls how quickly older evidence loses weight
+- `minimum_opportunity_windows`: minimum opportunity evidence before misses can count
+- `telemetry_health_freeze_threshold`: freeze or heavily damp retirement below this score
+- `soft_gap_multiplier`: threshold for the stale transition
+- `hard_gap_multiplier`: threshold for retirement
+- `stable_core_min_belief`: minimum belief required for inclusion in `stable_core`
+- `guardrail_union_min_belief`: minimum belief required for inclusion in `guardrail_union`
+- `retired_ttl`: how long retired entities remain retained before eviction
+- `max_retained_retired_entities`: cap on retained retired entities
+- `compaction_interval`: cadence for state compaction and eviction checks
+
+The defaults are expected to stay conservative and bounded so runtime mode does not become an unbounded historical store.
+
 ### `sink.directory`
 
 Directory sink for one file per emitted snapshot.
@@ -101,6 +123,9 @@ overlays:
 - `--window-size`
 - `--max-in-memory-spans`
 - `--late-span-policy`
+- `--reconciliation-enabled`
+- `--reconciliation-state-path`
+- `--reconciliation-report-path`
 - `--sink-dir`
 - `--latest-path`
 - `--log-format text|json`

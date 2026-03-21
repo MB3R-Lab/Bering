@@ -76,6 +76,26 @@ config:
     windowSize: 30s
     maxInMemorySpans: 10000
     lateSpanPolicy: drop
+    reconciliation:
+      enabled: true
+      statePath: /var/lib/bering/reconciliation-state.json
+      reportPath: /var/lib/bering/reconciliation-report.json
+      rawWindowPath: /var/lib/bering/latest-raw-window.json
+      stableCorePath: /var/lib/bering/latest-stable-core.json
+      decayHalfLife: 10m
+      minimumOpportunityWindows: 2
+      telemetryHealthFreezeThreshold: 0.55
+      softGapMultiplier: 1.5
+      hardGapMultiplier: 3.0
+      minimumSoftWindows: 2
+      minimumHardWindows: 5
+      stableCoreMinBelief: 0.7
+      stableCoreMinActivity: 0.35
+      guardrailUnionMinBelief: 0.3
+      retirementMinBelief: 0.18
+      retiredTTL: 24h
+      maxRetainedRetiredEntities: 500
+      compactionInterval: 150s
   sink:
     directory: /var/lib/bering/snapshots
     latestPath: ""

@@ -2,7 +2,7 @@
 
 `Bering v0.1.0` is the first public product release of Bering: a discovery and publishing layer for service topology and endpoint contracts.
 
-Bering turns trace input or explicit topology input into stable JSON artifacts, and it can also run as a long-lived runtime service that emits rolling discovery snapshots.
+Bering turns trace input or explicit topology input into stable JSON artifacts, and it can also run as a long-lived runtime service that emits rolling discovery snapshots plus conservative reconciliation views for trace gaps.
 
 ## What Bering Does
 
@@ -149,6 +149,17 @@ This is the stable topology artifact intended for file-based consumers and tools
 
 This wraps the model with runtime window metadata, ingest counts, coverage, provenance, and topology diffs.
 
+### Runtime reconciliation views
+
+Runtime mode also keeps a conservative reconciliation layer for sparse traffic and telemetry gaps:
+
+- `raw_window`: the current window as observed
+- `stable_core`: the high-confidence retained view
+- `guardrail_union`: the conservative default downstream artifact
+- a machine-readable reconciliation report for operators
+
+These runtime views do not change the public `io.mb3r.bering.model@1.0.0` or `io.mb3r.bering.snapshot@1.0.0` contracts.
+
 ## Release Packaging
 
 Public release packaging is reproducible through GoReleaser plus GitHub Actions:
@@ -183,6 +194,7 @@ Release outputs include:
 
 - [docs/install.md](docs/install.md)
 - [docs/runtime-config.md](docs/runtime-config.md)
+- [docs/adr/2026-03-21-evidence-weighted-reconciliation.md](docs/adr/2026-03-21-evidence-weighted-reconciliation.md)
 - [docs/release-assets.md](docs/release-assets.md)
 - [docs/schema-publishing.md](docs/schema-publishing.md)
 - [docs/trace-input-format.md](docs/trace-input-format.md)

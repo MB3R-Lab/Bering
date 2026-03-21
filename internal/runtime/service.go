@@ -2,11 +2,13 @@ package runtime
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"net"
 	"net/http"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -41,16 +43,21 @@ func NewService(cfg config.ServeConfig, overlays []overlay.File, logger *slog.Lo
 	if logger == nil {
 		logger = slog.New(slog.NewTextHandler(ioDiscard{}, nil))
 	}
+	_, reportPath, rawWindowPath, stableCorePath := resolveReconciliationPaths(cfg)
 	engine, err := NewEngine(EngineConfig{
-		WindowSize:       cfg.Runtime.WindowSize.Duration(),
-		MaxInMemorySpans: cfg.Runtime.MaxInMemorySpans,
-		LateSpanPolicy:   cfg.Runtime.LateSpanPolicy,
-		Sink:             FileSink{Directory: cfg.Sink.Directory, LatestPath: cfg.Sink.LatestPath},
-		Metrics:          metrics,
-		Logger:           logger,
-		SourceRef:        discovery.BuildServeSourceRef(cfg.Server.ListenAddress),
-		Sources:          []snapshot.SourceSummary{{Type: "traces", Connector: otlp.HTTPConnectorName, Ref: discovery.BuildServeSourceRef(cfg.Server.ListenAddress)}},
-		Overlays:         overlays,
+		WindowSize:               cfg.Runtime.WindowSize.Duration(),
+		MaxInMemorySpans:         cfg.Runtime.MaxInMemorySpans,
+		LateSpanPolicy:           cfg.Runtime.LateSpanPolicy,
+		Sink:                     FileSink{Directory: cfg.Sink.Directory, LatestPath: cfg.Sink.LatestPath},
+		Metrics:                  metrics,
+		Logger:                   logger,
+		SourceRef:                discovery.BuildServeSourceRef(cfg.Server.ListenAddress),
+		Sources:                  []snapshot.SourceSummary{{Type: "traces", Connector: otlp.HTTPConnectorName, Ref: discovery.BuildServeSourceRef(cfg.Server.ListenAddress)}},
+		Overlays:                 overlays,
+		ReconciliationConfig:     buildRuntimeReconciliationConfig(cfg),
+		ReconciliationReportPath: reportPath,
+		RawWindowPath:            rawWindowPath,
+		StableCorePath:           stableCorePath,
 	})
 	if err != nil {
 		return nil, err
@@ -60,6 +67,7 @@ func NewService(cfg config.ServeConfig, overlays []overlay.File, logger *slog.Lo
 	mux.HandleFunc("/v1/traces", service.handleOTLP)
 	mux.HandleFunc("/healthz", service.handleHealth)
 	mux.HandleFunc("/readyz", service.handleReady)
+	mux.HandleFunc("/reconciliation/report", service.handleReconciliationReport)
 	mux.Handle("/metrics", metrics.Handler())
 	service.httpServer = &http.Server{Handler: mux, ReadHeaderTimeout: 5 * time.Second}
 	if strings.TrimSpace(cfg.Server.GRPCListenAddress) != "" {
@@ -100,7 +108,10 @@ func (s *Service) Run(ctx context.Context) error {
 	s.ready.Store(true)
 
 	errCh := make(chan error, 1)
+	var workers sync.WaitGroup
+	workers.Add(1)
 	go func() {
+		defer workers.Done()
 		ticker := time.NewTicker(s.cfg.Runtime.FlushInterval.Duration())
 		defer ticker.Stop()
 		for {
@@ -115,13 +126,17 @@ func (s *Service) Run(ctx context.Context) error {
 			}
 		}
 	}()
+	workers.Add(1)
 	go func() {
+		defer workers.Done()
 		if err := s.httpServer.Serve(httpListener); err != nil && err != http.ErrServerClosed {
 			sendServeError(errCh, err)
 		}
 	}()
 	if s.grpcServer != nil {
+		workers.Add(1)
 		go func() {
+			defer workers.Done()
 			if err := s.grpcServer.Serve(s.grpcListener); err != nil {
 				sendServeError(errCh, err)
 			}
@@ -144,6 +159,7 @@ func (s *Service) Run(ctx context.Context) error {
 		if err := stopGRPCServer(shutdownCtx, s.grpcServer); err != nil {
 			return fmt.Errorf("grpc shutdown: %w", err)
 		}
+		workers.Wait()
 		if err := s.engine.Close(shutdownCtx); err != nil {
 			return fmt.Errorf("flush final snapshot: %w", err)
 		}
@@ -154,6 +170,7 @@ func (s *Service) Run(ctx context.Context) error {
 		defer cancel()
 		_ = s.httpServer.Shutdown(shutdownCtx)
 		_ = stopGRPCServer(shutdownCtx, s.grpcServer)
+		workers.Wait()
 		return err
 	}
 }
@@ -195,6 +212,22 @@ func (s *Service) handleReady(w http.ResponseWriter, _ *http.Request) {
 	}
 	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write([]byte("ready\n"))
+}
+
+func (s *Service) handleReconciliationReport(w http.ResponseWriter, _ *http.Request) {
+	report, ok := s.engine.LatestReconciliationReport()
+	if !ok {
+		http.Error(w, "reconciliation report not available", http.StatusNotFound)
+		return
+	}
+	raw, err := json.MarshalIndent(report, "", "  ")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write(raw)
 }
 
 func writeOTLPResponse(w http.ResponseWriter, r *http.Request) error {

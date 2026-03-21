@@ -7,6 +7,26 @@ runtime:
   window_size: 30s
   max_in_memory_spans: 10000
   late_span_policy: drop
+  reconciliation:
+    enabled: true
+    state_path: out/reconciliation-state.json
+    report_path: out/reconciliation-report.json
+    raw_window_path: out/latest-raw-window.json
+    stable_core_path: out/latest-stable-core.json
+    decay_half_life: 10m
+    minimum_opportunity_windows: 2
+    telemetry_health_freeze_threshold: 0.55
+    soft_gap_multiplier: 1.5
+    hard_gap_multiplier: 3.0
+    minimum_soft_windows: 2
+    minimum_hard_windows: 5
+    stable_core_min_belief: 0.7
+    stable_core_min_activity: 0.35
+    guardrail_union_min_belief: 0.3
+    retirement_min_belief: 0.18
+    retired_ttl: 24h
+    max_retained_retired_entities: 500
+    compaction_interval: 150s
 sink:
   directory: out/snapshots
   latest_path: out/latest-snapshot.json

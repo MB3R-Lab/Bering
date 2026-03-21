@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+## v0.2.0
+
+### Added
+
+- Evidence-weighted runtime reconciliation for trace gaps, including conservative `guardrail_union` publication, `raw_window` and `stable_core` views, and machine-readable reconciliation reports.
+- Bounded JSON persistence for runtime reconciliation state so long-running sessions do not retain retired entities indefinitely.
+- Documentation and planning artifacts for the reconciliation minor, including runtime config guidance and an ADR.
+
 ## v0.1.0
 
 First public product release of Bering.

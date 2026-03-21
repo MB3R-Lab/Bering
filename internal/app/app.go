@@ -227,6 +227,9 @@ func (r Runner) runServe(args []string) int {
 	windowSize := fs.String("window-size", "", "Override config runtime window size (e.g. 30s)")
 	maxInMemory := fs.Int("max-in-memory-spans", -1, "Override config runtime max in-memory spans")
 	latePolicy := fs.String("late-span-policy", "", "Override config runtime late span policy (drop|current_window)")
+	reconciliationEnabled := fs.String("reconciliation-enabled", "", "Override config runtime reconciliation enabled state (true|false)")
+	reconciliationStatePath := fs.String("reconciliation-state-path", "", "Override config runtime reconciliation state path")
+	reconciliationReportPath := fs.String("reconciliation-report-path", "", "Override config runtime reconciliation report path")
 	sinkDir := fs.String("sink-dir", "", "Override config sink directory")
 	latestPath := fs.String("latest-path", "", "Override config stable latest snapshot path")
 	logFormat := fs.String("log-format", "", "Override log format (text|json)")
@@ -270,6 +273,23 @@ func (r Runner) runServe(args []string) int {
 	}
 	if strings.TrimSpace(*latePolicy) != "" {
 		cfg.Runtime.LateSpanPolicy = strings.TrimSpace(*latePolicy)
+	}
+	if strings.TrimSpace(*reconciliationEnabled) != "" {
+		switch strings.ToLower(strings.TrimSpace(*reconciliationEnabled)) {
+		case "true":
+			cfg.Runtime.Reconciliation.Enabled = true
+		case "false":
+			cfg.Runtime.Reconciliation.Enabled = false
+		default:
+			r.printfErr("parse --reconciliation-enabled: expected true or false\n")
+			return ExitError
+		}
+	}
+	if strings.TrimSpace(*reconciliationStatePath) != "" {
+		cfg.Runtime.Reconciliation.StatePath = strings.TrimSpace(*reconciliationStatePath)
+	}
+	if strings.TrimSpace(*reconciliationReportPath) != "" {
+		cfg.Runtime.Reconciliation.ReportPath = strings.TrimSpace(*reconciliationReportPath)
 	}
 	if strings.TrimSpace(*sinkDir) != "" {
 		cfg.Sink.Directory = strings.TrimSpace(*sinkDir)

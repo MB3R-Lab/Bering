@@ -16,6 +16,26 @@ data:
       window_size: {{ .Values.config.runtime.windowSize | quote }}
       max_in_memory_spans: {{ .Values.config.runtime.maxInMemorySpans }}
       late_span_policy: {{ .Values.config.runtime.lateSpanPolicy | quote }}
+      reconciliation:
+        enabled: {{ .Values.config.runtime.reconciliation.enabled }}
+        state_path: {{ .Values.config.runtime.reconciliation.statePath | quote }}
+        report_path: {{ .Values.config.runtime.reconciliation.reportPath | quote }}
+        raw_window_path: {{ .Values.config.runtime.reconciliation.rawWindowPath | quote }}
+        stable_core_path: {{ .Values.config.runtime.reconciliation.stableCorePath | quote }}
+        decay_half_life: {{ .Values.config.runtime.reconciliation.decayHalfLife | quote }}
+        minimum_opportunity_windows: {{ .Values.config.runtime.reconciliation.minimumOpportunityWindows }}
+        telemetry_health_freeze_threshold: {{ .Values.config.runtime.reconciliation.telemetryHealthFreezeThreshold }}
+        soft_gap_multiplier: {{ .Values.config.runtime.reconciliation.softGapMultiplier }}
+        hard_gap_multiplier: {{ .Values.config.runtime.reconciliation.hardGapMultiplier }}
+        minimum_soft_windows: {{ .Values.config.runtime.reconciliation.minimumSoftWindows }}
+        minimum_hard_windows: {{ .Values.config.runtime.reconciliation.minimumHardWindows }}
+        stable_core_min_belief: {{ .Values.config.runtime.reconciliation.stableCoreMinBelief }}
+        stable_core_min_activity: {{ .Values.config.runtime.reconciliation.stableCoreMinActivity }}
+        guardrail_union_min_belief: {{ .Values.config.runtime.reconciliation.guardrailUnionMinBelief }}
+        retirement_min_belief: {{ .Values.config.runtime.reconciliation.retirementMinBelief }}
+        retired_ttl: {{ .Values.config.runtime.reconciliation.retiredTTL | quote }}
+        max_retained_retired_entities: {{ .Values.config.runtime.reconciliation.maxRetainedRetiredEntities }}
+        compaction_interval: {{ .Values.config.runtime.reconciliation.compactionInterval | quote }}
     sink:
       directory: {{ .Values.config.sink.directory | quote }}
       latest_path: {{ .Values.config.sink.latestPath | quote }}
