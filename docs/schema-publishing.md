@@ -9,9 +9,9 @@ This workflow is separate from the product release workflow:
 - product release tags: `vX.Y.Z`
 - schema publishing tags: `schema-vA.B.C`
 
-For the first public product release, that means:
+For the current release line, that means:
 
-- product release: `v0.1.0`
+- product release: `v0.2.0`
 - schema publishing: `schema-v1.0.0`
 
 ## One-time repository setup

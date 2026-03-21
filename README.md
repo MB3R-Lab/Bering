@@ -1,6 +1,6 @@
 # Bering
 
-`Bering v0.1.0` is the first public product release of Bering: a discovery and publishing layer for service topology and endpoint contracts.
+`Bering v0.2.0` is the current product release of Bering: a discovery and publishing layer for service topology and endpoint contracts.
 
 Bering turns trace input or explicit topology input into stable JSON artifacts, and it can also run as a long-lived runtime service that emits rolling discovery snapshots plus conservative reconciliation views for trace gaps.
 
@@ -20,14 +20,14 @@ Bering owns discovery and discovery-side public contracts. It does not own simul
 
 Do not treat the product release tag as the schema contract version.
 
-- Product release for this repository: `Bering v0.1.0`
-- Product git tag / GitHub Release: `v0.1.0`
+- Current product release for this repository: `Bering v0.2.0`
+- Current product git tag / GitHub Release: `v0.2.0`
 - Public schema contracts emitted by this release remain:
   - `io.mb3r.bering.model@1.0.0`
   - `io.mb3r.bering.snapshot@1.0.0`
 - Schema publishing tag remains separate: `schema-v1.0.0`
 
-In other words: Bering `v0.1.0` ships a first public product release while continuing to emit the already-stable schema contracts at `1.0.0`.
+In other words: Bering `v0.2.0` advances the product release line while continuing to emit the already-stable schema contracts at `1.0.0`.
 
 ## Installation
 
@@ -49,7 +49,7 @@ Also packaged today:
 Example:
 
 ```bash
-tar -xzf bering_0.1.0_linux_amd64.tar.gz
+tar -xzf bering_0.2.0_linux_amd64.tar.gz
 ./bering help
 ```
 
