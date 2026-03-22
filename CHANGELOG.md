@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## v0.3.1
+
+### Fixed
+
+- Schema publishing is now a completed part of the shipped release path rather than a post-release manual recovery step.
+- The GitHub Pages schema publication workflow now resolves pinned schema constants and step outputs correctly for both tag-driven and manual runs.
+- README release badges now match the Sheaft header pattern and point at the current Bering release line.
+- Release-facing docs now consistently describe `v0.3.1` as the current product line carrying the published `1.1.0` schema contracts.
+
 ## v0.3.0
 
 ### Added

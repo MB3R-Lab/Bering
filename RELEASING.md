@@ -9,7 +9,7 @@ Product releases and schema publishing are separate operations:
 - product release tags: `vX.Y.Z`
 - schema publishing tags: `schema-vA.B.C`
 
-Product releases advance independently from the public schema contracts. As of the current release line, use `v0.3.0` for the product release while the default emitted public schema contracts are `1.1.0` and the preserved `1.0.0` contracts remain available for validation and pinned consumers.
+Product releases advance independently from the public schema contracts. As of the current release line, use `v0.3.1` for the product release while the default emitted public schema contracts are `1.1.0` and the preserved `1.0.0` contracts remain available for validation and pinned consumers.
 
 ## Prerequisites
 
@@ -28,7 +28,7 @@ Dry-run without publishing:
 
 ```bash
 make release-dry-run \
-  VERSION=0.3.0 \
+  VERSION=0.3.1 \
   GIT_SHA="$(git rev-parse HEAD)" \
   BUILD_DATE="$(git show -s --format=%cI HEAD)"
 ```
@@ -37,7 +37,7 @@ Full local release payload with OCI publish:
 
 ```bash
 make release-local \
-  VERSION=0.3.0 \
+  VERSION=0.3.1 \
   GIT_SHA="$(git rev-parse HEAD)" \
   BUILD_DATE="$(git show -s --format=%cI HEAD)" \
   IMAGE_REPOSITORY=ghcr.io/mb3r-lab/bering \
@@ -49,8 +49,8 @@ If the chart version must intentionally differ from the app version:
 
 ```bash
 make chart-package \
-  VERSION=0.3.0 \
-  CHART_VERSION=0.3.1 \
+  VERSION=0.3.1 \
+  CHART_VERSION=0.3.2 \
   ALLOW_CHART_VERSION_MISMATCH=1
 ```
 
@@ -80,7 +80,7 @@ These variables control the release payload:
 - `CHART_VERSION`: optional explicit chart version
 - `ALLOW_CHART_VERSION_MISMATCH=1`: required when `CHART_VERSION != VERSION`
 
-For `v0.3.0`, `VERSION=0.3.0` while the default emitted public schema contracts are `1.1.0`.
+For `v0.3.1`, `VERSION=0.3.1` while the default emitted public schema contracts are `1.1.0`.
 
 ## Expected Output
 

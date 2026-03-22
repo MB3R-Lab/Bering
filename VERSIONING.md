@@ -4,8 +4,8 @@ Bering separates product release versioning from public schema contract versioni
 
 For the current published product release:
 
-- product release tag: `v0.3.0`
-- product version in release automation: `0.3.0`
+- product release tag: `v0.3.1`
+- product version in release automation: `0.3.1`
 - schema publishing tag: `schema-v1.1.0`
 - default emitted schema contracts:
   - `io.mb3r.bering.model@1.1.0`
@@ -26,8 +26,8 @@ App version changes govern the Bering CLI, the runtime service behavior, the ins
 
 Examples:
 
-- product release `v0.3.0` identifies the current Bering release line
-- `dist/release-manifest.json` records `"app_version": "0.3.0"`
+- product release `v0.3.1` identifies the current Bering release line
+- `dist/release-manifest.json` records `"app_version": "0.3.1"`
 
 ## Schema Contract Versions
 
@@ -45,8 +45,8 @@ Each schema contract has its own version, URI, and digest. Those values are inde
 
 Examples:
 
-- Bering `v0.3.0` now emits `io.mb3r.bering.model@1.1.0`
-- Bering `v0.3.0` now emits `io.mb3r.bering.snapshot@1.1.0`
+- Bering `v0.3.1` emits `io.mb3r.bering.model@1.1.0`
+- Bering `v0.3.1` emits `io.mb3r.bering.snapshot@1.1.0`
 - `bering validate` still accepts `1.0.0` artifacts without mutation or migration
 - `schema-v1.1.0` publishes the schema files to GitHub Pages; it is not a product release tag
 
