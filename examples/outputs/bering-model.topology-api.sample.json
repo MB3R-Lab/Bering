@@ -3,13 +3,53 @@
     {
       "blocking": false,
       "from": "checkout",
+      "id": "checkout|payment|async|false",
       "kind": "async",
       "to": "payment"
     },
     {
       "blocking": true,
       "from": "frontend",
+      "id": "frontend|checkout|sync|true",
       "kind": "sync",
+      "metadata": {
+        "weight": 0.9
+      },
+      "observed": {
+        "error_rate": 0.02,
+        "latency_ms": {
+          "p50": 40,
+          "p90": 120,
+          "p95": 250,
+          "p99": 900
+        }
+      },
+      "policy_scope": {
+        "method": "GET",
+        "source_endpoint_id": "frontend:GET /checkout",
+        "source_route": "/checkout"
+      },
+      "resilience": {
+        "circuit_breaker": {
+          "enabled": true,
+          "max_pending_requests": 1024
+        },
+        "request_timeout_ms": 2000,
+        "retry": {
+          "backoff": {
+            "initial_ms": 50,
+            "max_ms": 500,
+            "multiplier": 2
+          },
+          "budget_cap": 1.5,
+          "max_attempts": 3,
+          "retry_on": [
+            "5xx",
+            "gateway-error",
+            "timeout"
+          ]
+        }
+      },
       "to": "checkout"
     }
   ],
@@ -17,11 +57,18 @@
     {
       "entry_service": "checkout",
       "id": "checkout:POST /process",
+      "metadata": {
+        "weight": 0.6
+      },
+      "method": "POST",
+      "path": "/process",
       "success_predicate_ref": "checkout:POST /process"
     },
     {
       "entry_service": "frontend",
       "id": "frontend:GET /checkout",
+      "method": "GET",
+      "path": "/checkout",
       "success_predicate_ref": "catalog.frontend.checkout.success"
     }
   ],
@@ -29,10 +76,10 @@
     "confidence": 1,
     "discovered_at": "2026-03-11T00:00:00Z",
     "schema": {
-      "digest": "sha256:272277c093f37580adcd2dded225bd37c86539d642d7910baad7e4228227d1a7",
+      "digest": "sha256:bc9a60736c9e6bda9599243fd68f293b88f42ade65321d8267369a5c3214779a",
       "name": "io.mb3r.bering.model",
-      "uri": "https://mb3r-lab.github.io/Bering/schema/model/v1.0.0/model.schema.json",
-      "version": "1.0.0"
+      "uri": "https://mb3r-lab.github.io/Bering/schema/model/v1.1.0/model.schema.json",
+      "version": "1.1.0"
     },
     "source_ref": "bering://discover?input=examples%2Ftopology%2Ftopology-api.sample.yaml",
     "source_type": "bering"
@@ -40,11 +87,43 @@
   "services": [
     {
       "id": "checkout",
+      "metadata": {
+        "failure_eligible": true,
+        "labels": {
+          "team": "commerce"
+        },
+        "placements": [
+          {
+            "labels": {
+              "az": "us-east-1b",
+              "node_pool": "green",
+              "region": "us-east-1"
+            },
+            "replicas": 1
+          },
+          {
+            "labels": {
+              "az": "us-east-1a",
+              "node_pool": "blue",
+              "region": "us-east-1"
+            },
+            "replicas": 2
+          }
+        ],
+        "shared_resource_refs": [
+          "kafka-orders"
+        ]
+      },
       "name": "checkout",
       "replicas": 3
     },
     {
       "id": "frontend",
+      "metadata": {
+        "labels": {
+          "team": "web"
+        }
+      },
       "name": "frontend",
       "replicas": 2
     },

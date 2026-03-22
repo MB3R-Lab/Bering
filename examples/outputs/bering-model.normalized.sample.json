@@ -3,19 +3,46 @@
     {
       "blocking": true,
       "from": "checkout",
+      "id": "checkout|inventory|sync|true",
       "kind": "sync",
+      "observed": {
+        "latency_ms": {
+          "p50": 25,
+          "p90": 25,
+          "p95": 25,
+          "p99": 25
+        }
+      },
       "to": "inventory"
     },
     {
       "blocking": false,
       "from": "checkout",
+      "id": "checkout|payment|async|false",
       "kind": "async",
+      "observed": {
+        "latency_ms": {
+          "p50": 12,
+          "p90": 12,
+          "p95": 12,
+          "p99": 12
+        }
+      },
       "to": "payment"
     },
     {
       "blocking": true,
       "from": "frontend",
+      "id": "frontend|checkout|sync|true",
       "kind": "sync",
+      "observed": {
+        "latency_ms": {
+          "p50": 60,
+          "p90": 60,
+          "p95": 60,
+          "p99": 60
+        }
+      },
       "to": "checkout"
     }
   ],
@@ -23,16 +50,22 @@
     {
       "entry_service": "checkout",
       "id": "checkout:POST /process",
+      "method": "POST",
+      "path": "/process",
       "success_predicate_ref": "checkout:POST /process"
     },
     {
       "entry_service": "frontend",
       "id": "frontend:GET /checkout",
+      "method": "GET",
+      "path": "/checkout",
       "success_predicate_ref": "frontend:GET /checkout"
     },
     {
       "entry_service": "frontend",
       "id": "frontend:GET /health",
+      "method": "GET",
+      "path": "/health",
       "success_predicate_ref": "frontend:GET /health"
     }
   ],
@@ -40,10 +73,10 @@
     "confidence": 0.94,
     "discovered_at": "2026-03-03T00:00:00Z",
     "schema": {
-      "digest": "sha256:272277c093f37580adcd2dded225bd37c86539d642d7910baad7e4228227d1a7",
+      "digest": "sha256:bc9a60736c9e6bda9599243fd68f293b88f42ade65321d8267369a5c3214779a",
       "name": "io.mb3r.bering.model",
-      "uri": "https://mb3r-lab.github.io/Bering/schema/model/v1.0.0/model.schema.json",
-      "version": "1.0.0"
+      "uri": "https://mb3r-lab.github.io/Bering/schema/model/v1.1.0/model.schema.json",
+      "version": "1.1.0"
     },
     "source_ref": "bering://discover?input=examples%2Ftraces%2Fnormalized.sample.json",
     "source_type": "bering"

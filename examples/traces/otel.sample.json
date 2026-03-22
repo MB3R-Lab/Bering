@@ -19,6 +19,8 @@
               "spanId": "span-frontend-1",
               "name": "GET /checkout",
               "kind": 2,
+              "startTimeUnixNano": 1772496000000000000,
+              "endTimeUnixNano": 1772496000010000000,
               "attributes": [
                 {
                   "key": "http.request.method",
@@ -39,6 +41,8 @@
               "spanId": "span-frontend-2",
               "name": "GET /health",
               "kind": 2,
+              "startTimeUnixNano": 1772496060000000000,
+              "endTimeUnixNano": 1772496060004000000,
               "attributes": [
                 {
                   "key": "http.request.method",
@@ -78,6 +82,8 @@
               "parentSpanId": "span-frontend-1",
               "name": "POST /process",
               "kind": 2,
+              "startTimeUnixNano": 1772496000010000000,
+              "endTimeUnixNano": 1772496000070000000,
               "attributes": [
                 {
                   "key": "http.request.method",
@@ -117,6 +123,8 @@
               "parentSpanId": "span-checkout-1",
               "name": "publish payment-events",
               "kind": 4,
+              "startTimeUnixNano": 1772496000071000000,
+              "endTimeUnixNano": 1772496000083000000,
               "attributes": [
                 {
                   "key": "messaging.system",
@@ -156,6 +164,8 @@
               "parentSpanId": "span-checkout-1",
               "name": "reserve inventory",
               "kind": 3,
+              "startTimeUnixNano": 1772496000072000000,
+              "endTimeUnixNano": 1772496000097000000,
               "attributes": []
             }
           ]

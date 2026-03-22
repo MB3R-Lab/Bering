@@ -1,6 +1,6 @@
 # Bering
 
-`Bering v0.2.0` is the current product release of Bering: a discovery and publishing layer for service topology and endpoint contracts.
+`Bering v0.3.0` is the current product release of Bering: a discovery and publishing layer for service topology and endpoint contracts.
 
 Bering turns trace input or explicit topology input into stable JSON artifacts, and it can also run as a long-lived runtime service that emits rolling discovery snapshots plus conservative reconciliation views for trace gaps.
 
@@ -14,20 +14,23 @@ Bering turns trace input or explicit topology input into stable JSON artifacts, 
 
 ## Where Bering Stops
 
-Bering owns discovery and discovery-side public contracts. It does not own simulation, policy evaluation, gating, chaos execution, or benchmark-specific rules.
+Bering owns discovery and discovery-side public contracts. It does not own simulation math, retry-amplification math, timeout-wave propagation, blast-radius scoring, policy evaluation, gating, or chaos execution.
 
 ## Product Version vs Schema Version
 
 Do not treat the product release tag as the schema contract version.
 
-- Current product release for this repository: `Bering v0.2.0`
-- Current product git tag / GitHub Release: `v0.2.0`
-- Public schema contracts emitted by this release remain:
+- Current product release for this repository: `Bering v0.3.0`
+- Current product git tag / GitHub Release: `v0.3.0`
+- Default emitted schema contracts now are:
+  - `io.mb3r.bering.model@1.1.0`
+  - `io.mb3r.bering.snapshot@1.1.0`
+- Previously published contracts remain valid and immutable:
   - `io.mb3r.bering.model@1.0.0`
   - `io.mb3r.bering.snapshot@1.0.0`
-- Schema publishing tag remains separate: `schema-v1.0.0`
+- Schema publishing tag remains separate: `schema-v1.1.0`
 
-In other words: Bering `v0.2.0` advances the product release line while continuing to emit the already-stable schema contracts at `1.0.0`.
+`bering validate` accepts both the preserved `1.0.0` artifacts and the current `1.1.0` artifacts.
 
 ## Installation
 
@@ -49,7 +52,7 @@ Also packaged today:
 Example:
 
 ```bash
-tar -xzf bering_0.2.0_linux_amd64.tar.gz
+tar -xzf bering_0.3.0_linux_amd64.tar.gz
 ./bering help
 ```
 
@@ -74,7 +77,7 @@ go run ./cmd/bering discover \
   --discovered-at 2026-03-03T00:00:00Z
 ```
 
-Expected result: a deterministic `io.mb3r.bering.model@1.0.0` artifact.
+Expected result: a deterministic `io.mb3r.bering.model@1.1.0` artifact.
 
 ### 2) Validate an artifact
 
@@ -96,7 +99,7 @@ go run ./cmd/bering discover \
   --discovered-at 2026-03-03T00:00:00Z
 ```
 
-Expected result: a model artifact plus an `io.mb3r.bering.snapshot@1.0.0` envelope.
+Expected result: a model artifact plus an `io.mb3r.bering.snapshot@1.1.0` envelope.
 
 ### 4) Run runtime mode
 
@@ -134,20 +137,20 @@ go run ./cmd/sheaft run \
 ### Core model
 
 - `name`: `io.mb3r.bering.model`
-- `version`: `1.0.0`
-- `uri`: `https://mb3r-lab.github.io/Bering/schema/model/v1.0.0/model.schema.json`
-- `digest`: `sha256:272277c093f37580adcd2dded225bd37c86539d642d7910baad7e4228227d1a7`
+- `version`: `1.1.0`
+- `uri`: `https://mb3r-lab.github.io/Bering/schema/model/v1.1.0/model.schema.json`
+- `digest`: `sha256:bc9a60736c9e6bda9599243fd68f293b88f42ade65321d8267369a5c3214779a`
 
-This is the stable topology artifact intended for file-based consumers and tools such as Sheaft.
+This is the stable topology artifact intended for file-based consumers and tools such as Sheaft. It now carries first-class edge ids, typed service placement and shared-fate metadata, typed edge resilience policy, optional observed edge timing summaries, policy scope metadata, and richer endpoint fidelity.
 
 ### Snapshot envelope
 
 - `name`: `io.mb3r.bering.snapshot`
-- `version`: `1.0.0`
-- `uri`: `https://mb3r-lab.github.io/Bering/schema/snapshot/v1.0.0/snapshot.schema.json`
-- `digest`: `sha256:87e4e887ed4a37b72f6136e268b73552eccb92941c4de2c6f3a514dd066ea972`
+- `version`: `1.1.0`
+- `uri`: `https://mb3r-lab.github.io/Bering/schema/snapshot/v1.1.0/snapshot.schema.json`
+- `digest`: `sha256:53b127608b2aaa4fabb352b998cd6b2c5ed558764729a09abea56f4f9b40fa01`
 
-This wraps the model with runtime window metadata, ingest counts, coverage, provenance, and topology diffs.
+This wraps the model with runtime window metadata, ingest counts, coverage, provenance, topology diffs, and discovery-side copies of the same typed placement, resilience, and observed edge metadata.
 
 ### Runtime reconciliation views
 
@@ -158,7 +161,13 @@ Runtime mode also keeps a conservative reconciliation layer for sparse traffic a
 - `guardrail_union`: the conservative default downstream artifact
 - a machine-readable reconciliation report for operators
 
-These runtime views do not change the public `io.mb3r.bering.model@1.0.0` or `io.mb3r.bering.snapshot@1.0.0` contracts.
+These runtime views do not change the public `io.mb3r.bering.model@1.1.0` or `io.mb3r.bering.snapshot@1.1.0` contracts.
+
+### Population Today
+
+- `topology_api` input and discovery overlays are the first-class write surfaces for typed `placements`, `shared_resource_refs`, `resilience`, `observed`, `policy_scope`, and richer endpoint metadata.
+- Trace discovery can derive stable edge ids, endpoint `method` and `path`, and `observed.latency_ms.*` summaries when span timing exists.
+- Generic trace ingestion does not currently infer timeout policies, retry policies, circuit-breaker settings, placement groups, or shared resource references. Those remain out of scope for Bering trace inference today.
 
 ## Release Packaging
 

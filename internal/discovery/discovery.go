@@ -142,6 +142,7 @@ func Discover(spans []traces.Span, opts Options) (Result, error) {
 	edges := make([]model.Edge, 0, len(edgeStats))
 	edgeRecords := make([]snapshot.EdgeRecord, 0, len(edgeStats))
 	for _, stat := range edgeStats {
+		stat.edge.Observed = stat.observedSummary()
 		edges = append(edges, stat.edge)
 		edgeRecords = append(edgeRecords, snapshot.EdgeRecord{
 			ID:         stat.id,
@@ -153,6 +154,7 @@ func Discover(spans []traces.Span, opts Options) (Result, error) {
 			FirstSeen:  formatOptionalTime(stat.firstSeen, opts.RuntimeMode),
 			LastSeen:   formatOptionalTime(stat.lastSeen, opts.RuntimeMode),
 			Provenance: []snapshot.Provenance{{Type: "traces", Connector: inferConnector(opts.Sources), Ref: sourceRef}},
+			Observed:   stat.observedSummary(),
 		})
 	}
 	sort.Slice(edges, func(i, j int) bool {
@@ -177,8 +179,8 @@ func Discover(spans []traces.Span, opts Options) (Result, error) {
 		endpointRecords = append(endpointRecords, snapshot.EndpointRecord{
 			ID:           stat.endpoint.ID,
 			EntryService: stat.endpoint.EntryService,
-			Method:       stat.method,
-			Path:         stat.path,
+			Method:       stat.endpoint.Method,
+			Path:         stat.endpoint.Path,
 			Support:      stat.supportSummary(),
 			FirstSeen:    formatOptionalTime(stat.firstSeen, opts.RuntimeMode),
 			LastSeen:     formatOptionalTime(stat.lastSeen, opts.RuntimeMode),
@@ -319,7 +321,7 @@ func inferEndpoint(span, parent traces.Span, hasParent bool) (model.Endpoint, bo
 		return model.Endpoint{}, false
 	}
 	id := fmt.Sprintf("%s:%s %s", span.Service, method, path)
-	return model.Endpoint{ID: id, EntryService: span.Service, SuccessPredicateRef: id}, true
+	return model.Endpoint{ID: id, EntryService: span.Service, SuccessPredicateRef: id, Method: method, Path: path}, true
 }
 
 func inferEndpointDetails(span, parent traces.Span, hasParent bool) (string, string, bool) {
@@ -384,7 +386,7 @@ func calculateConfidence(totalSpans, serviceCount, edgeCount, endpointCount, lin
 }
 
 func edgeKey(from, to string, kind model.EdgeKind, blocking bool) string {
-	return fmt.Sprintf("%s|%s|%s|%t", from, to, kind, blocking)
+	return model.EdgeID(from, to, kind, blocking)
 }
 
 func firstAttr(attrs map[string]any, keys ...string) string {
@@ -498,6 +500,7 @@ type edgeAccumulator struct {
 	observations int
 	traceIDs     map[string]struct{}
 	evidence     map[string]struct{}
+	latencyMS    []float64
 	firstSeen    time.Time
 	lastSeen     time.Time
 }
@@ -506,7 +509,7 @@ func updateEdgeAccumulator(acc *edgeAccumulator, id string, parent, child traces
 	if acc == nil {
 		acc = &edgeAccumulator{
 			id:       id,
-			edge:     model.Edge{From: parent.Service, To: child.Service, Kind: kind, Blocking: blocking},
+			edge:     model.Edge{ID: id, From: parent.Service, To: child.Service, Kind: kind, Blocking: blocking},
 			traceIDs: map[string]struct{}{},
 			evidence: map[string]struct{}{},
 		}
@@ -519,6 +522,9 @@ func updateEdgeAccumulator(acc *edgeAccumulator, id string, parent, child traces
 		if strings.TrimSpace(item) != "" {
 			acc.evidence[item] = struct{}{}
 		}
+	}
+	if latency, ok := spanDurationMS(child); ok {
+		acc.latencyMS = append(acc.latencyMS, latency)
 	}
 	acc.observeTime(child.EventTime(time.Time{}), runtimeMode)
 	return acc
@@ -540,10 +546,29 @@ func (a *edgeAccumulator) supportSummary() snapshot.SupportSummary {
 	return snapshot.SupportSummary{Observations: a.observations, TraceCount: len(a.traceIDs), Evidence: sortStringSet(a.evidence)}
 }
 
+func (a *edgeAccumulator) observedSummary() *model.ObservedEdge {
+	if len(a.latencyMS) == 0 {
+		return nil
+	}
+	samples := append([]float64(nil), a.latencyMS...)
+	sort.Float64s(samples)
+	observed := &model.ObservedEdge{
+		LatencyMS: &model.LatencySummary{
+			P50: float64Ptr(percentile(samples, 0.50)),
+			P90: float64Ptr(percentile(samples, 0.90)),
+			P95: float64Ptr(percentile(samples, 0.95)),
+			P99: float64Ptr(percentile(samples, 0.99)),
+		},
+	}
+	observed.Normalize()
+	if observed.IsZero() {
+		return nil
+	}
+	return observed
+}
+
 type endpointAccumulator struct {
 	endpoint     model.Endpoint
-	method       string
-	path         string
 	observations int
 	traceIDs     map[string]struct{}
 	firstSeen    time.Time
@@ -551,9 +576,8 @@ type endpointAccumulator struct {
 }
 
 func updateEndpointAccumulator(acc *endpointAccumulator, endpoint model.Endpoint, span traces.Span, runtimeMode bool) *endpointAccumulator {
-	method, path, _ := inferEndpointDetails(span, traces.Span{}, false)
 	if acc == nil {
-		acc = &endpointAccumulator{endpoint: endpoint, method: method, path: path, traceIDs: map[string]struct{}{}}
+		acc = &endpointAccumulator{endpoint: endpoint, traceIDs: map[string]struct{}{}}
 	}
 	acc.observations++
 	if span.TraceID != "" {
@@ -598,7 +622,9 @@ func applyOverlays(mdl *model.ResilienceModel, services []snapshot.ServiceRecord
 	serviceIndex := make(map[string]int, len(services))
 	serviceModelIndex := make(map[string]int, len(mdl.Services))
 	edgeIndex := make(map[string]int, len(edges))
+	edgeModelIndex := make(map[string]int, len(mdl.Edges))
 	endpointIndex := make(map[string]int, len(endpoints))
+	endpointModelIndex := make(map[string]int, len(mdl.Endpoints))
 	for i, item := range services {
 		serviceIndex[item.ID] = i
 	}
@@ -608,8 +634,14 @@ func applyOverlays(mdl *model.ResilienceModel, services []snapshot.ServiceRecord
 	for i, item := range edges {
 		edgeIndex[item.ID] = i
 	}
+	for i, item := range mdl.Edges {
+		edgeModelIndex[item.ID] = i
+	}
 	for i, item := range endpoints {
 		endpointIndex[item.ID] = i
+	}
+	for i, item := range mdl.Endpoints {
+		endpointModelIndex[item.ID] = i
 	}
 	applications := make([]snapshot.OverlayApplication, 0, len(overlays))
 	for i, file := range overlays {
@@ -621,13 +653,15 @@ func applyOverlays(mdl *model.ResilienceModel, services []snapshot.ServiceRecord
 			if !ok {
 				return nil, fmt.Errorf("overlay %q references unknown service %q", file.Name, item.ID)
 			}
-			mergeServiceMetadata(&services[index], item)
+			modelIndex, ok := serviceModelIndex[item.ID]
+			if !ok {
+				return nil, fmt.Errorf("overlay %q references unknown model service %q", file.Name, item.ID)
+			}
+			mergeServiceMetadata(&services[index], &mdl.Services[modelIndex], item)
 			services[index].Provenance = append(services[index].Provenance, prov)
 			if item.Replicas != nil {
 				services[index].Replicas = *item.Replicas
-				if modelIndex, ok := serviceModelIndex[item.ID]; ok {
-					mdl.Services[modelIndex].Replicas = *item.Replicas
-				}
+				mdl.Services[modelIndex].Replicas = *item.Replicas
 			}
 		}
 		for _, item := range file.Edges {
@@ -635,7 +669,11 @@ func applyOverlays(mdl *model.ResilienceModel, services []snapshot.ServiceRecord
 			if !ok {
 				return nil, fmt.Errorf("overlay %q references unknown edge %q", file.Name, item.ID)
 			}
-			mergeEdgeMetadata(&edges[index], item)
+			modelIndex, ok := edgeModelIndex[item.ID]
+			if !ok {
+				return nil, fmt.Errorf("overlay %q references unknown model edge %q", file.Name, item.ID)
+			}
+			mergeEdgeMetadata(&edges[index], &mdl.Edges[modelIndex], item)
 			edges[index].Provenance = append(edges[index].Provenance, prov)
 		}
 		for _, item := range file.Endpoints {
@@ -643,58 +681,85 @@ func applyOverlays(mdl *model.ResilienceModel, services []snapshot.ServiceRecord
 			if !ok {
 				return nil, fmt.Errorf("overlay %q references unknown endpoint %q", file.Name, item.ID)
 			}
-			mergeEndpointMetadata(&endpoints[index], item)
-			endpoints[index].Provenance = append(endpoints[index].Provenance, prov)
-			if strings.TrimSpace(item.PredicateRef) != "" {
-				for endpointIdx := range mdl.Endpoints {
-					if mdl.Endpoints[endpointIdx].ID == item.ID {
-						mdl.Endpoints[endpointIdx].SuccessPredicateRef = item.PredicateRef
-						break
-					}
-				}
+			modelIndex, ok := endpointModelIndex[item.ID]
+			if !ok {
+				return nil, fmt.Errorf("overlay %q references unknown model endpoint %q", file.Name, item.ID)
 			}
+			mergeEndpointMetadata(&endpoints[index], &mdl.Endpoints[modelIndex], item)
+			endpoints[index].Provenance = append(endpoints[index].Provenance, prov)
 		}
 	}
 	return applications, nil
 }
 
-func mergeServiceMetadata(target *snapshot.ServiceRecord, item overlay.ServiceOverlay) {
-	mergeCommonMetadata(&target.Metadata.CommonMetadata, item.CommonMetadata)
-	mergeAttributes(&target.Metadata.Attributes, item.Attributes)
+func mergeServiceMetadata(target *snapshot.ServiceRecord, modelTarget *model.Service, item overlay.ServiceOverlay) {
+	recordMeta := ensureSnapshotServiceMetadata(target)
+	modelMeta := ensureModelServiceMetadata(modelTarget)
+	mergeCommonMetadata(&recordMeta.ServiceMetadata.CommonMetadata, item.CommonMetadata.CommonMetadata)
+	mergeCommonMetadata(&modelMeta.CommonMetadata, item.CommonMetadata.CommonMetadata)
+	mergeAttributes(&recordMeta.Attributes, item.Attributes)
 	if item.FailureEligible != nil {
-		target.Metadata.FailureEligible = item.FailureEligible
+		recordMeta.FailureEligible = cloneBoolPointer(item.FailureEligible)
+		modelMeta.FailureEligible = cloneBoolPointer(item.FailureEligible)
 	}
 	if item.Replicas != nil {
-		target.Metadata.ReplicasOverride = item.Replicas
+		recordMeta.ReplicasOverride = cloneIntPointer(item.Replicas)
+	}
+	if len(item.Placements) > 0 {
+		recordMeta.Placements = clonePlacements(item.Placements)
+		modelMeta.Placements = clonePlacements(item.Placements)
+	}
+	if len(item.SharedResourceRefs) > 0 {
+		recordMeta.SharedResourceRefs = cloneStringSlice(item.SharedResourceRefs)
+		modelMeta.SharedResourceRefs = cloneStringSlice(item.SharedResourceRefs)
 	}
 }
 
-func mergeEdgeMetadata(target *snapshot.EdgeRecord, item overlay.EdgeOverlay) {
-	mergeCommonMetadata(&target.Metadata.CommonMetadata, item.CommonMetadata)
-	mergeAttributes(&target.Metadata.Attributes, item.Attributes)
+func mergeEdgeMetadata(target *snapshot.EdgeRecord, modelTarget *model.Edge, item overlay.EdgeOverlay) {
+	recordMeta := ensureSnapshotEdgeMetadata(target)
+	modelMeta := ensureModelEdgeMetadata(modelTarget)
+	mergeCommonMetadata(&recordMeta.EdgeMetadata.CommonMetadata, item.CommonMetadata.CommonMetadata)
+	mergeCommonMetadata(&modelMeta.CommonMetadata, item.CommonMetadata.CommonMetadata)
+	mergeAttributes(&recordMeta.Attributes, item.Attributes)
 	if item.Weight != nil {
-		target.Metadata.Weight = item.Weight
+		recordMeta.Weight = cloneFloatPointer(item.Weight)
+		modelMeta.Weight = cloneFloatPointer(item.Weight)
 	}
+	mergeResiliencePolicy(&target.Resilience, item.Resilience)
+	mergeResiliencePolicy(&modelTarget.Resilience, item.Resilience)
+	mergeObservedEdge(&target.Observed, item.Observed)
+	mergeObservedEdge(&modelTarget.Observed, item.Observed)
+	mergePolicyScope(&target.PolicyScope, item.PolicyScope)
+	mergePolicyScope(&modelTarget.PolicyScope, item.PolicyScope)
 }
 
-func mergeEndpointMetadata(target *snapshot.EndpointRecord, item overlay.EndpointOverlay) {
-	mergeCommonMetadata(&target.Metadata.CommonMetadata, item.CommonMetadata)
-	mergeAttributes(&target.Metadata.Attributes, item.Attributes)
+func mergeEndpointMetadata(target *snapshot.EndpointRecord, modelTarget *model.Endpoint, item overlay.EndpointOverlay) {
+	recordMeta := ensureSnapshotEndpointMetadata(target)
+	modelMeta := ensureModelEndpointMetadata(modelTarget)
+	mergeCommonMetadata(&recordMeta.EndpointMetadata.CommonMetadata, item.CommonMetadata.CommonMetadata)
+	mergeCommonMetadata(&modelMeta.CommonMetadata, item.CommonMetadata.CommonMetadata)
+	mergeAttributes(&recordMeta.Attributes, item.Attributes)
 	if item.Weight != nil {
-		target.Metadata.Weight = item.Weight
+		recordMeta.Weight = cloneFloatPointer(item.Weight)
+		modelMeta.Weight = cloneFloatPointer(item.Weight)
 	}
 	if strings.TrimSpace(item.PredicateRef) != "" {
-		target.Metadata.PredicateRef = strings.TrimSpace(item.PredicateRef)
+		recordMeta.PredicateRef = strings.TrimSpace(item.PredicateRef)
+		modelTarget.SuccessPredicateRef = strings.TrimSpace(item.PredicateRef)
 	}
 	if strings.TrimSpace(item.Method) != "" {
-		target.Method = strings.ToUpper(strings.TrimSpace(item.Method))
+		method := strings.ToUpper(strings.TrimSpace(item.Method))
+		target.Method = method
+		modelTarget.Method = method
 	}
 	if strings.TrimSpace(item.Path) != "" {
-		target.Path = normalizePath(item.Path)
+		path := normalizePath(item.Path)
+		target.Path = path
+		modelTarget.Path = path
 	}
 }
 
-func mergeCommonMetadata(target *snapshot.CommonMetadata, source overlay.CommonMetadata) {
+func mergeCommonMetadata(target *model.CommonMetadata, source model.CommonMetadata) {
 	if len(source.Labels) > 0 {
 		if target.Labels == nil {
 			target.Labels = map[string]string{}
@@ -720,6 +785,192 @@ func mergeAttributes(target *map[string]string, source map[string]string) {
 	}
 	for key, value := range source {
 		(*target)[key] = value
+	}
+}
+
+func ensureSnapshotServiceMetadata(target *snapshot.ServiceRecord) *snapshot.ServiceMetadata {
+	if target.Metadata == nil {
+		target.Metadata = &snapshot.ServiceMetadata{}
+	}
+	return target.Metadata
+}
+
+func ensureModelServiceMetadata(target *model.Service) *model.ServiceMetadata {
+	if target.Metadata == nil {
+		target.Metadata = &model.ServiceMetadata{}
+	}
+	return target.Metadata
+}
+
+func ensureSnapshotEdgeMetadata(target *snapshot.EdgeRecord) *snapshot.EdgeMetadata {
+	if target.Metadata == nil {
+		target.Metadata = &snapshot.EdgeMetadata{}
+	}
+	return target.Metadata
+}
+
+func ensureModelEdgeMetadata(target *model.Edge) *model.EdgeMetadata {
+	if target.Metadata == nil {
+		target.Metadata = &model.EdgeMetadata{}
+	}
+	return target.Metadata
+}
+
+func ensureSnapshotEndpointMetadata(target *snapshot.EndpointRecord) *snapshot.EndpointMetadata {
+	if target.Metadata == nil {
+		target.Metadata = &snapshot.EndpointMetadata{}
+	}
+	return target.Metadata
+}
+
+func ensureModelEndpointMetadata(target *model.Endpoint) *model.EndpointMetadata {
+	if target.Metadata == nil {
+		target.Metadata = &model.EndpointMetadata{}
+	}
+	return target.Metadata
+}
+
+func mergeResiliencePolicy(target **model.ResiliencePolicy, source *model.ResiliencePolicy) {
+	if source == nil {
+		return
+	}
+	if *target == nil {
+		*target = cloneResiliencePolicy(source)
+		return
+	}
+	if source.RequestTimeoutMS != nil {
+		(*target).RequestTimeoutMS = cloneIntPointer(source.RequestTimeoutMS)
+	}
+	if source.PerTryTimeoutMS != nil {
+		(*target).PerTryTimeoutMS = cloneIntPointer(source.PerTryTimeoutMS)
+	}
+	mergeRetryPolicy(&(*target).Retry, source.Retry)
+	mergeCircuitBreakerPolicy(&(*target).CircuitBreaker, source.CircuitBreaker)
+}
+
+func mergeRetryPolicy(target **model.RetryPolicy, source *model.RetryPolicy) {
+	if source == nil {
+		return
+	}
+	if *target == nil {
+		*target = cloneRetryPolicy(source)
+		return
+	}
+	if source.MaxAttempts != nil {
+		(*target).MaxAttempts = cloneIntPointer(source.MaxAttempts)
+	}
+	if source.BudgetCap != nil {
+		(*target).BudgetCap = cloneFloatPointer(source.BudgetCap)
+	}
+	if len(source.RetryOn) > 0 {
+		(*target).RetryOn = dedupeStrings(append(cloneStringSlice((*target).RetryOn), source.RetryOn...))
+	}
+	if source.Backoff != nil {
+		if (*target).Backoff == nil {
+			(*target).Backoff = cloneBackoffPolicy(source.Backoff)
+		} else {
+			mergeBackoffPolicy((*target).Backoff, source.Backoff)
+		}
+	}
+}
+
+func mergeBackoffPolicy(target *model.BackoffPolicy, source *model.BackoffPolicy) {
+	if target == nil || source == nil {
+		return
+	}
+	if source.InitialMS != nil {
+		target.InitialMS = cloneIntPointer(source.InitialMS)
+	}
+	if source.MaxMS != nil {
+		target.MaxMS = cloneIntPointer(source.MaxMS)
+	}
+	if source.Multiplier != nil {
+		target.Multiplier = cloneFloatPointer(source.Multiplier)
+	}
+	if strings.TrimSpace(source.Jitter) != "" {
+		target.Jitter = strings.TrimSpace(source.Jitter)
+	}
+}
+
+func mergeCircuitBreakerPolicy(target **model.CircuitBreakerPolicy, source *model.CircuitBreakerPolicy) {
+	if source == nil {
+		return
+	}
+	if *target == nil {
+		*target = cloneCircuitBreakerPolicy(source)
+		return
+	}
+	for _, item := range []struct {
+		dst **int
+		src *int
+	}{
+		{dst: &(*target).MaxPendingRequests, src: source.MaxPendingRequests},
+		{dst: &(*target).MaxRequests, src: source.MaxRequests},
+		{dst: &(*target).MaxConnections, src: source.MaxConnections},
+		{dst: &(*target).Consecutive5xx, src: source.Consecutive5xx},
+		{dst: &(*target).IntervalMS, src: source.IntervalMS},
+		{dst: &(*target).BaseEjectionTimeMS, src: source.BaseEjectionTimeMS},
+	} {
+		if item.src != nil {
+			*item.dst = cloneIntPointer(item.src)
+		}
+	}
+	if source.Enabled != nil {
+		(*target).Enabled = cloneBoolPointer(source.Enabled)
+	}
+}
+
+func mergeObservedEdge(target **model.ObservedEdge, source *model.ObservedEdge) {
+	if source == nil {
+		return
+	}
+	if *target == nil {
+		*target = cloneObservedEdge(source)
+		return
+	}
+	if source.ErrorRate != nil {
+		(*target).ErrorRate = cloneFloatPointer(source.ErrorRate)
+	}
+	if source.LatencyMS != nil {
+		if (*target).LatencyMS == nil {
+			(*target).LatencyMS = cloneLatencySummary(source.LatencyMS)
+			return
+		}
+		for _, item := range []struct {
+			dst **float64
+			src *float64
+		}{
+			{dst: &(*target).LatencyMS.P50, src: source.LatencyMS.P50},
+			{dst: &(*target).LatencyMS.P90, src: source.LatencyMS.P90},
+			{dst: &(*target).LatencyMS.P95, src: source.LatencyMS.P95},
+			{dst: &(*target).LatencyMS.P99, src: source.LatencyMS.P99},
+		} {
+			if item.src != nil {
+				*item.dst = cloneFloatPointer(item.src)
+			}
+		}
+	}
+}
+
+func mergePolicyScope(target **model.PolicyScope, source *model.PolicyScope) {
+	if source == nil {
+		return
+	}
+	if *target == nil {
+		*target = clonePolicyScope(source)
+		return
+	}
+	if strings.TrimSpace(source.SourceEndpointID) != "" {
+		(*target).SourceEndpointID = strings.TrimSpace(source.SourceEndpointID)
+	}
+	if strings.TrimSpace(source.SourceRoute) != "" {
+		(*target).SourceRoute = strings.TrimSpace(source.SourceRoute)
+	}
+	if strings.TrimSpace(source.Method) != "" {
+		(*target).Method = strings.ToUpper(strings.TrimSpace(source.Method))
+	}
+	if strings.TrimSpace(source.Operation) != "" {
+		(*target).Operation = strings.TrimSpace(source.Operation)
 	}
 }
 
@@ -801,6 +1052,40 @@ func inferConnector(sources []snapshot.SourceSummary) string {
 		return "trace_file"
 	}
 	return strings.TrimSpace(sources[0].Connector)
+}
+
+func spanDurationMS(span traces.Span) (float64, bool) {
+	if span.StartTime.IsZero() || span.EndTime.IsZero() || span.EndTime.Before(span.StartTime) {
+		return 0, false
+	}
+	return model.FormatMilliseconds(float64(span.EndTime.Sub(span.StartTime)) / float64(time.Millisecond)), true
+}
+
+func percentile(sorted []float64, p float64) float64 {
+	if len(sorted) == 0 {
+		return 0
+	}
+	if len(sorted) == 1 {
+		return model.FormatMilliseconds(sorted[0])
+	}
+	if p <= 0 {
+		return model.FormatMilliseconds(sorted[0])
+	}
+	if p >= 1 {
+		return model.FormatMilliseconds(sorted[len(sorted)-1])
+	}
+	index := int(math.Ceil(float64(len(sorted))*p)) - 1
+	if index < 0 {
+		index = 0
+	}
+	if index >= len(sorted) {
+		index = len(sorted) - 1
+	}
+	return model.FormatMilliseconds(sorted[index])
+}
+
+func float64Ptr(value float64) *float64 {
+	return &value
 }
 
 func defaultSources(sources []snapshot.SourceSummary, ref string, observations int) []snapshot.SourceSummary {

@@ -11,8 +11,8 @@ This workflow is separate from the product release workflow:
 
 For the current release line, that means:
 
-- product release: `v0.2.0`
-- schema publishing: `schema-v1.0.0`
+- product release: `v0.3.0`
+- schema publishing: `schema-v1.1.0`
 
 ## One-time repository setup
 
@@ -41,16 +41,27 @@ The workflow should publish both schema families:
 ## Release operation model
 
 1. Merge schema changes into `main`.
-2. Create and push a tag `schema-v<version>` when the pinned public schema contracts change.
-3. Wait for workflow completion.
-4. Verify these published URLs return `200`:
+2. Add new versioned schema files under:
+   - `api/schema/model/v<version>/model.schema.json`
+   - `api/schema/snapshot/v<version>/snapshot.schema.json`
+3. Copy the same versioned files into:
+   - `internal/schema/schema/model/v<version>/model.schema.json`
+   - `internal/schema/schema/snapshot/v<version>/snapshot.schema.json`
+4. Update pinned refs and digests in `internal/schema/constants.go`.
+5. Create and push a tag `schema-v<version>` when the pinned latest public schema contracts change.
+6. Wait for workflow completion.
+7. Verify these published URLs return `200`:
    - `https://mb3r-lab.github.io/Bering/schema/model/v<version>/model.schema.json`
    - `https://mb3r-lab.github.io/Bering/schema/snapshot/v<version>/snapshot.schema.json`
-5. Verify the downloaded digests match the pinned digests in `internal/schema/constants.go`.
+8. Verify the downloaded digests match the pinned digests in `internal/schema/constants.go`.
 
 ## Notes
 
 - The stable model and the snapshot envelope are distinct contracts with separate names, URIs, and digests.
+- `io.mb3r.bering.model@1.0.0` and `io.mb3r.bering.snapshot@1.0.0` remain published and immutable. Do not mutate those files in place.
 - The current workflow expects the pushed `schema-v<version>` tag to match the pinned version of both schema files.
 - Downstream consumers such as Sheaft can remain pinned to the model schema while runtime consumers adopt the snapshot schema.
 - Never silently mutate a published schema version in place.
+- The generated contracts pack now carries the versioned schema tree, for example `schema/model/v1.1.0/model.schema.json`, not a single unversioned flat copy.
+- The GitHub Pages publish workflow mirrors the full versioned schema tree from `api/schema/` and refreshes `schema/model/latest/` plus `schema/snapshot/latest/` to the currently pinned contract line.
+- If `schema-v1.1.0` has not been pushed yet, the `v1.1.0` URIs documented in this repository are the intended canonical publish targets, but GitHub Pages will not serve them until that workflow runs.

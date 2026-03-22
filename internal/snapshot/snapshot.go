@@ -95,65 +95,59 @@ type SupportSummary struct {
 }
 
 type ServiceRecord struct {
-	ID         string          `json:"id"`
-	Name       string          `json:"name"`
-	Replicas   int             `json:"replicas"`
-	Support    SupportSummary  `json:"support"`
-	FirstSeen  string          `json:"first_seen,omitempty"`
-	LastSeen   string          `json:"last_seen,omitempty"`
-	Provenance []Provenance    `json:"provenance,omitempty"`
-	Metadata   ServiceMetadata `json:"metadata,omitempty"`
+	ID         string           `json:"id"`
+	Name       string           `json:"name"`
+	Replicas   int              `json:"replicas"`
+	Support    SupportSummary   `json:"support"`
+	FirstSeen  string           `json:"first_seen,omitempty"`
+	LastSeen   string           `json:"last_seen,omitempty"`
+	Provenance []Provenance     `json:"provenance,omitempty"`
+	Metadata   *ServiceMetadata `json:"metadata,omitempty"`
 }
 
 type EdgeRecord struct {
-	ID         string         `json:"id"`
-	From       string         `json:"from"`
-	To         string         `json:"to"`
-	Kind       model.EdgeKind `json:"kind"`
-	Blocking   bool           `json:"blocking"`
-	Support    SupportSummary `json:"support"`
-	FirstSeen  string         `json:"first_seen,omitempty"`
-	LastSeen   string         `json:"last_seen,omitempty"`
-	Provenance []Provenance   `json:"provenance,omitempty"`
-	Metadata   EdgeMetadata   `json:"metadata,omitempty"`
+	ID          string                  `json:"id"`
+	From        string                  `json:"from"`
+	To          string                  `json:"to"`
+	Kind        model.EdgeKind          `json:"kind"`
+	Blocking    bool                    `json:"blocking"`
+	Support     SupportSummary          `json:"support"`
+	FirstSeen   string                  `json:"first_seen,omitempty"`
+	LastSeen    string                  `json:"last_seen,omitempty"`
+	Provenance  []Provenance            `json:"provenance,omitempty"`
+	Metadata    *EdgeMetadata           `json:"metadata,omitempty"`
+	Resilience  *model.ResiliencePolicy `json:"resilience,omitempty"`
+	Observed    *model.ObservedEdge     `json:"observed,omitempty"`
+	PolicyScope *model.PolicyScope      `json:"policy_scope,omitempty"`
 }
 
 type EndpointRecord struct {
-	ID           string           `json:"id"`
-	EntryService string           `json:"entry_service"`
-	Method       string           `json:"method,omitempty"`
-	Path         string           `json:"path,omitempty"`
-	Support      SupportSummary   `json:"support"`
-	FirstSeen    string           `json:"first_seen,omitempty"`
-	LastSeen     string           `json:"last_seen,omitempty"`
-	Provenance   []Provenance     `json:"provenance,omitempty"`
-	Metadata     EndpointMetadata `json:"metadata,omitempty"`
-}
-
-type CommonMetadata struct {
-	Labels  map[string]string `json:"labels,omitempty"`
-	Tags    []string          `json:"tags,omitempty"`
-	SLORefs []string          `json:"slo_refs,omitempty"`
+	ID           string            `json:"id"`
+	EntryService string            `json:"entry_service"`
+	Method       string            `json:"method,omitempty"`
+	Path         string            `json:"path,omitempty"`
+	Support      SupportSummary    `json:"support"`
+	FirstSeen    string            `json:"first_seen,omitempty"`
+	LastSeen     string            `json:"last_seen,omitempty"`
+	Provenance   []Provenance      `json:"provenance,omitempty"`
+	Metadata     *EndpointMetadata `json:"metadata,omitempty"`
 }
 
 type ServiceMetadata struct {
-	CommonMetadata
-	FailureEligible  *bool             `json:"failure_eligible,omitempty"`
-	ReplicasOverride *int              `json:"replicas_override,omitempty"`
-	Attributes       map[string]string `json:"attributes,omitempty"`
+	model.ServiceMetadata `json:",inline"`
+	ReplicasOverride      *int              `json:"replicas_override,omitempty"`
+	Attributes            map[string]string `json:"attributes,omitempty"`
 }
 
 type EdgeMetadata struct {
-	CommonMetadata
-	Weight     *float64          `json:"weight,omitempty"`
-	Attributes map[string]string `json:"attributes,omitempty"`
+	model.EdgeMetadata `json:",inline"`
+	Attributes         map[string]string `json:"attributes,omitempty"`
 }
 
 type EndpointMetadata struct {
-	CommonMetadata
-	Weight       *float64          `json:"weight,omitempty"`
-	PredicateRef string            `json:"predicate_ref,omitempty"`
-	Attributes   map[string]string `json:"attributes,omitempty"`
+	model.EndpointMetadata `json:",inline"`
+	PredicateRef           string            `json:"predicate_ref,omitempty"`
+	Attributes             map[string]string `json:"attributes,omitempty"`
 }
 
 type Metadata struct {
@@ -175,6 +169,15 @@ func (e *Envelope) SortDeterministic() {
 		}
 		return left.Ref < right.Ref
 	})
+	for i := range e.Discovery.Services {
+		e.Discovery.Services[i].normalizeForOutput()
+	}
+	for i := range e.Discovery.Edges {
+		e.Discovery.Edges[i].normalizeForOutput()
+	}
+	for i := range e.Discovery.Endpoints {
+		e.Discovery.Endpoints[i].normalizeForOutput()
+	}
 	sort.Slice(e.Discovery.Services, func(i, j int) bool { return e.Discovery.Services[i].ID < e.Discovery.Services[j].ID })
 	sort.Slice(e.Discovery.Edges, func(i, j int) bool { return e.Discovery.Edges[i].ID < e.Discovery.Edges[j].ID })
 	sort.Slice(e.Discovery.Endpoints, func(i, j int) bool { return e.Discovery.Endpoints[i].ID < e.Discovery.Endpoints[j].ID })
@@ -320,4 +323,109 @@ func diffChanged[T any](left, right map[string]T) int {
 		}
 	}
 	return count
+}
+
+func (r *ServiceRecord) normalizeForOutput() {
+	if r == nil || r.Metadata == nil {
+		return
+	}
+	r.Metadata.Normalize()
+	if r.Metadata.IsZero() {
+		r.Metadata = nil
+	}
+}
+
+func (r *EdgeRecord) normalizeForOutput() {
+	if r == nil {
+		return
+	}
+	if r.Metadata != nil {
+		r.Metadata.Normalize()
+		if r.Metadata.IsZero() {
+			r.Metadata = nil
+		}
+	}
+	if r.Resilience != nil {
+		r.Resilience.Normalize()
+		if r.Resilience.IsZero() {
+			r.Resilience = nil
+		}
+	}
+	if r.Observed != nil {
+		r.Observed.Normalize()
+		if r.Observed.IsZero() {
+			r.Observed = nil
+		}
+	}
+	if r.PolicyScope != nil {
+		r.PolicyScope.Normalize()
+		if r.PolicyScope.IsZero() {
+			r.PolicyScope = nil
+		}
+	}
+}
+
+func (r *EndpointRecord) normalizeForOutput() {
+	if r == nil || r.Metadata == nil {
+		return
+	}
+	r.Metadata.Normalize()
+	if r.Metadata.IsZero() {
+		r.Metadata = nil
+	}
+}
+
+func (m *ServiceMetadata) Normalize() {
+	if m == nil {
+		return
+	}
+	m.ServiceMetadata.Normalize()
+	m.Attributes = normalizeStringMap(m.Attributes)
+}
+
+func (m ServiceMetadata) IsZero() bool {
+	return m.ServiceMetadata.IsZero() && m.ReplicasOverride == nil && len(m.Attributes) == 0
+}
+
+func (m *EdgeMetadata) Normalize() {
+	if m == nil {
+		return
+	}
+	m.EdgeMetadata.Normalize()
+	m.Attributes = normalizeStringMap(m.Attributes)
+}
+
+func (m EdgeMetadata) IsZero() bool {
+	return m.EdgeMetadata.IsZero() && len(m.Attributes) == 0
+}
+
+func (m *EndpointMetadata) Normalize() {
+	if m == nil {
+		return
+	}
+	m.EndpointMetadata.Normalize()
+	m.PredicateRef = strings.TrimSpace(m.PredicateRef)
+	m.Attributes = normalizeStringMap(m.Attributes)
+}
+
+func (m EndpointMetadata) IsZero() bool {
+	return m.EndpointMetadata.IsZero() && m.PredicateRef == "" && len(m.Attributes) == 0
+}
+
+func normalizeStringMap(values map[string]string) map[string]string {
+	if len(values) == 0 {
+		return nil
+	}
+	out := make(map[string]string, len(values))
+	for key, value := range values {
+		trimmedKey := strings.TrimSpace(key)
+		if trimmedKey == "" {
+			continue
+		}
+		out[trimmedKey] = strings.TrimSpace(value)
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
 }

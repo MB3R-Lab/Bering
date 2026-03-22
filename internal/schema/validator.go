@@ -3,7 +3,7 @@ package schema
 import (
 	"bytes"
 	"crypto/sha256"
-	_ "embed"
+	"embed"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -13,41 +13,50 @@ import (
 	jsonschema "github.com/santhosh-tekuri/jsonschema/v5"
 )
 
-//go:embed schema/model.schema.json
-var canonicalSchema []byte
+//go:embed schema/model/v1.0.0/model.schema.json schema/model/v1.1.0/model.schema.json schema/snapshot/v1.0.0/snapshot.schema.json schema/snapshot/v1.1.0/snapshot.schema.json
+var embeddedSchemas embed.FS
 
-//go:embed schema/snapshot.schema.json
-var canonicalSnapshotSchema []byte
+type compiledSchemaEntry struct {
+	once   sync.Once
+	schema *jsonschema.Schema
+	err    error
+}
 
-var (
-	modelSchemaOnce    sync.Once
-	modelSchemaObj     *jsonschema.Schema
-	modelSchemaErr     error
-	snapshotSchemaOnce sync.Once
-	snapshotSchemaObj  *jsonschema.Schema
-	snapshotSchemaErr  error
-)
+var compiledSchemaCache = map[string]*compiledSchemaEntry{
+	schemaKey(ModelContractName, ContractVersionV1_0_0):    {},
+	schemaKey(ModelContractName, ContractVersionV1_1_0):    {},
+	schemaKey(SnapshotContractName, ContractVersionV1_0_0): {},
+	schemaKey(SnapshotContractName, ContractVersionV1_1_0): {},
+}
 
 func EmbeddedSchema() []byte {
-	out := make([]byte, len(canonicalSchema))
-	copy(out, canonicalSchema)
-	return out
+	return mustEmbeddedBytes(ExpectedRef())
 }
 
 func EmbeddedSnapshotSchema() []byte {
-	out := make([]byte, len(canonicalSnapshotSchema))
-	copy(out, canonicalSnapshotSchema)
-	return out
+	return mustEmbeddedBytes(ExpectedSnapshotRef())
 }
 
 func EmbeddedSchemaDigest() string {
-	sum := sha256.Sum256(canonicalSchema)
-	return "sha256:" + hex.EncodeToString(sum[:])
+	return mustEmbeddedDigest(ExpectedRef())
 }
 
 func EmbeddedSnapshotSchemaDigest() string {
-	sum := sha256.Sum256(canonicalSnapshotSchema)
-	return "sha256:" + hex.EncodeToString(sum[:])
+	return mustEmbeddedDigest(ExpectedSnapshotRef())
+}
+
+func EmbeddedBytes(ref SchemaRef) ([]byte, error) {
+	contract, ok := LookupContract(ref.Name, ref.Version)
+	if !ok {
+		return nil, fmt.Errorf("unknown embedded schema %s@%s", ref.Name, ref.Version)
+	}
+	raw, err := embeddedSchemas.ReadFile(contract.EmbeddedPath)
+	if err != nil {
+		return nil, fmt.Errorf("read embedded schema %s: %w", contract.EmbeddedPath, err)
+	}
+	out := make([]byte, len(raw))
+	copy(out, raw)
+	return out, nil
 }
 
 func ValidateStrict(ref SchemaRef) error {
@@ -59,40 +68,27 @@ func ValidateSnapshotStrict(ref SchemaRef) error {
 }
 
 func ValidateJSON(raw []byte) error {
-	return validateDocument(raw, ExpectedRef(), compiledModelSchema)
+	return validateDocument(raw, ExpectedRef())
+}
+
+func ValidateJSONVersion(raw []byte, version string) error {
+	ref, ok := ModelRef(version)
+	if !ok {
+		return fmt.Errorf("unsupported model schema version: %s", version)
+	}
+	return validateDocument(raw, ref)
 }
 
 func ValidateSnapshotJSON(raw []byte) error {
-	doc, err := decodeJSON(raw)
-	if err != nil {
-		return fmt.Errorf("decode snapshot json: %w", err)
-	}
-	compiled, err := compiledSnapshotSchema()
-	if err != nil {
-		return fmt.Errorf("compile snapshot schema: %w", err)
-	}
-	if err := compiled.Validate(doc); err != nil {
-		return fmt.Errorf("jsonschema validation failed: %w", err)
-	}
-	ref, err := extractSchemaRef(doc)
-	if err != nil {
-		return fmt.Errorf("extract metadata.schema: %w", err)
-	}
-	if err := ValidateSnapshotStrict(ref); err != nil {
-		return fmt.Errorf("strict metadata.schema validation failed: %w", err)
-	}
-	root, ok := doc.(map[string]any)
+	return validateSnapshotDocument(raw, ExpectedSnapshotRef())
+}
+
+func ValidateSnapshotJSONVersion(raw []byte, version string) error {
+	ref, ok := SnapshotRef(version)
 	if !ok {
-		return fmt.Errorf("snapshot root is not an object")
+		return fmt.Errorf("unsupported snapshot schema version: %s", version)
 	}
-	rawModel, err := json.Marshal(root["model"])
-	if err != nil {
-		return fmt.Errorf("encode nested model: %w", err)
-	}
-	if err := ValidateJSON(rawModel); err != nil {
-		return fmt.Errorf("nested model validation failed: %w", err)
-	}
-	return nil
+	return validateSnapshotDocument(raw, ref)
 }
 
 func ValidateArtifactJSON(raw []byte) error {
@@ -105,21 +101,47 @@ func ValidateArtifactJSON(raw []byte) error {
 		return fmt.Errorf("extract metadata.schema: %w", err)
 	}
 	switch ref.Name {
-	case ExpectedSchemaName:
-		return ValidateJSON(raw)
-	case ExpectedSnapshotSchemaName:
-		return ValidateSnapshotJSON(raw)
+	case ModelContractName:
+		return validateDocument(raw, ref)
+	case SnapshotContractName:
+		return validateSnapshotDocument(raw, ref)
 	default:
 		return fmt.Errorf("unsupported artifact schema name: %s", ref.Name)
 	}
 }
 
-func validateDocument(raw []byte, expected SchemaRef, compiler func() (*jsonschema.Schema, error)) error {
+func validateSnapshotDocument(raw []byte, expected SchemaRef) error {
+	doc, err := decodeJSON(raw)
+	if err != nil {
+		return fmt.Errorf("decode snapshot json: %w", err)
+	}
+	if err := validateDecodedDocument(doc, expected); err != nil {
+		return err
+	}
+	root, ok := doc.(map[string]any)
+	if !ok {
+		return fmt.Errorf("snapshot root is not an object")
+	}
+	rawModel, err := json.Marshal(root["model"])
+	if err != nil {
+		return fmt.Errorf("encode nested model: %w", err)
+	}
+	if err := ValidateArtifactJSON(rawModel); err != nil {
+		return fmt.Errorf("nested model validation failed: %w", err)
+	}
+	return nil
+}
+
+func validateDocument(raw []byte, expected SchemaRef) error {
 	doc, err := decodeJSON(raw)
 	if err != nil {
 		return fmt.Errorf("decode model json: %w", err)
 	}
-	compiled, err := compiler()
+	return validateDecodedDocument(doc, expected)
+}
+
+func validateDecodedDocument(doc any, expected SchemaRef) error {
+	compiled, err := compiledSchema(expected)
 	if err != nil {
 		return fmt.Errorf("compile canonical schema: %w", err)
 	}
@@ -164,28 +186,25 @@ func validateStrictAgainst(ref, expected SchemaRef) error {
 	return nil
 }
 
-func compiledModelSchema() (*jsonschema.Schema, error) {
-	modelSchemaOnce.Do(func() {
-		compiler := jsonschema.NewCompiler()
-		if err := compiler.AddResource(ExpectedSchemaURI, bytes.NewReader(canonicalSchema)); err != nil {
-			modelSchemaErr = err
+func compiledSchema(ref SchemaRef) (*jsonschema.Schema, error) {
+	entry, ok := compiledSchemaCache[schemaKey(ref.Name, ref.Version)]
+	if !ok {
+		return nil, fmt.Errorf("unsupported schema %s@%s", ref.Name, ref.Version)
+	}
+	entry.once.Do(func() {
+		raw, err := EmbeddedBytes(ref)
+		if err != nil {
+			entry.err = err
 			return
 		}
-		modelSchemaObj, modelSchemaErr = compiler.Compile(ExpectedSchemaURI)
-	})
-	return modelSchemaObj, modelSchemaErr
-}
-
-func compiledSnapshotSchema() (*jsonschema.Schema, error) {
-	snapshotSchemaOnce.Do(func() {
 		compiler := jsonschema.NewCompiler()
-		if err := compiler.AddResource(ExpectedSnapshotSchemaURI, bytes.NewReader(canonicalSnapshotSchema)); err != nil {
-			snapshotSchemaErr = err
+		if err := compiler.AddResource(ref.URI, bytes.NewReader(raw)); err != nil {
+			entry.err = err
 			return
 		}
-		snapshotSchemaObj, snapshotSchemaErr = compiler.Compile(ExpectedSnapshotSchemaURI)
+		entry.schema, entry.err = compiler.Compile(ref.URI)
 	})
-	return snapshotSchemaObj, snapshotSchemaErr
+	return entry.schema, entry.err
 }
 
 func decodeJSON(raw []byte) (any, error) {
@@ -238,4 +257,18 @@ func extractSchemaRef(doc any) (SchemaRef, error) {
 func toString(v any) string {
 	s, _ := v.(string)
 	return s
+}
+
+func mustEmbeddedBytes(ref SchemaRef) []byte {
+	raw, err := EmbeddedBytes(ref)
+	if err != nil {
+		panic(err)
+	}
+	return raw
+}
+
+func mustEmbeddedDigest(ref SchemaRef) string {
+	raw := mustEmbeddedBytes(ref)
+	sum := sha256.Sum256(raw)
+	return "sha256:" + hex.EncodeToString(sum[:])
 }

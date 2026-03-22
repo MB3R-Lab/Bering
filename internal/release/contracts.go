@@ -23,28 +23,25 @@ type contractSource struct {
 	URI     string
 	Digest  string
 	File    string
+	Archive string
 	Kind    string
 }
 
 func publicContractSources(repoRoot string) []contractSource {
-	return []contractSource{
-		{
-			Name:    schema.ExpectedSchemaName,
-			Version: schema.ExpectedSchemaVersion,
-			URI:     schema.ExpectedSchemaURI,
-			Digest:  schema.ExpectedSchemaDigest,
-			File:    filepath.Join(repoRoot, "api", "schema", "model.schema.json"),
+	contracts := schema.PublishedContracts()
+	out := make([]contractSource, 0, len(contracts))
+	for _, contract := range contracts {
+		out = append(out, contractSource{
+			Name:    contract.Ref.Name,
+			Version: contract.Ref.Version,
+			URI:     contract.Ref.URI,
+			Digest:  contract.Ref.Digest,
+			File:    filepath.Join(repoRoot, filepath.FromSlash(contract.APIPath)),
+			Archive: strings.TrimPrefix(contract.APIPath, "api/"),
 			Kind:    "json-schema",
-		},
-		{
-			Name:    schema.ExpectedSnapshotSchemaName,
-			Version: schema.ExpectedSnapshotSchemaVersion,
-			URI:     schema.ExpectedSnapshotSchemaURI,
-			Digest:  schema.ExpectedSnapshotSchemaDigest,
-			File:    filepath.Join(repoRoot, "api", "schema", "snapshot.schema.json"),
-			Kind:    "json-schema",
-		},
+		})
 	}
+	return out
 }
 
 func BuildContractsManifest(repoRoot, appVersion, buildDate string) (ContractsManifest, error) {
@@ -80,7 +77,7 @@ func BuildContractsManifest(repoRoot, appVersion, buildDate string) (ContractsMa
 			Name:    source.Name,
 			Version: source.Version,
 			Kind:    source.Kind,
-			File:    normalizePath(filepath.Join("schema", filepath.Base(source.File))),
+			File:    normalizePath(source.Archive),
 			URI:     source.URI,
 			Digest:  digest,
 		})
@@ -125,9 +122,8 @@ func GenerateContractsPack(opts ContractsPackOptions) (ContractsManifest, string
 		ContractsManifestName:            manifestPath,
 		"contracts-manifest.schema.json": contractsSchemaPath,
 	}
-	for _, contract := range manifest.Contracts {
-		src := filepath.Join(opts.RepoRoot, "api", "schema", filepath.Base(contract.File))
-		files[contract.File] = src
+	for _, source := range publicContractSources(opts.RepoRoot) {
+		files[source.Archive] = source.File
 	}
 
 	archiveName := fmt.Sprintf("%s-contracts_%s.tar.gz", ProductName, opts.AppVersion)

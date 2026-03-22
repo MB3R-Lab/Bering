@@ -2,13 +2,13 @@
 
 ## Batch users
 
-Existing file-based workflows continue to work.
+Existing file-based workflows continue to work, but the default emitted contract line has advanced.
 
-- `bering discover` still writes the same `io.mb3r.bering.model` v1.0.0 artifact by default
-- `bering validate` still validates the stable model contract
+- `bering discover` now writes `io.mb3r.bering.model@1.1.0` by default
+- `bering validate` validates both `1.0.0` and `1.1.0` model and snapshot artifacts
 - deterministic output for identical inputs and flags is preserved
 
-If you do nothing, your existing batch model flow should remain unchanged.
+If you are pinned to `1.0.0`, keep consuming the already-published `1.0.0` artifacts you have. Bering does not mutate those contracts in place.
 
 ## New optional capabilities
 
@@ -22,15 +22,23 @@ You can now opt into additional discovery-side features.
 
 ## Sheaft and other downstream model consumers
 
-The stable model contract is unchanged.
+The stable model contract now carries additional typed topology metadata:
 
-Downstream model readers do not need to understand the snapshot envelope unless they want runtime drift, support, or provenance details.
+- deterministic edge ids
+- service placements and shared resource references
+- edge resilience policy
+- observed edge latency summaries when trace timing exists
+- policy scope metadata
+- endpoint `method` and `path`
+
+Downstream model readers still do not need to understand the snapshot envelope unless they want runtime drift, support, or provenance details.
 
 Recommended migration path for downstream consumers:
 
-1. keep consuming `io.mb3r.bering.model` v1.0.0 unchanged
-2. add optional snapshot-envelope parsing only when runtime observability features are needed
-3. treat overlay-derived metadata as advisory discovery context, not execution policy
+1. keep consuming `io.mb3r.bering.model@1.0.0` unchanged if you are pinned there
+2. move to `io.mb3r.bering.model@1.1.0` when you need the typed placement, resilience, observed-edge, and endpoint-fidelity fields
+3. add optional snapshot-envelope parsing only when runtime observability features are needed
+4. treat overlay-derived metadata as published discovery context, not execution policy
 
 ## Success predicate references
 

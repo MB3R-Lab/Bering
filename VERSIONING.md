@@ -4,10 +4,13 @@ Bering separates product release versioning from public schema contract versioni
 
 For the current published product release:
 
-- product release tag: `v0.2.0`
-- product version in release automation: `0.2.0`
-- schema publishing tag: `schema-v1.0.0`
-- emitted schema contracts:
+- product release tag: `v0.3.0`
+- product version in release automation: `0.3.0`
+- schema publishing tag: `schema-v1.1.0`
+- default emitted schema contracts:
+  - `io.mb3r.bering.model@1.1.0`
+  - `io.mb3r.bering.snapshot@1.1.0`
+- previously published and still valid contracts:
   - `io.mb3r.bering.model@1.0.0`
   - `io.mb3r.bering.snapshot@1.0.0`
 
@@ -23,8 +26,8 @@ App version changes govern the Bering CLI, the runtime service behavior, the ins
 
 Examples:
 
-- product release `v0.2.0` identifies the current Bering release line
-- `dist/release-manifest.json` records `"app_version": "0.2.0"`
+- product release `v0.3.0` identifies the current Bering release line
+- `dist/release-manifest.json` records `"app_version": "0.3.0"`
 
 ## Schema Contract Versions
 
@@ -42,9 +45,10 @@ Each schema contract has its own version, URI, and digest. Those values are inde
 
 Examples:
 
-- Bering `v0.2.0` still emits `io.mb3r.bering.model@1.0.0`
-- Bering `v0.2.0` still emits `io.mb3r.bering.snapshot@1.0.0`
-- `schema-v1.0.0` publishes the schema files to GitHub Pages; it is not a product release tag
+- Bering `v0.3.0` now emits `io.mb3r.bering.model@1.1.0`
+- Bering `v0.3.0` now emits `io.mb3r.bering.snapshot@1.1.0`
+- `bering validate` still accepts `1.0.0` artifacts without mutation or migration
+- `schema-v1.1.0` publishes the schema files to GitHub Pages; it is not a product release tag
 
 Rules:
 
@@ -53,6 +57,7 @@ Rules:
 - Breaking schema changes require a new contract major version.
 - Non-breaking schema additions require a new contract minor version.
 - Pure fixes that do not change contract meaning require a new contract patch version.
+- This repository currently keeps the model and snapshot contracts on the same schema version line for publication and default emission.
 
 ## Image Tags
 
@@ -98,4 +103,4 @@ Rules:
 
 - A breaking schema change increments that contract's major version.
 - Existing published contract versions remain valid and immutable.
-- If Bering changes which schema version it emits by default in a way that breaks existing consumers, that is also an app-surface breaking change and should trigger a new app major version.
+- If Bering changes which schema version it emits by default, call that out explicitly in release notes and keep older published contract versions available to validators and pinned consumers.

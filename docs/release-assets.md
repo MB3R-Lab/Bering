@@ -58,6 +58,13 @@ Records the chart package path, chart version, app version, package digest, and 
 
 Records the public schema contract names, versions, canonical URIs, and digests generated from repo sources.
 
+The contracts pack now carries a versioned schema tree such as:
+
+- `schema/model/v1.0.0/model.schema.json`
+- `schema/model/v1.1.0/model.schema.json`
+- `schema/snapshot/v1.0.0/snapshot.schema.json`
+- `schema/snapshot/v1.1.0/snapshot.schema.json`
+
 ### `release-checksums.txt`
 
 Stable SHA-256 manifest for the generated release files in `dist/`.

@@ -73,8 +73,10 @@ jobs:
       - name: Validate schema JSON and $id binding
         shell: bash
         env:
+          MODEL_SCHEMA_VERSION: ${{ steps.contract.outputs.model_schema_version }}
           EXPECTED_MODEL_URI: ${{ steps.contract.outputs.model_schema_uri }}
           EXPECTED_MODEL_DIGEST: ${{ steps.contract.outputs.model_schema_digest }}
+          SNAPSHOT_SCHEMA_VERSION: ${{ steps.contract.outputs.snapshot_schema_version }}
           EXPECTED_SNAPSHOT_URI: ${{ steps.contract.outputs.snapshot_schema_uri }}
           EXPECTED_SNAPSHOT_DIGEST: ${{ steps.contract.outputs.snapshot_schema_digest }}
         run: |
@@ -87,12 +89,12 @@ jobs:
 
           checks = [
               (
-                  Path("api/schema/model.schema.json"),
+                  Path(f"api/schema/model/v{os.environ['MODEL_SCHEMA_VERSION']}/model.schema.json"),
                   os.environ["EXPECTED_MODEL_URI"],
                   os.environ["EXPECTED_MODEL_DIGEST"],
               ),
               (
-                  Path("api/schema/snapshot.schema.json"),
+                  Path(f"api/schema/snapshot/v{os.environ['SNAPSHOT_SCHEMA_VERSION']}/snapshot.schema.json"),
                   os.environ["EXPECTED_SNAPSHOT_URI"],
                   os.environ["EXPECTED_SNAPSHOT_DIGEST"],
               ),
@@ -127,17 +129,15 @@ jobs:
           set -euo pipefail
 
           ROOT="out"
-          MODEL_VERSION_DIR="${ROOT}/schema/model/v${MODEL_SCHEMA_VERSION}"
           MODEL_LATEST_DIR="${ROOT}/schema/model/latest"
-          SNAPSHOT_VERSION_DIR="${ROOT}/schema/snapshot/v${SNAPSHOT_SCHEMA_VERSION}"
           SNAPSHOT_LATEST_DIR="${ROOT}/schema/snapshot/latest"
 
-          mkdir -p "${MODEL_VERSION_DIR}" "${MODEL_LATEST_DIR}" "${SNAPSHOT_VERSION_DIR}" "${SNAPSHOT_LATEST_DIR}" "${ROOT}/schema"
+          mkdir -p "${ROOT}/schema" "${MODEL_LATEST_DIR}" "${SNAPSHOT_LATEST_DIR}"
 
-          cp api/schema/model.schema.json "${MODEL_VERSION_DIR}/model.schema.json"
-          cp api/schema/model.schema.json "${MODEL_LATEST_DIR}/model.schema.json"
-          cp api/schema/snapshot.schema.json "${SNAPSHOT_VERSION_DIR}/snapshot.schema.json"
-          cp api/schema/snapshot.schema.json "${SNAPSHOT_LATEST_DIR}/snapshot.schema.json"
+          cp -R api/schema/model "${ROOT}/schema/"
+          cp -R api/schema/snapshot "${ROOT}/schema/"
+          cp "api/schema/model/v${MODEL_SCHEMA_VERSION}/model.schema.json" "${MODEL_LATEST_DIR}/model.schema.json"
+          cp "api/schema/snapshot/v${SNAPSHOT_SCHEMA_VERSION}/snapshot.schema.json" "${SNAPSHOT_LATEST_DIR}/snapshot.schema.json"
 
           UPDATED_AT="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
           cat > "${ROOT}/schema/index.json" <<EOF

@@ -13,10 +13,21 @@ func TestLoadFileYAMLNormalizesDefaults(t *testing.T) {
 	path := filepath.Join(dir, "topology.yaml")
 	raw := []byte(`services:
   - id: frontend
+  - id: checkout
+    shared_resource_refs:
+      - kafka-orders
+    placements:
+      - replicas: 1
+        labels:
+          az: us-east-1a
 edges:
   - from: frontend
-    to: frontend
+    to: checkout
     kind: sync
+    resilience:
+      request_timeout_ms: 2000
+    policy_scope:
+      method: get
 endpoints:
   - entry_service: frontend
     method: get
@@ -42,11 +53,23 @@ endpoints:
 	if got, want := doc.Services[0].Support.Observations, 1; got != want {
 		t.Fatalf("service support mismatch: got=%d want=%d", got, want)
 	}
-	if got, want := doc.Edges[0].ID, "frontend|frontend|sync|true"; got != want {
+	if got, want := doc.Services[1].SharedResourceRefs[0], "kafka-orders"; got != want {
+		t.Fatalf("shared_resource_ref mismatch: got=%s want=%s", got, want)
+	}
+	if got, want := doc.Services[1].Placements[0].Labels["az"], "us-east-1a"; got != want {
+		t.Fatalf("placement label mismatch: got=%s want=%s", got, want)
+	}
+	if got, want := doc.Edges[0].ID, "frontend|checkout|sync|true"; got != want {
 		t.Fatalf("edge id mismatch: got=%s want=%s", got, want)
 	}
 	if got, want := *doc.Edges[0].Blocking, true; got != want {
 		t.Fatalf("edge blocking mismatch: got=%t want=%t", got, want)
+	}
+	if got, want := *doc.Edges[0].Resilience.RequestTimeoutMS, 2000; got != want {
+		t.Fatalf("edge request_timeout_ms mismatch: got=%d want=%d", got, want)
+	}
+	if got, want := doc.Edges[0].PolicyScope.Method, "GET"; got != want {
+		t.Fatalf("edge policy_scope.method mismatch: got=%s want=%s", got, want)
 	}
 	if got, want := doc.Endpoints[0].ID, "frontend:GET /health"; got != want {
 		t.Fatalf("endpoint id mismatch: got=%s want=%s", got, want)

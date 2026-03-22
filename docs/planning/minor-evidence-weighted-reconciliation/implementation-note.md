@@ -1,12 +1,14 @@
 # Implementation Note: Evidence-Weighted Reconciliation for Trace Gaps
 
+Historical scope note: this note captures the runtime reconciliation minor as it was planned against the pre-`1.1.0` contract line. The later schema contract evolution minor changed default emission to `1.1.0` without changing the reconciliation design described here.
+
 ## Current Runtime Data Flow
 
 - `bering serve` accepts OTLP/HTTP and optional OTLP/gRPC spans, normalizes them into `internal/connectors/traces.Span`, and batches them into a bounded tumbling window.
 - `internal/runtime/engine.go` closes the active window on schedule, runs discovery, computes a stable model plus snapshot envelope, and writes that envelope to the configured sink.
 - The runtime keeps only the active window and the previous snapshot for diffs and carry-forward metadata. Empty windows are skipped rather than published as new artifacts.
 
-## Current Artifact and Publication Behavior
+## Artifact And Publication Behavior At Planning Time
 
 - Batch discovery publishes the stable `io.mb3r.bering.model@1.0.0` artifact and can optionally emit `io.mb3r.bering.snapshot@1.0.0`.
 - Runtime publication currently centers on the snapshot envelope plus the latest sink file path.
@@ -36,7 +38,7 @@
 
 ## Explicit Non-Goals For This Minor
 
-- No new public schema contract versions.
+- No new public schema contract versions as part of this runtime reconciliation minor.
 - No Sheaft changes.
 - No SQLite, BoltDB, Gob, or other heavyweight persistence layer.
 - No broad ingest rewrite for route-perfect opportunity semantics.

@@ -30,46 +30,39 @@ func TestValidateStrict(t *testing.T) {
 	if err := ValidateStrict(ExpectedRef()); err != nil {
 		t.Fatalf("expected strict validation to pass, got error: %v", err)
 	}
-}
-
-func TestEmbeddedSchemaIDMatchesExpectedURI(t *testing.T) {
-	t.Parallel()
-
-	var payload map[string]any
-	if err := json.Unmarshal(EmbeddedSchema(), &payload); err != nil {
-		t.Fatalf("decode embedded schema: %v", err)
-	}
-
-	id, _ := payload["$id"].(string)
-	if id != ExpectedSchemaURI {
-		t.Fatalf("schema $id mismatch: got=%q want=%q", id, ExpectedSchemaURI)
+	if err := ValidateSnapshotStrict(ExpectedSnapshotRef()); err != nil {
+		t.Fatalf("expected snapshot strict validation to pass, got error: %v", err)
 	}
 }
 
-func TestExpectedSchemaURIVersionPathMatchesConstant(t *testing.T) {
+func TestPublishedContractsHavePinnedDigestAndID(t *testing.T) {
 	t.Parallel()
 
-	parsed, err := url.Parse(ExpectedSchemaURI)
-	if err != nil {
-		t.Fatalf("parse ExpectedSchemaURI: %v", err)
-	}
+	for _, contract := range PublishedContracts() {
+		raw, err := EmbeddedBytes(contract.Ref)
+		if err != nil {
+			t.Fatalf("embedded bytes for %s@%s: %v", contract.Ref.Name, contract.Ref.Version, err)
+		}
+		if got, want := mustEmbeddedDigest(contract.Ref), contract.Ref.Digest; got != want {
+			t.Fatalf("embedded digest mismatch for %s@%s: got=%s want=%s", contract.Ref.Name, contract.Ref.Version, got, want)
+		}
 
-	wantSegment := fmt.Sprintf("/v%s/", ExpectedSchemaVersion)
-	if !strings.Contains(parsed.Path, wantSegment) {
-		t.Fatalf("ExpectedSchemaURI path %q must contain %q", parsed.Path, wantSegment)
-	}
-}
+		var payload map[string]any
+		if err := json.Unmarshal(raw, &payload); err != nil {
+			t.Fatalf("decode embedded schema %s@%s: %v", contract.Ref.Name, contract.Ref.Version, err)
+		}
+		id, _ := payload["$id"].(string)
+		if id != contract.Ref.URI {
+			t.Fatalf("schema $id mismatch for %s@%s: got=%q want=%q", contract.Ref.Name, contract.Ref.Version, id, contract.Ref.URI)
+		}
 
-func TestExpectedSnapshotSchemaURIVersionPathMatchesConstant(t *testing.T) {
-	t.Parallel()
-
-	parsed, err := url.Parse(ExpectedSnapshotSchemaURI)
-	if err != nil {
-		t.Fatalf("parse ExpectedSnapshotSchemaURI: %v", err)
-	}
-
-	wantSegment := fmt.Sprintf("/v%s/", ExpectedSnapshotSchemaVersion)
-	if !strings.Contains(parsed.Path, wantSegment) {
-		t.Fatalf("ExpectedSnapshotSchemaURI path %q must contain %q", parsed.Path, wantSegment)
+		parsed, err := url.Parse(contract.Ref.URI)
+		if err != nil {
+			t.Fatalf("parse schema uri for %s@%s: %v", contract.Ref.Name, contract.Ref.Version, err)
+		}
+		wantSegment := fmt.Sprintf("/v%s/", contract.Ref.Version)
+		if !strings.Contains(parsed.Path, wantSegment) {
+			t.Fatalf("schema uri path %q must contain %q", parsed.Path, wantSegment)
+		}
 	}
 }

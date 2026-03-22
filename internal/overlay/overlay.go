@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"path/filepath"
 	"strings"
+
+	"github.com/MB3R-Lab/Bering/internal/model"
 )
 
 type File struct {
@@ -15,26 +17,29 @@ type File struct {
 }
 
 type CommonMetadata struct {
-	Labels     map[string]string `json:"labels" yaml:"labels"`
-	Tags       []string          `json:"tags" yaml:"tags"`
-	SLORefs    []string          `json:"slo_refs" yaml:"slo_refs"`
-	Attributes map[string]string `json:"attributes" yaml:"attributes"`
+	model.CommonMetadata `json:",inline" yaml:",inline"`
+	Attributes           map[string]string `json:"attributes" yaml:"attributes"`
 }
 
 type ServiceOverlay struct {
-	ID              string `json:"id" yaml:"id"`
-	Replicas        *int   `json:"replicas" yaml:"replicas"`
-	FailureEligible *bool  `json:"failure_eligible" yaml:"failure_eligible"`
-	CommonMetadata  `json:",inline" yaml:",inline"`
+	ID                 string            `json:"id" yaml:"id"`
+	Replicas           *int              `json:"replicas" yaml:"replicas"`
+	FailureEligible    *bool             `json:"failure_eligible" yaml:"failure_eligible"`
+	Placements         []model.Placement `json:"placements" yaml:"placements"`
+	SharedResourceRefs []string          `json:"shared_resource_refs" yaml:"shared_resource_refs"`
+	CommonMetadata     `json:",inline" yaml:",inline"`
 }
 
 type EdgeOverlay struct {
-	ID             string   `json:"id" yaml:"id"`
-	From           string   `json:"from" yaml:"from"`
-	To             string   `json:"to" yaml:"to"`
-	Kind           string   `json:"kind" yaml:"kind"`
-	Blocking       *bool    `json:"blocking" yaml:"blocking"`
-	Weight         *float64 `json:"weight" yaml:"weight"`
+	ID             string                  `json:"id" yaml:"id"`
+	From           string                  `json:"from" yaml:"from"`
+	To             string                  `json:"to" yaml:"to"`
+	Kind           string                  `json:"kind" yaml:"kind"`
+	Blocking       *bool                   `json:"blocking" yaml:"blocking"`
+	Weight         *float64                `json:"weight" yaml:"weight"`
+	Resilience     *model.ResiliencePolicy `json:"resilience" yaml:"resilience"`
+	Observed       *model.ObservedEdge     `json:"observed" yaml:"observed"`
+	PolicyScope    *model.PolicyScope      `json:"policy_scope" yaml:"policy_scope"`
 	CommonMetadata `json:",inline" yaml:",inline"`
 }
 
@@ -59,6 +64,9 @@ func (f *File) Normalize(path string) error {
 		if f.Services[i].ID == "" {
 			return fmt.Errorf("service overlay at index %d has empty id", i)
 		}
+		normalizeCommonMetadata(&f.Services[i].CommonMetadata)
+		normalizePlacements(f.Services[i].Placements)
+		f.Services[i].SharedResourceRefs = dedupeNonEmpty(f.Services[i].SharedResourceRefs)
 	}
 	for i := range f.Edges {
 		item := &f.Edges[i]
@@ -71,6 +79,16 @@ func (f *File) Normalize(path string) error {
 				return fmt.Errorf("edge overlay at index %d requires id or from/to/kind/blocking", i)
 			}
 			item.ID = fmt.Sprintf("%s|%s|%s|%t", item.From, item.To, item.Kind, *item.Blocking)
+		}
+		normalizeCommonMetadata(&item.CommonMetadata)
+		if item.Resilience != nil {
+			item.Resilience.Normalize()
+		}
+		if item.Observed != nil {
+			item.Observed.Normalize()
+		}
+		if item.PolicyScope != nil {
+			item.PolicyScope.Normalize()
 		}
 	}
 	for i := range f.Endpoints {
@@ -86,6 +104,7 @@ func (f *File) Normalize(path string) error {
 			}
 			item.ID = fmt.Sprintf("%s:%s %s", item.EntryService, item.Method, item.Path)
 		}
+		normalizeCommonMetadata(&item.CommonMetadata)
 	}
 	return nil
 }
@@ -108,4 +127,56 @@ func normalizePath(path string) string {
 		path = "/" + path
 	}
 	return path
+}
+
+func normalizeCommonMetadata(meta *CommonMetadata) {
+	if meta == nil {
+		return
+	}
+	meta.CommonMetadata.Normalize()
+	meta.Attributes = trimStringMap(meta.Attributes)
+}
+
+func normalizePlacements(items []model.Placement) {
+	for i := range items {
+		items[i].Labels = trimStringMap(items[i].Labels)
+	}
+}
+
+func trimStringMap(values map[string]string) map[string]string {
+	if len(values) == 0 {
+		return nil
+	}
+	out := make(map[string]string, len(values))
+	for key, value := range values {
+		trimmedKey := strings.TrimSpace(key)
+		if trimmedKey == "" {
+			continue
+		}
+		out[trimmedKey] = strings.TrimSpace(value)
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
+}
+
+func dedupeNonEmpty(values []string) []string {
+	if len(values) == 0 {
+		return nil
+	}
+	seen := map[string]struct{}{}
+	out := make([]string, 0, len(values))
+	for _, value := range values {
+		trimmed := strings.TrimSpace(value)
+		if trimmed == "" {
+			continue
+		}
+		if _, exists := seen[trimmed]; exists {
+			continue
+		}
+		seen[trimmed] = struct{}{}
+		out = append(out, trimmed)
+	}
+	return out
 }

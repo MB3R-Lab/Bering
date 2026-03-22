@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## v0.3.0
+
+### Added
+
+- Versioned public schema contract evolution to `io.mb3r.bering.model@1.1.0` and `io.mb3r.bering.snapshot@1.1.0` without mutating the preserved `1.0.0` contracts.
+- Typed public topology metadata for stable edge identity, service placements, shared fate-domain references, edge resilience policy, observed latency/error summaries, policy scope, and richer endpoint fidelity.
+- Versioned contracts-pack and release-manifest plumbing aligned with the new schema tree and pinned `1.1.0` digests.
+- Documentation, migration guidance, examples, and schema publishing workflow updates aligned with the `1.1.0` contract line.
+
 ## v0.2.0
 
 ### Added

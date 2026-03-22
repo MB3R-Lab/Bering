@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/MB3R-Lab/Bering/internal/model"
 	"gopkg.in/yaml.v3"
 )
 
@@ -35,33 +36,36 @@ type Support struct {
 }
 
 type CommonMetadata struct {
-	Labels     map[string]string `json:"labels" yaml:"labels"`
-	Tags       []string          `json:"tags" yaml:"tags"`
-	SLORefs    []string          `json:"slo_refs" yaml:"slo_refs"`
-	Attributes map[string]string `json:"attributes" yaml:"attributes"`
+	model.CommonMetadata `json:",inline" yaml:",inline"`
+	Attributes           map[string]string `json:"attributes" yaml:"attributes"`
 }
 
 type Service struct {
-	ID              string  `json:"id" yaml:"id"`
-	Name            string  `json:"name" yaml:"name"`
-	Replicas        *int    `json:"replicas" yaml:"replicas"`
-	FirstSeen       string  `json:"first_seen" yaml:"first_seen"`
-	LastSeen        string  `json:"last_seen" yaml:"last_seen"`
-	FailureEligible *bool   `json:"failure_eligible" yaml:"failure_eligible"`
-	Support         Support `json:"support" yaml:"support"`
-	CommonMetadata  `json:",inline" yaml:",inline"`
+	ID                 string            `json:"id" yaml:"id"`
+	Name               string            `json:"name" yaml:"name"`
+	Replicas           *int              `json:"replicas" yaml:"replicas"`
+	FirstSeen          string            `json:"first_seen" yaml:"first_seen"`
+	LastSeen           string            `json:"last_seen" yaml:"last_seen"`
+	FailureEligible    *bool             `json:"failure_eligible" yaml:"failure_eligible"`
+	Placements         []model.Placement `json:"placements" yaml:"placements"`
+	SharedResourceRefs []string          `json:"shared_resource_refs" yaml:"shared_resource_refs"`
+	Support            Support           `json:"support" yaml:"support"`
+	CommonMetadata     `json:",inline" yaml:",inline"`
 }
 
 type Edge struct {
-	ID             string   `json:"id" yaml:"id"`
-	From           string   `json:"from" yaml:"from"`
-	To             string   `json:"to" yaml:"to"`
-	Kind           string   `json:"kind" yaml:"kind"`
-	Blocking       *bool    `json:"blocking" yaml:"blocking"`
-	FirstSeen      string   `json:"first_seen" yaml:"first_seen"`
-	LastSeen       string   `json:"last_seen" yaml:"last_seen"`
-	Weight         *float64 `json:"weight" yaml:"weight"`
-	Support        Support  `json:"support" yaml:"support"`
+	ID             string                  `json:"id" yaml:"id"`
+	From           string                  `json:"from" yaml:"from"`
+	To             string                  `json:"to" yaml:"to"`
+	Kind           string                  `json:"kind" yaml:"kind"`
+	Blocking       *bool                   `json:"blocking" yaml:"blocking"`
+	FirstSeen      string                  `json:"first_seen" yaml:"first_seen"`
+	LastSeen       string                  `json:"last_seen" yaml:"last_seen"`
+	Weight         *float64                `json:"weight" yaml:"weight"`
+	Resilience     *model.ResiliencePolicy `json:"resilience" yaml:"resilience"`
+	Observed       *model.ObservedEdge     `json:"observed" yaml:"observed"`
+	PolicyScope    *model.PolicyScope      `json:"policy_scope" yaml:"policy_scope"`
+	Support        Support                 `json:"support" yaml:"support"`
 	CommonMetadata `json:",inline" yaml:",inline"`
 }
 
@@ -149,6 +153,8 @@ func (d *Document) Normalize() error {
 			return fmt.Errorf("service %q seen range: %w", item.ID, err)
 		}
 		normalizeCommonMetadata(&item.CommonMetadata)
+		normalizePlacements(item.Placements)
+		item.SharedResourceRefs = dedupeNonEmpty(item.SharedResourceRefs)
 	}
 
 	edgeIDs := map[string]struct{}{}
@@ -193,6 +199,15 @@ func (d *Document) Normalize() error {
 			return fmt.Errorf("edge %q seen range: %w", item.ID, err)
 		}
 		normalizeCommonMetadata(&item.CommonMetadata)
+		if item.Resilience != nil {
+			item.Resilience.Normalize()
+		}
+		if item.Observed != nil {
+			item.Observed.Normalize()
+		}
+		if item.PolicyScope != nil {
+			item.PolicyScope.Normalize()
+		}
 	}
 
 	endpointIDs := map[string]struct{}{}
@@ -282,10 +297,14 @@ func normalizeCommonMetadata(meta *CommonMetadata) {
 	if meta == nil {
 		return
 	}
-	meta.Tags = dedupeNonEmpty(meta.Tags)
-	meta.SLORefs = dedupeNonEmpty(meta.SLORefs)
-	meta.Labels = trimStringMap(meta.Labels)
+	meta.CommonMetadata.Normalize()
 	meta.Attributes = trimStringMap(meta.Attributes)
+}
+
+func normalizePlacements(items []model.Placement) {
+	for i := range items {
+		items[i].Labels = trimStringMap(items[i].Labels)
+	}
 }
 
 func trimStringMap(values map[string]string) map[string]string {

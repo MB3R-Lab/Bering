@@ -115,6 +115,9 @@ func TestDiscover_OverlayAppliesRuntimeMetadata(t *testing.T) {
 	if got := result.Model.Services[0].Replicas; got != 3 {
 		t.Fatalf("replicas override mismatch: got=%d", got)
 	}
+	if got := result.Model.Services[0].Metadata.FailureEligible; got == nil || !*got {
+		t.Fatal("failure_eligible was not propagated into the model")
+	}
 	if got := result.Model.Endpoints[0].SuccessPredicateRef; got != "catalog.checkout.success" {
 		t.Fatalf("predicate ref mismatch: got=%s", got)
 	}
@@ -129,6 +132,56 @@ func TestDiscover_OverlayAppliesRuntimeMetadata(t *testing.T) {
 	}
 	if got := result.Discovery.Endpoints[0].Metadata.Attributes["verb"]; got != "write" {
 		t.Fatalf("endpoint metadata attribute mismatch: got=%s", got)
+	}
+}
+
+func TestDiscover_ComputesObservedLatencySummaryFromTraceTiming(t *testing.T) {
+	t.Parallel()
+
+	start := time.Date(2026, 3, 11, 12, 0, 0, 0, time.UTC)
+	spans := []traces.Span{
+		{
+			TraceID: "t1", SpanID: "frontend-server", Service: "frontend", Name: "GET /checkout", Kind: "server",
+			StartTime: start, EndTime: start.Add(5 * time.Millisecond),
+			Attributes: map[string]any{"http.request.method": "GET", "http.route": "/checkout"},
+		},
+		{
+			TraceID: "t1", SpanID: "checkout-server", ParentSpanID: "frontend-server", Service: "checkout", Kind: "server",
+			StartTime: start.Add(5 * time.Millisecond), EndTime: start.Add(35 * time.Millisecond),
+			Attributes: map[string]any{"http.request.method": "POST", "http.route": "/process"},
+		},
+		{
+			TraceID: "t2", SpanID: "frontend-server-2", Service: "frontend", Name: "GET /checkout", Kind: "server",
+			StartTime: start.Add(time.Second), EndTime: start.Add(time.Second + 5*time.Millisecond),
+			Attributes: map[string]any{"http.request.method": "GET", "http.route": "/checkout"},
+		},
+		{
+			TraceID: "t2", SpanID: "checkout-server-2", ParentSpanID: "frontend-server-2", Service: "checkout", Kind: "server",
+			StartTime: start.Add(time.Second + 5*time.Millisecond), EndTime: start.Add(time.Second + 75*time.Millisecond),
+			Attributes: map[string]any{"http.request.method": "POST", "http.route": "/process"},
+		},
+	}
+
+	result, err := Discover(spans, Options{
+		SourceRef:    BuildSourceRef("examples/traces/normalized.sample.json"),
+		DiscoveredAt: "2026-03-11T00:00:00Z",
+		RuntimeMode:  true,
+	})
+	if err != nil {
+		t.Fatalf("Discover returned error: %v", err)
+	}
+
+	if got := result.Model.Edges[0].Observed; got == nil || got.LatencyMS == nil {
+		t.Fatal("expected observed latency summary on discovered model edge")
+	}
+	if got, want := *result.Model.Edges[0].Observed.LatencyMS.P50, 30.0; got != want {
+		t.Fatalf("p50 mismatch: got=%v want=%v", got, want)
+	}
+	if got, want := *result.Model.Edges[0].Observed.LatencyMS.P99, 70.0; got != want {
+		t.Fatalf("p99 mismatch: got=%v want=%v", got, want)
+	}
+	if got := result.Discovery.Edges[0].Observed; got == nil || got.LatencyMS == nil {
+		t.Fatal("expected observed latency summary on discovery edge record")
 	}
 }
 

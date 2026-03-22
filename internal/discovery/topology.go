@@ -53,7 +53,12 @@ func DiscoverTopology(doc topology.Document, opts Options) (Result, error) {
 	serviceRecords := make([]snapshot.ServiceRecord, 0, len(doc.Services))
 	for _, item := range doc.Services {
 		replicas := serviceReplicas[item.ID]
-		services = append(services, model.Service{ID: item.ID, Name: item.Name, Replicas: replicas})
+		services = append(services, model.Service{
+			ID:       item.ID,
+			Name:     item.Name,
+			Replicas: replicas,
+			Metadata: buildServiceMetadataFromTopology(item),
+		})
 		serviceRecords = append(serviceRecords, snapshot.ServiceRecord{
 			ID:         item.ID,
 			Name:       item.Name,
@@ -62,15 +67,7 @@ func DiscoverTopology(doc topology.Document, opts Options) (Result, error) {
 			FirstSeen:  strings.TrimSpace(item.FirstSeen),
 			LastSeen:   strings.TrimSpace(item.LastSeen),
 			Provenance: []snapshot.Provenance{provenance},
-			Metadata: snapshot.ServiceMetadata{
-				CommonMetadata: snapshot.CommonMetadata{
-					Labels:  cloneStringMap(item.Labels),
-					Tags:    append([]string(nil), item.Tags...),
-					SLORefs: append([]string(nil), item.SLORefs...),
-				},
-				FailureEligible: item.FailureEligible,
-				Attributes:      cloneStringMap(item.Attributes),
-			},
+			Metadata:   buildSnapshotServiceMetadataFromTopology(item),
 		})
 	}
 
@@ -78,26 +75,32 @@ func DiscoverTopology(doc topology.Document, opts Options) (Result, error) {
 	edgeRecords := make([]snapshot.EdgeRecord, 0, len(doc.Edges))
 	for _, item := range doc.Edges {
 		kind := model.EdgeKind(strings.TrimSpace(item.Kind))
-		edges = append(edges, model.Edge{From: item.From, To: item.To, Kind: kind, Blocking: valueOrDefault(item.Blocking, kind == model.EdgeKindSync)})
+		blocking := valueOrDefault(item.Blocking, kind == model.EdgeKindSync)
+		edges = append(edges, model.Edge{
+			ID:          item.ID,
+			From:        item.From,
+			To:          item.To,
+			Kind:        kind,
+			Blocking:    blocking,
+			Metadata:    buildEdgeMetadataFromTopology(item),
+			Resilience:  cloneResiliencePolicy(item.Resilience),
+			Observed:    cloneObservedEdge(item.Observed),
+			PolicyScope: clonePolicyScope(item.PolicyScope),
+		})
 		edgeRecords = append(edgeRecords, snapshot.EdgeRecord{
-			ID:         item.ID,
-			From:       item.From,
-			To:         item.To,
-			Kind:       kind,
-			Blocking:   valueOrDefault(item.Blocking, kind == model.EdgeKindSync),
-			Support:    topologySupport(item.Support),
-			FirstSeen:  strings.TrimSpace(item.FirstSeen),
-			LastSeen:   strings.TrimSpace(item.LastSeen),
-			Provenance: []snapshot.Provenance{provenance},
-			Metadata: snapshot.EdgeMetadata{
-				CommonMetadata: snapshot.CommonMetadata{
-					Labels:  cloneStringMap(item.Labels),
-					Tags:    append([]string(nil), item.Tags...),
-					SLORefs: append([]string(nil), item.SLORefs...),
-				},
-				Weight:     item.Weight,
-				Attributes: cloneStringMap(item.Attributes),
-			},
+			ID:          item.ID,
+			From:        item.From,
+			To:          item.To,
+			Kind:        kind,
+			Blocking:    blocking,
+			Support:     topologySupport(item.Support),
+			FirstSeen:   strings.TrimSpace(item.FirstSeen),
+			LastSeen:    strings.TrimSpace(item.LastSeen),
+			Provenance:  []snapshot.Provenance{provenance},
+			Metadata:    buildSnapshotEdgeMetadataFromTopology(item),
+			Resilience:  cloneResiliencePolicy(item.Resilience),
+			Observed:    cloneObservedEdge(item.Observed),
+			PolicyScope: clonePolicyScope(item.PolicyScope),
 		})
 	}
 
@@ -112,6 +115,9 @@ func DiscoverTopology(doc topology.Document, opts Options) (Result, error) {
 			ID:                  item.ID,
 			EntryService:        item.EntryService,
 			SuccessPredicateRef: predicateRef,
+			Method:              strings.TrimSpace(item.Method),
+			Path:                strings.TrimSpace(item.Path),
+			Metadata:            buildEndpointMetadataFromTopology(item),
 		})
 		endpointRecords = append(endpointRecords, snapshot.EndpointRecord{
 			ID:           item.ID,
@@ -122,16 +128,7 @@ func DiscoverTopology(doc topology.Document, opts Options) (Result, error) {
 			FirstSeen:    strings.TrimSpace(item.FirstSeen),
 			LastSeen:     strings.TrimSpace(item.LastSeen),
 			Provenance:   []snapshot.Provenance{provenance},
-			Metadata: snapshot.EndpointMetadata{
-				CommonMetadata: snapshot.CommonMetadata{
-					Labels:  cloneStringMap(item.Labels),
-					Tags:    append([]string(nil), item.Tags...),
-					SLORefs: append([]string(nil), item.SLORefs...),
-				},
-				Weight:       item.Weight,
-				PredicateRef: predicateRef,
-				Attributes:   cloneStringMap(item.Attributes),
-			},
+			Metadata:     buildSnapshotEndpointMetadataFromTopology(item, predicateRef),
 		})
 	}
 
@@ -208,6 +205,267 @@ func cloneStringMap(values map[string]string) map[string]string {
 		out[key] = value
 	}
 	return out
+}
+
+func cloneStringSlice(values []string) []string {
+	if len(values) == 0 {
+		return nil
+	}
+	out := make([]string, len(values))
+	copy(out, values)
+	return out
+}
+
+func cloneCommonMetadata(values topology.CommonMetadata) model.CommonMetadata {
+	return model.CommonMetadata{
+		Labels:  cloneStringMap(values.Labels),
+		Tags:    cloneStringSlice(values.Tags),
+		SLORefs: cloneStringSlice(values.SLORefs),
+	}
+}
+
+func clonePlacements(values []model.Placement) []model.Placement {
+	if len(values) == 0 {
+		return nil
+	}
+	out := make([]model.Placement, len(values))
+	for i, item := range values {
+		out[i] = model.Placement{
+			Replicas: item.Replicas,
+			Labels:   cloneStringMap(item.Labels),
+		}
+	}
+	return out
+}
+
+func buildServiceMetadataFromTopology(item topology.Service) *model.ServiceMetadata {
+	meta := &model.ServiceMetadata{
+		CommonMetadata:     cloneCommonMetadata(item.CommonMetadata),
+		FailureEligible:    item.FailureEligible,
+		Placements:         clonePlacements(item.Placements),
+		SharedResourceRefs: cloneStringSlice(item.SharedResourceRefs),
+	}
+	meta.Normalize()
+	if meta.IsZero() {
+		return nil
+	}
+	return meta
+}
+
+func buildSnapshotServiceMetadataFromTopology(item topology.Service) *snapshot.ServiceMetadata {
+	meta := &snapshot.ServiceMetadata{
+		ServiceMetadata: model.ServiceMetadata{
+			CommonMetadata:     cloneCommonMetadata(item.CommonMetadata),
+			FailureEligible:    item.FailureEligible,
+			Placements:         clonePlacements(item.Placements),
+			SharedResourceRefs: cloneStringSlice(item.SharedResourceRefs),
+		},
+		Attributes: cloneStringMap(item.Attributes),
+	}
+	meta.Normalize()
+	if meta.IsZero() {
+		return nil
+	}
+	return meta
+}
+
+func buildEdgeMetadataFromTopology(item topology.Edge) *model.EdgeMetadata {
+	meta := &model.EdgeMetadata{
+		CommonMetadata: cloneCommonMetadata(item.CommonMetadata),
+		Weight:         item.Weight,
+	}
+	meta.Normalize()
+	if meta.IsZero() {
+		return nil
+	}
+	return meta
+}
+
+func buildSnapshotEdgeMetadataFromTopology(item topology.Edge) *snapshot.EdgeMetadata {
+	meta := &snapshot.EdgeMetadata{
+		EdgeMetadata: model.EdgeMetadata{
+			CommonMetadata: cloneCommonMetadata(item.CommonMetadata),
+			Weight:         item.Weight,
+		},
+		Attributes: cloneStringMap(item.Attributes),
+	}
+	meta.Normalize()
+	if meta.IsZero() {
+		return nil
+	}
+	return meta
+}
+
+func buildEndpointMetadataFromTopology(item topology.Endpoint) *model.EndpointMetadata {
+	meta := &model.EndpointMetadata{
+		CommonMetadata: cloneCommonMetadata(item.CommonMetadata),
+		Weight:         item.Weight,
+	}
+	meta.Normalize()
+	if meta.IsZero() {
+		return nil
+	}
+	return meta
+}
+
+func buildSnapshotEndpointMetadataFromTopology(item topology.Endpoint, predicateRef string) *snapshot.EndpointMetadata {
+	meta := &snapshot.EndpointMetadata{
+		EndpointMetadata: model.EndpointMetadata{
+			CommonMetadata: cloneCommonMetadata(item.CommonMetadata),
+			Weight:         item.Weight,
+		},
+		PredicateRef: predicateRef,
+		Attributes:   cloneStringMap(item.Attributes),
+	}
+	meta.Normalize()
+	if meta.IsZero() {
+		return nil
+	}
+	return meta
+}
+
+func cloneResiliencePolicy(values *model.ResiliencePolicy) *model.ResiliencePolicy {
+	if values == nil {
+		return nil
+	}
+	out := &model.ResiliencePolicy{
+		RequestTimeoutMS: cloneIntPointer(values.RequestTimeoutMS),
+		PerTryTimeoutMS:  cloneIntPointer(values.PerTryTimeoutMS),
+		Retry:            cloneRetryPolicy(values.Retry),
+		CircuitBreaker:   cloneCircuitBreakerPolicy(values.CircuitBreaker),
+	}
+	out.Normalize()
+	if out.IsZero() {
+		return nil
+	}
+	return out
+}
+
+func cloneRetryPolicy(values *model.RetryPolicy) *model.RetryPolicy {
+	if values == nil {
+		return nil
+	}
+	out := &model.RetryPolicy{
+		MaxAttempts: cloneIntPointer(values.MaxAttempts),
+		BudgetCap:   cloneFloatPointer(values.BudgetCap),
+		RetryOn:     cloneStringSlice(values.RetryOn),
+		Backoff:     cloneBackoffPolicy(values.Backoff),
+	}
+	out.Normalize()
+	if out.IsZero() {
+		return nil
+	}
+	return out
+}
+
+func cloneBackoffPolicy(values *model.BackoffPolicy) *model.BackoffPolicy {
+	if values == nil {
+		return nil
+	}
+	out := &model.BackoffPolicy{
+		InitialMS:  cloneIntPointer(values.InitialMS),
+		MaxMS:      cloneIntPointer(values.MaxMS),
+		Multiplier: cloneFloatPointer(values.Multiplier),
+		Jitter:     values.Jitter,
+	}
+	out.Normalize()
+	if out.IsZero() {
+		return nil
+	}
+	return out
+}
+
+func cloneCircuitBreakerPolicy(values *model.CircuitBreakerPolicy) *model.CircuitBreakerPolicy {
+	if values == nil {
+		return nil
+	}
+	out := &model.CircuitBreakerPolicy{
+		Enabled:            cloneBoolPointer(values.Enabled),
+		MaxPendingRequests: cloneIntPointer(values.MaxPendingRequests),
+		MaxRequests:        cloneIntPointer(values.MaxRequests),
+		MaxConnections:     cloneIntPointer(values.MaxConnections),
+		Consecutive5xx:     cloneIntPointer(values.Consecutive5xx),
+		IntervalMS:         cloneIntPointer(values.IntervalMS),
+		BaseEjectionTimeMS: cloneIntPointer(values.BaseEjectionTimeMS),
+	}
+	out.Normalize()
+	if out.IsZero() {
+		return nil
+	}
+	return out
+}
+
+func cloneObservedEdge(values *model.ObservedEdge) *model.ObservedEdge {
+	if values == nil {
+		return nil
+	}
+	out := &model.ObservedEdge{
+		LatencyMS: cloneLatencySummary(values.LatencyMS),
+		ErrorRate: cloneFloatPointer(values.ErrorRate),
+	}
+	out.Normalize()
+	if out.IsZero() {
+		return nil
+	}
+	return out
+}
+
+func cloneLatencySummary(values *model.LatencySummary) *model.LatencySummary {
+	if values == nil {
+		return nil
+	}
+	out := &model.LatencySummary{
+		P50: cloneFloatPointer(values.P50),
+		P90: cloneFloatPointer(values.P90),
+		P95: cloneFloatPointer(values.P95),
+		P99: cloneFloatPointer(values.P99),
+	}
+	out.Normalize()
+	if out.IsZero() {
+		return nil
+	}
+	return out
+}
+
+func clonePolicyScope(values *model.PolicyScope) *model.PolicyScope {
+	if values == nil {
+		return nil
+	}
+	out := &model.PolicyScope{
+		SourceEndpointID: values.SourceEndpointID,
+		SourceRoute:      values.SourceRoute,
+		Method:           values.Method,
+		Operation:        values.Operation,
+	}
+	out.Normalize()
+	if out.IsZero() {
+		return nil
+	}
+	return out
+}
+
+func cloneIntPointer(value *int) *int {
+	if value == nil {
+		return nil
+	}
+	out := *value
+	return &out
+}
+
+func cloneFloatPointer(value *float64) *float64 {
+	if value == nil {
+		return nil
+	}
+	out := *value
+	return &out
+}
+
+func cloneBoolPointer(value *bool) *bool {
+	if value == nil {
+		return nil
+	}
+	out := *value
+	return &out
 }
 
 func valueOrDefault[T any](value *T, fallback T) T {

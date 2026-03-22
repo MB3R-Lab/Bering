@@ -2,7 +2,9 @@
 
 ## Status
 
-Proposed
+Accepted for the `v0.2.0` runtime reconciliation minor.
+
+Historical scope note: this ADR is runtime-scoped. Its statement that public schema contracts remain unchanged applied within this minor only. A later, separate schema-contract minor introduced `io.mb3r.bering.model@1.1.0` and `io.mb3r.bering.snapshot@1.1.0` without changing the runtime reconciliation decision described here.
 
 ## Context
 
@@ -25,7 +27,7 @@ The module will:
 
 Runtime publication will keep the downstream-compatible artifact conservative by default. The guardrail union view is the default runtime-facing publication path, while `raw_window` and `stable_core` are additional views and the reconciliation report is a machine-readable diagnostic surface.
 
-The public schema contracts remain unchanged:
+For this runtime minor, the public schema contracts remain unchanged:
 
 - `io.mb3r.bering.model@1.0.0`
 - `io.mb3r.bering.snapshot@1.0.0`
@@ -39,7 +41,7 @@ The public schema contracts remain unchanged:
 
 ## Non-Goals
 
-- No new public schema family.
+- No new public schema family as part of this runtime reconciliation minor.
 - No Sheaft changes.
 - No heavyweight persistence engine.
 - No ingest-layer rewrite for perfect route-level opportunity semantics.

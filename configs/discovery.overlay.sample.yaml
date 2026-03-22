@@ -8,6 +8,19 @@ services:
       tier: backend
     slo_refs:
       - slo:checkout-latency
+    placements:
+      - replicas: 2
+        labels:
+          region: us-east-1
+          az: us-east-1a
+          node_pool: blue
+      - replicas: 1
+        labels:
+          region: us-east-1
+          az: us-east-1b
+          node_pool: green
+    shared_resource_refs:
+      - kafka-orders
   - id: payment
     labels:
       team: payments
@@ -20,6 +33,21 @@ edges:
     weight: 0.8
     labels:
       flow: checkout
+    resilience:
+      request_timeout_ms: 2000
+      retry:
+        max_attempts: 3
+        retry_on:
+          - 5xx
+          - timeout
+        backoff:
+          initial_ms: 50
+          max_ms: 500
+          multiplier: 2
+    policy_scope:
+      source_endpoint_id: frontend:GET /checkout
+      method: GET
+      source_route: /checkout
 endpoints:
   - id: checkout:POST /process
     predicate_ref: catalog.checkout.success
