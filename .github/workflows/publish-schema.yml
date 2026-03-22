@@ -30,23 +30,56 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          eval "$(
+            python - <<'PY'
+            import re
+            from pathlib import Path
 
-          extract_const() {
-            local key="$1"
-            grep -E "^[[:space:]]*${key}[[:space:]]*=" internal/schema/constants.go | sed -E 's/.*"([^"]+)".*/\1/'
-          }
+            raw = Path("internal/schema/constants.go").read_text(encoding="utf-8")
+            const_match = re.search(r"const\s*\((.*?)\n\)", raw, re.S)
+            if not const_match:
+                raise SystemExit("failed to find const block in internal/schema/constants.go")
 
-          MODEL_SCHEMA_VERSION="$(extract_const ExpectedSchemaVersion)"
-          MODEL_SCHEMA_URI="$(extract_const ExpectedSchemaURI)"
-          MODEL_SCHEMA_DIGEST="$(extract_const ExpectedSchemaDigest)"
-          SNAPSHOT_SCHEMA_VERSION="$(extract_const ExpectedSnapshotSchemaVersion)"
-          SNAPSHOT_SCHEMA_URI="$(extract_const ExpectedSnapshotSchemaURI)"
-          SNAPSHOT_SCHEMA_DIGEST="$(extract_const ExpectedSnapshotSchemaDigest)"
+            values = {}
+            for line in const_match.group(1).splitlines():
+                line = line.strip()
+                if not line or line.startswith("//"):
+                    continue
+                match = re.match(r"([A-Za-z0-9_]+)\s*=\s*(.+)", line)
+                if not match:
+                    continue
+                name, value = match.groups()
+                values[name] = value.strip()
 
-          if [[ -z "${MODEL_SCHEMA_VERSION}" || -z "${MODEL_SCHEMA_URI}" || -z "${MODEL_SCHEMA_DIGEST}" || -z "${SNAPSHOT_SCHEMA_VERSION}" || -z "${SNAPSHOT_SCHEMA_URI}" || -z "${SNAPSHOT_SCHEMA_DIGEST}" ]]; then
-            echo "failed to resolve schema constants from internal/schema/constants.go"
-            exit 1
-          fi
+            def resolve(name):
+                if name not in values:
+                    raise KeyError(name)
+                value = values[name]
+                if value.startswith('"') and value.endswith('"'):
+                    return value[1:-1]
+                return resolve(value)
+
+            out = {
+                "MODEL_SCHEMA_VERSION": resolve("ExpectedSchemaVersion"),
+                "MODEL_SCHEMA_URI": resolve("ExpectedSchemaURI"),
+                "MODEL_SCHEMA_DIGEST": resolve("ExpectedSchemaDigest"),
+                "SNAPSHOT_SCHEMA_VERSION": resolve("ExpectedSnapshotSchemaVersion"),
+                "SNAPSHOT_SCHEMA_URI": resolve("ExpectedSnapshotSchemaURI"),
+                "SNAPSHOT_SCHEMA_DIGEST": resolve("ExpectedSnapshotSchemaDigest"),
+            }
+
+            for key, value in out.items():
+                escaped = value.replace("\\", "\\\\").replace('"', '\\"')
+                print(f'{key}="{escaped}"')
+            PY
+          )"
+
+          echo "model_schema_version=${MODEL_SCHEMA_VERSION}" >> "${GITHUB_OUTPUT}"
+          echo "model_schema_uri=${MODEL_SCHEMA_URI}" >> "${GITHUB_OUTPUT}"
+          echo "model_schema_digest=${MODEL_SCHEMA_DIGEST}" >> "${GITHUB_OUTPUT}"
+          echo "snapshot_schema_version=${SNAPSHOT_SCHEMA_VERSION}" >> "${GITHUB_OUTPUT}"
+          echo "snapshot_schema_uri=${SNAPSHOT_SCHEMA_URI}" >> "${GITHUB_OUTPUT}"
+          echo "snapshot_schema_digest=${SNAPSHOT_SCHEMA_DIGEST}" >> "${GITHUB_OUTPUT}"
 
           if [[ "${GITHUB_EVENT_NAME}" == "push" ]]; then
             if [[ "${GITHUB_REF_NAME}" != schema-v* ]]; then
@@ -62,12 +95,6 @@ jobs:
             TAG_VERSION="${MODEL_SCHEMA_VERSION}"
           fi
 
-          echo "model_schema_version=${MODEL_SCHEMA_VERSION}" >> "${GITHUB_OUTPUT}"
-          echo "model_schema_uri=${MODEL_SCHEMA_URI}" >> "${GITHUB_OUTPUT}"
-          echo "model_schema_digest=${MODEL_SCHEMA_DIGEST}" >> "${GITHUB_OUTPUT}"
-          echo "snapshot_schema_version=${SNAPSHOT_SCHEMA_VERSION}" >> "${GITHUB_OUTPUT}"
-          echo "snapshot_schema_uri=${SNAPSHOT_SCHEMA_URI}" >> "${GITHUB_OUTPUT}"
-          echo "snapshot_schema_digest=${SNAPSHOT_SCHEMA_DIGEST}" >> "${GITHUB_OUTPUT}"
           echo "tag_version=${TAG_VERSION}" >> "${GITHUB_OUTPUT}"
 
       - name: Validate schema JSON and $id binding
