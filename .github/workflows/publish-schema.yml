@@ -30,72 +30,67 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          eval "$(
-            python - <<'PY'
-            import re
-            from pathlib import Path
+          python - <<'PY'
+          import os
+          import re
+          from pathlib import Path
 
-            raw = Path("internal/schema/constants.go").read_text(encoding="utf-8")
-            const_match = re.search(r"const\s*\((.*?)\n\)", raw, re.S)
-            if not const_match:
-                raise SystemExit("failed to find const block in internal/schema/constants.go")
+          raw = Path("internal/schema/constants.go").read_text(encoding="utf-8")
+          const_match = re.search(r"const\s*\((.*?)\n\)", raw, re.S)
+          if not const_match:
+              raise SystemExit("failed to find const block in internal/schema/constants.go")
 
-            values = {}
-            for line in const_match.group(1).splitlines():
-                line = line.strip()
-                if not line or line.startswith("//"):
-                    continue
-                match = re.match(r"([A-Za-z0-9_]+)\s*=\s*(.+)", line)
-                if not match:
-                    continue
-                name, value = match.groups()
-                values[name] = value.strip()
+          values = {}
+          for line in const_match.group(1).splitlines():
+              line = line.strip()
+              if not line or line.startswith("//"):
+                  continue
+              match = re.match(r"([A-Za-z0-9_]+)\s*=\s*(.+)", line)
+              if not match:
+                  continue
+              name, value = match.groups()
+              values[name] = value.strip()
 
-            def resolve(name):
-                if name not in values:
-                    raise KeyError(name)
-                value = values[name]
-                if value.startswith('"') and value.endswith('"'):
-                    return value[1:-1]
-                return resolve(value)
+          def resolve(name):
+              if name not in values:
+                  raise KeyError(name)
+              value = values[name]
+              if value.startswith('"') and value.endswith('"'):
+                  return value[1:-1]
+              return resolve(value)
 
-            out = {
-                "MODEL_SCHEMA_VERSION": resolve("ExpectedSchemaVersion"),
-                "MODEL_SCHEMA_URI": resolve("ExpectedSchemaURI"),
-                "MODEL_SCHEMA_DIGEST": resolve("ExpectedSchemaDigest"),
-                "SNAPSHOT_SCHEMA_VERSION": resolve("ExpectedSnapshotSchemaVersion"),
-                "SNAPSHOT_SCHEMA_URI": resolve("ExpectedSnapshotSchemaURI"),
-                "SNAPSHOT_SCHEMA_DIGEST": resolve("ExpectedSnapshotSchemaDigest"),
-            }
+          out = {
+              "model_schema_version": resolve("ExpectedSchemaVersion"),
+              "model_schema_uri": resolve("ExpectedSchemaURI"),
+              "model_schema_digest": resolve("ExpectedSchemaDigest"),
+              "snapshot_schema_version": resolve("ExpectedSnapshotSchemaVersion"),
+              "snapshot_schema_uri": resolve("ExpectedSnapshotSchemaURI"),
+              "snapshot_schema_digest": resolve("ExpectedSnapshotSchemaDigest"),
+          }
 
-            for key, value in out.items():
-                escaped = value.replace("\\", "\\\\").replace('"', '\\"')
-                print(f'{key}="{escaped}"')
-            PY
-          )"
+          event_name = os.environ["GITHUB_EVENT_NAME"]
+          if event_name == "push":
+              ref_name = os.environ["GITHUB_REF_NAME"]
+              prefix = "schema-v"
+              if not ref_name.startswith(prefix):
+                  raise SystemExit(f"unexpected tag: {ref_name}; expected schema-v*")
+              tag_version = ref_name[len(prefix):]
+              if tag_version != out["model_schema_version"] or tag_version != out["snapshot_schema_version"]:
+                  raise SystemExit(
+                      "tag version mismatch: "
+                      f"tag={tag_version} "
+                      f"model={out['model_schema_version']} "
+                      f"snapshot={out['snapshot_schema_version']}"
+                  )
+          else:
+              tag_version = out["model_schema_version"]
 
-          echo "model_schema_version=${MODEL_SCHEMA_VERSION}" >> "${GITHUB_OUTPUT}"
-          echo "model_schema_uri=${MODEL_SCHEMA_URI}" >> "${GITHUB_OUTPUT}"
-          echo "model_schema_digest=${MODEL_SCHEMA_DIGEST}" >> "${GITHUB_OUTPUT}"
-          echo "snapshot_schema_version=${SNAPSHOT_SCHEMA_VERSION}" >> "${GITHUB_OUTPUT}"
-          echo "snapshot_schema_uri=${SNAPSHOT_SCHEMA_URI}" >> "${GITHUB_OUTPUT}"
-          echo "snapshot_schema_digest=${SNAPSHOT_SCHEMA_DIGEST}" >> "${GITHUB_OUTPUT}"
+          out["tag_version"] = tag_version
 
-          if [[ "${GITHUB_EVENT_NAME}" == "push" ]]; then
-            if [[ "${GITHUB_REF_NAME}" != schema-v* ]]; then
-              echo "unexpected tag: ${GITHUB_REF_NAME}; expected schema-v*"
-              exit 1
-            fi
-            TAG_VERSION="${GITHUB_REF_NAME#schema-v}"
-            if [[ "${TAG_VERSION}" != "${MODEL_SCHEMA_VERSION}" || "${TAG_VERSION}" != "${SNAPSHOT_SCHEMA_VERSION}" ]]; then
-              echo "tag version mismatch: tag=${TAG_VERSION} model=${MODEL_SCHEMA_VERSION} snapshot=${SNAPSHOT_SCHEMA_VERSION}"
-              exit 1
-            fi
-          else
-            TAG_VERSION="${MODEL_SCHEMA_VERSION}"
-          fi
-
-          echo "tag_version=${TAG_VERSION}" >> "${GITHUB_OUTPUT}"
+          with Path(os.environ["GITHUB_OUTPUT"]).open("a", encoding="utf-8") as fh:
+              for key, value in out.items():
+                  fh.write(f"{key}={value}\n")
+          PY
 
       - name: Validate schema JSON and $id binding
         shell: bash
