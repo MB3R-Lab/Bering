@@ -64,4 +64,4 @@ The workflow should publish both schema families:
 - Never silently mutate a published schema version in place.
 - The generated contracts pack now carries the versioned schema tree, for example `schema/model/v1.1.0/model.schema.json`, not a single unversioned flat copy.
 - The GitHub Pages publish workflow mirrors the full versioned schema tree from `api/schema/` and refreshes `schema/model/latest/` plus `schema/snapshot/latest/` to the currently pinned contract line.
-- If `schema-v1.1.0` has not been pushed yet, the `v1.1.0` URIs documented in this repository are the intended canonical publish targets, but GitHub Pages will not serve them until that workflow runs.
+- `schema-v1.1.0` is published; the `v1.1.0` versioned URLs and both `latest/` aliases are live GitHub Pages endpoints.

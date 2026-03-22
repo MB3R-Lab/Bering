@@ -29,8 +29,8 @@
 
 - Product release versioning remains separate from schema contract versioning.
 - The current product line is `v0.3.0`, and it now emits `1.1.0` contracts by default.
-- The schema publication tag required for external publication is `schema-v1.1.0`.
-- Local release plumbing is complete and validated, but external publication still depends on creating and pushing that schema tag.
+- The schema publication tag used for external publication is `schema-v1.1.0`.
+- The `1.1.0` schema line is now published on GitHub Pages and shipped by the `v0.3.0` product release.
 
 ## Explicit Non-Goals For This Minor
 
