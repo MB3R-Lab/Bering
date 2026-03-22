@@ -1,5 +1,13 @@
 # Bering
 
+[![Release](https://img.shields.io/github/v/release/MB3R-Lab/Bering)](https://github.com/MB3R-Lab/Bering/releases)
+[![release-dry-run](https://img.shields.io/github/actions/workflow/status/MB3R-Lab/Bering/release-dry-run.yml?branch=main&label=release-dry-run)](https://github.com/MB3R-Lab/Bering/actions/workflows/release-dry-run.yml)
+[![ci](https://img.shields.io/github/actions/workflow/status/MB3R-Lab/Bering/ci.yml?branch=main&label=ci)](https://github.com/MB3R-Lab/Bering/actions/workflows/ci.yml)
+[![publish-schema](https://img.shields.io/github/actions/workflow/status/MB3R-Lab/Bering/publish-schema.yml?branch=main&label=publish-schema)](https://github.com/MB3R-Lab/Bering/actions/workflows/publish-schema.yml)
+[![Go version](https://img.shields.io/github/go-mod/go-version/MB3R-Lab/Bering)](https://github.com/MB3R-Lab/Bering/blob/main/go.mod)
+[![Status](https://img.shields.io/badge/status-current_release-blue)](https://github.com/MB3R-Lab/Bering/releases/tag/v0.3.0)
+[![Public schema](https://img.shields.io/badge/public_schema-1.0%20%7C%201.1-blue)](https://github.com/MB3R-Lab/Bering/blob/main/VERSIONING.md)
+
 `Bering v0.3.0` is the current product release of Bering: a discovery and publishing layer for service topology and endpoint contracts.
 
 Bering turns trace input or explicit topology input into stable JSON artifacts, and it can also run as a long-lived runtime service that emits rolling discovery snapshots plus conservative reconciliation views for trace gaps.
