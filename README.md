@@ -217,6 +217,7 @@ Release outputs include:
 - [docs/trace-input-format.md](docs/trace-input-format.md)
 - [docs/topology-input-format.md](docs/topology-input-format.md)
 - [docs/mvp-scope-and-limits.md](docs/mvp-scope-and-limits.md)
+- [docs/backlog.md](docs/backlog.md)
 - [docs/architecture.md](docs/architecture.md)
 - [RELEASING.md](RELEASING.md)
 - [VERSIONING.md](VERSIONING.md)
