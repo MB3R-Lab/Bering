@@ -4,11 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"os"
 	"path/filepath"
 	"strings"
 	"time"
 
+	"github.com/MB3R-Lab/Bering/internal/atomicfile"
 	"github.com/MB3R-Lab/Bering/internal/snapshot"
 )
 
@@ -56,15 +56,7 @@ func WriteProjectionView(path string, view ProjectionView) error {
 }
 
 func writeJSONAtomically(path string, raw []byte) error {
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		return err
-	}
-	tempPath := filepath.Join(filepath.Dir(path), "."+filepath.Base(path)+".tmp")
-	if err := os.WriteFile(tempPath, raw, 0o644); err != nil {
-		return err
-	}
-	_ = os.Remove(path)
-	return os.Rename(tempPath, path)
+	return atomicfile.WriteFile(path, raw, 0o644)
 }
 
 func sanitizeFilename(ts string) string {

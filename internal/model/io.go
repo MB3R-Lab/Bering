@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"path/filepath"
 
+	"github.com/MB3R-Lab/Bering/internal/atomicfile"
 	"github.com/MB3R-Lab/Bering/internal/jsoncanon"
 )
 
@@ -49,10 +49,7 @@ func WriteToFile(path string, mdl ResilienceModel) error {
 		return err
 	}
 
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		return fmt.Errorf("create output directory: %w", err)
-	}
-	if err := os.WriteFile(path, raw, 0o644); err != nil {
+	if err := atomicfile.WriteFile(path, raw, 0o644); err != nil {
 		return fmt.Errorf("write model file: %w", err)
 	}
 	return nil

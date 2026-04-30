@@ -8,11 +8,11 @@ import (
 	"log/slog"
 	"os"
 	"os/signal"
-	"path/filepath"
 	"strings"
 	"syscall"
 	"time"
 
+	"github.com/MB3R-Lab/Bering/internal/atomicfile"
 	"github.com/MB3R-Lab/Bering/internal/config"
 	"github.com/MB3R-Lab/Bering/internal/connectors/topology"
 	"github.com/MB3R-Lab/Bering/internal/connectors/traces"
@@ -126,11 +126,7 @@ func (r Runner) runDiscover(args []string) int {
 		r.printfErr("post-discovery model validation failed: %v\n", err)
 		return ExitError
 	}
-	if err := os.MkdirAll(filepath.Dir(*out), 0o755); err != nil {
-		r.printfErr("create output directory: %v\n", err)
-		return ExitError
-	}
-	if err := os.WriteFile(*out, raw, 0o644); err != nil {
+	if err := atomicfile.WriteFile(*out, raw, 0o644); err != nil {
 		r.printfErr("write output model: %v\n", err)
 		return ExitError
 	}
@@ -150,11 +146,7 @@ func (r Runner) runDiscover(args []string) int {
 			r.printfErr("post-discovery snapshot validation failed: %v\n", err)
 			return ExitError
 		}
-		if err := os.MkdirAll(filepath.Dir(*snapshotOut), 0o755); err != nil {
-			r.printfErr("create snapshot output directory: %v\n", err)
-			return ExitError
-		}
-		if err := os.WriteFile(*snapshotOut, rawSnapshot, 0o644); err != nil {
+		if err := atomicfile.WriteFile(*snapshotOut, rawSnapshot, 0o644); err != nil {
 			r.printfErr("write snapshot output: %v\n", err)
 			return ExitError
 		}

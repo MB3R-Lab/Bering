@@ -5,10 +5,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"path/filepath"
 	"sort"
 	"time"
 
+	"github.com/MB3R-Lab/Bering/internal/atomicfile"
 	"github.com/MB3R-Lab/Bering/internal/jsoncanon"
 	"github.com/MB3R-Lab/Bering/internal/model"
 )
@@ -73,24 +73,7 @@ func WriteReport(path string, report Report) error {
 }
 
 func writeAtomic(path string, raw []byte) error {
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		return err
-	}
-	temp, err := os.CreateTemp(filepath.Dir(path), "."+filepath.Base(path)+".tmp-*")
-	if err != nil {
-		return err
-	}
-	tempPath := temp.Name()
-	defer os.Remove(tempPath)
-	if _, err := temp.Write(raw); err != nil {
-		_ = temp.Close()
-		return err
-	}
-	if err := temp.Close(); err != nil {
-		return err
-	}
-	_ = os.Remove(path)
-	return os.Rename(tempPath, path)
+	return atomicfile.WriteFile(path, raw, 0o644)
 }
 
 type topologyShape struct {
