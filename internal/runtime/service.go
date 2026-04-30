@@ -38,6 +38,13 @@ type Service struct {
 	ready        atomic.Bool
 }
 
+const (
+	serverReadHeaderTimeout = 5 * time.Second
+	serverReadTimeout       = 30 * time.Second
+	serverWriteTimeout      = 30 * time.Second
+	serverIdleTimeout       = 60 * time.Second
+)
+
 func NewService(cfg config.ServeConfig, overlays []overlay.File, logger *slog.Logger) (*Service, error) {
 	metrics := NewMetrics()
 	if logger == nil {
@@ -69,12 +76,22 @@ func NewService(cfg config.ServeConfig, overlays []overlay.File, logger *slog.Lo
 	mux.HandleFunc("/readyz", service.handleReady)
 	mux.HandleFunc("/reconciliation/report", service.handleReconciliationReport)
 	mux.Handle("/metrics", metrics.Handler())
-	service.httpServer = &http.Server{Handler: mux, ReadHeaderTimeout: 5 * time.Second}
+	service.httpServer = newHTTPServer(mux)
 	if strings.TrimSpace(cfg.Server.GRPCListenAddress) != "" {
 		service.grpcServer = grpc.NewServer(grpc.MaxRecvMsgSize(grpcMaxRecvMsgSize(cfg.Server.MaxRequestBytes)))
 		collecttracev1.RegisterTraceServiceServer(service.grpcServer, grpcTraceService{service: service})
 	}
 	return service, nil
+}
+
+func newHTTPServer(handler http.Handler) *http.Server {
+	return &http.Server{
+		Handler:           handler,
+		ReadHeaderTimeout: serverReadHeaderTimeout,
+		ReadTimeout:       serverReadTimeout,
+		WriteTimeout:      serverWriteTimeout,
+		IdleTimeout:       serverIdleTimeout,
+	}
 }
 
 func (s *Service) Addr() string {

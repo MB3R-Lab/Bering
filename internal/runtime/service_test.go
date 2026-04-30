@@ -24,6 +24,24 @@ import (
 	"github.com/MB3R-Lab/Bering/internal/schema"
 )
 
+func TestHTTPServerAppliesTimeouts(t *testing.T) {
+	t.Parallel()
+
+	server := newHTTPServer(http.NewServeMux())
+	if server.ReadHeaderTimeout != serverReadHeaderTimeout {
+		t.Fatalf("ReadHeaderTimeout mismatch: got=%s want=%s", server.ReadHeaderTimeout, serverReadHeaderTimeout)
+	}
+	if server.ReadTimeout != serverReadTimeout {
+		t.Fatalf("ReadTimeout mismatch: got=%s want=%s", server.ReadTimeout, serverReadTimeout)
+	}
+	if server.WriteTimeout != serverWriteTimeout {
+		t.Fatalf("WriteTimeout mismatch: got=%s want=%s", server.WriteTimeout, serverWriteTimeout)
+	}
+	if server.IdleTimeout != serverIdleTimeout {
+		t.Fatalf("IdleTimeout mismatch: got=%s want=%s", server.IdleTimeout, serverIdleTimeout)
+	}
+}
+
 func TestServiceEndToEndOTLPHTTP(t *testing.T) {
 	dir := t.TempDir()
 	cfg := config.DefaultServeConfig()
