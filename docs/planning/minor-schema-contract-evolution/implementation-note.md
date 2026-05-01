@@ -28,9 +28,9 @@
 ## Release And Publication Boundary
 
 - Product release versioning remains separate from schema contract versioning.
-- The current product line is `v0.3.1`, and it emits `1.1.0` contracts by default.
+- The current product line is `v0.3.2`, and it emits `1.1.0` contracts by default.
 - The schema publication tag used for external publication is `schema-v1.1.0`.
-- The `1.1.0` schema line is now published on GitHub Pages and shipped by the `v0.3.1` product release.
+- The `1.1.0` schema line is now published on GitHub Pages, was introduced in the `v0.3.1` product release, and remains the default emitted line in `v0.3.2`.
 
 ## Explicit Non-Goals For This Minor
 

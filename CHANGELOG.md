@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+## v0.3.2
+
+Patch release focused on post-audit hardening for the `v0.3.x` discovery/runtime line.
+
+### Fixed
+
+- Product planning docs now point at the tracker-backed capability backlog.
+- Model, snapshot, runtime sink, and reconciliation artifact writes now publish through atomic temp-file replacement instead of in-place overwrites.
+- Runtime HTTP service now applies explicit read-header, read, write, and idle timeouts.
+- Go toolchain and vulnerable dependencies were updated; `govulncheck` reports no active findings for the release code path.
+
 ## v0.3.1
 
 ### Fixed
