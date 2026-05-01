@@ -8,7 +8,7 @@ Snapshot date: `2026-05-01`
 
 ## Current Product Surface
 
-Bering is the discovery and publication layer for the MB3R toolchain. The current `v0.3.2` release provides:
+Bering is the discovery and publication layer for the MB3R toolchain. The current `v0.3.3` release provides:
 
 - deterministic batch discovery from normalized trace files, OTLP JSON, trace directories, and explicit `topology_api` inputs;
 - runtime OTLP/HTTP and OTLP/gRPC ingest;

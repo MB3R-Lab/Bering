@@ -11,7 +11,7 @@ This workflow is separate from the product release workflow:
 
 For the current release line, that means:
 
-- product release: `v0.3.2`
+- product release: `v0.3.3`
 - schema publishing: `schema-v1.1.0`
 
 ## One-time repository setup

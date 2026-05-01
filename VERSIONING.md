@@ -26,8 +26,8 @@ App version changes govern the Bering CLI, the runtime service behavior, the ins
 
 Examples:
 
-- product release tag `v0.3.2` identifies the Bering `0.3.2` release payload
-- generated `release-manifest.json` records `"app_version": "0.3.2"` for that payload
+- product release tag `v0.3.3` identifies the Bering `0.3.3` release payload
+- generated `release-manifest.json` records `"app_version": "0.3.3"` for that payload
 
 ## Schema Contract Versions
 

@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+## v0.3.3
+
+Patch release focused on release metadata hygiene after the `v0.3.2` hardening release.
+
+### Fixed
+
+- README badges now show the concrete current release instead of a generic status label.
+- Versioning docs now describe durable versioning rules rather than acting as a mutable latest-release ledger.
+- Release-facing docs now consistently point at the current patch line.
+
 ## v0.3.2
 
 Patch release focused on post-audit hardening for the `v0.3.x` discovery/runtime line.
