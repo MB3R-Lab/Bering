@@ -2,17 +2,17 @@
 
 Bering separates product release versioning from public schema contract versioning.
 
-For the current published product release:
+The current product release is recorded in GitHub Releases and in that release's generated `release-manifest.json` asset. This file describes the versioning rules rather than serving as the mutable latest-release ledger.
 
-- product release tag: `v0.3.2`
-- product version in release automation: `0.3.2`
-- schema publishing tag: `schema-v1.1.0`
-- default emitted schema contracts:
-  - `io.mb3r.bering.model@1.1.0`
-  - `io.mb3r.bering.snapshot@1.1.0`
-- previously published and still valid contracts:
-  - `io.mb3r.bering.model@1.0.0`
-  - `io.mb3r.bering.snapshot@1.0.0`
+The current schema publication line is `schema-v1.1.0`. Default emitted schema contracts are:
+
+- `io.mb3r.bering.model@1.1.0`
+- `io.mb3r.bering.snapshot@1.1.0`
+
+Previously published and still valid contracts are:
+
+- `io.mb3r.bering.model@1.0.0`
+- `io.mb3r.bering.snapshot@1.0.0`
 
 Do not infer a schema contract version from the product release tag.
 
@@ -26,8 +26,8 @@ App version changes govern the Bering CLI, the runtime service behavior, the ins
 
 Examples:
 
-- product release `v0.3.2` identifies the current Bering release line
-- `dist/release-manifest.json` records `"app_version": "0.3.2"`
+- product release tag `v0.3.2` identifies the Bering `0.3.2` release payload
+- generated `release-manifest.json` records `"app_version": "0.3.2"` for that payload
 
 ## Schema Contract Versions
 
@@ -45,8 +45,8 @@ Each schema contract has its own version, URI, and digest. Those values are inde
 
 Examples:
 
-- Bering `v0.3.2` emits `io.mb3r.bering.model@1.1.0`
-- Bering `v0.3.2` emits `io.mb3r.bering.snapshot@1.1.0`
+- Bering `v0.3.x` emits `io.mb3r.bering.model@1.1.0`
+- Bering `v0.3.x` emits `io.mb3r.bering.snapshot@1.1.0`
 - `bering validate` still accepts `1.0.0` artifacts without mutation or migration
 - `schema-v1.1.0` publishes the schema files to GitHub Pages; it is not a product release tag
 
