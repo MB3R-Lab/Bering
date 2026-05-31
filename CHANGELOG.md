@@ -30,7 +30,7 @@ Patch release focused on post-audit hardening for the `v0.3.x` discovery/runtime
 - Schema publishing is now a completed part of the shipped release path rather than a post-release manual recovery step.
 - The GitHub Pages schema publication workflow now resolves pinned schema constants and step outputs correctly for both tag-driven and manual runs.
 - README release badges now match the Sheaft header pattern and point at the current Bering release line.
-- Release-facing docs now consistently describe `v0.3.1` as the current product line carrying the published `1.1.0` schema contracts.
+- Release-facing docs now consistently describe the `v0.3.1` product line that carried the published `1.1.0` schema contracts at that point in the release history.
 
 ## v0.3.0
 

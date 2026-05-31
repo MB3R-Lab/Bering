@@ -8,5 +8,11 @@ For the product capability backlog and its concrete GitHub issue links, see [Pro
 
 ## Milestones
 
+Active GitHub tracker milestone:
+
+- [Post-v0.3.3 product capability backlog](https://github.com/MB3R-Lab/Bering/milestone/4)
+
+Historical planning notes:
+
 - [Minor: Evidence-Weighted Reconciliation for Trace Gaps](./minor-evidence-weighted-reconciliation/milestone.md)
 - [Minor: Versioned Bering Schema Contract Evolution](./minor-schema-contract-evolution/milestone.md)

@@ -4,7 +4,11 @@ This document is the repository-side product backlog snapshot for `MB3R-Lab/Beri
 
 Source of truth for tracked implementation work: GitHub Issues, anchored by the pinned delivery index at https://github.com/MB3R-Lab/Bering/issues/19.
 
-Snapshot date: `2026-05-01`
+Snapshot date: `2026-05-31`
+
+Active GitHub milestone: [Post-v0.3.3 product capability backlog](https://github.com/MB3R-Lab/Bering/milestone/4)
+
+Latest shipped release: [Bering v0.3.3](https://github.com/MB3R-Lab/Bering/releases/tag/v0.3.3)
 
 ## Current Product Surface
 
@@ -24,10 +28,13 @@ These gaps are tracked as concrete GitHub issues.
 
 Tracked tasks:
 
+- [#19](https://github.com/MB3R-Lab/Bering/issues/19): Delivery status and active backlog index.
 - [#39](https://github.com/MB3R-Lab/Bering/issues/39): Emit signal quality and coverage report for every artifact.
 - [#40](https://github.com/MB3R-Lab/Bering/issues/40): Add enrichment onboarding examples for trace-only to topology_api/overlay upgrades.
 - [#41](https://github.com/MB3R-Lab/Bering/issues/41): Publish operator-facing runtime reconciliation summary.
 - [#42](https://github.com/MB3R-Lab/Bering/issues/42): Add reference non-trace adapter example built on topology_api.
+
+All tracked tasks above are assigned to the active post-`v0.3.3` milestone.
 
 ### Signal Quality And Coverage
 
