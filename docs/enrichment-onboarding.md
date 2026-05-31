@@ -9,6 +9,19 @@ Bering treats traces, overlays, and `topology_api` inputs as different discovery
 3. Add an overlay for curated metadata that traces cannot infer.
 4. Move to `topology_api` when a non-trace system is authoritative for topology, placement, resilience, or endpoint metadata.
 
+## Minimum enrichment checklist
+
+For Sheaft advanced analysis, treat trace-only artifacts as incomplete until the relevant topology includes:
+
+- service `failure_eligible` for services that can be fault targets
+- placement groups for zone, cell, rack, node pool, or similar failure domains
+- `shared_resource_refs` for queues, databases, caches, brokers, or other shared fate domains
+- edge `weight` when traffic split or dependency importance is not uniform
+- edge `resilience.request_timeout_ms` and retry policy when timeout or retry-wave behavior matters
+- edge `circuit_breaker` metadata when breaker behavior is part of the resilience envelope
+- endpoint `method`, `path`, and custom `predicate_ref` for workflow-specific success evaluation
+- `policy_scope` when a dependency policy applies only to a source route or operation
+
 ## Trace-only baseline
 
 ```bash

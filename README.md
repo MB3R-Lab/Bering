@@ -212,6 +212,7 @@ Release outputs include:
 - Batch inputs: [examples/traces/normalized.sample.json](examples/traces/normalized.sample.json), [examples/traces/otel.sample.json](examples/traces/otel.sample.json)
 - Topology input: [examples/topology/topology-api.sample.yaml](examples/topology/topology-api.sample.yaml)
 - Batch outputs: [examples/outputs/bering-model.normalized.sample.json](examples/outputs/bering-model.normalized.sample.json), [examples/outputs/bering-snapshot.normalized.sample.json](examples/outputs/bering-snapshot.normalized.sample.json), [examples/outputs/bering-model.topology-api.sample.json](examples/outputs/bering-model.topology-api.sample.json), [examples/outputs/bering-snapshot.topology-api.sample.json](examples/outputs/bering-snapshot.topology-api.sample.json)
+- Adapter-generated outputs: [examples/outputs/bering-model.service-catalog-adapter.sample.json](examples/outputs/bering-model.service-catalog-adapter.sample.json), [examples/outputs/bering-snapshot.service-catalog-adapter.sample.json](examples/outputs/bering-snapshot.service-catalog-adapter.sample.json)
 - Runtime config: [configs/serve.sample.yaml](configs/serve.sample.yaml)
 - Discovery overlay: [configs/discovery.overlay.sample.yaml](configs/discovery.overlay.sample.yaml)
 - Enrichment onboarding: [examples/enrichment](examples/enrichment/README.md)

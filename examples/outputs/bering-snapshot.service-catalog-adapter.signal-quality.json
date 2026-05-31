@@ -1,0 +1,231 @@
+{
+  "artifact": {
+    "path": "examples/outputs/bering-snapshot.service-catalog-adapter.sample.json",
+    "schema": {
+      "digest": "sha256:53b127608b2aaa4fabb352b998cd6b2c5ed558764729a09abea56f4f9b40fa01",
+      "name": "io.mb3r.bering.snapshot",
+      "uri": "https://mb3r-lab.github.io/Bering/schema/snapshot/v1.1.0/snapshot.schema.json",
+      "version": "1.1.0"
+    },
+    "snapshot_id": "snap-3a864b268c97fd0ddd2ff4be",
+    "topology_version": "sha256:5191d4610de8b4f0e14ae67c8b182a056dbf1623a12254916de896b728cb7f5e",
+    "type": "snapshot",
+    "window_end": "2026-03-03T00:00:00Z",
+    "window_start": "2026-03-03T00:00:00Z"
+  },
+  "counts": {
+    "edges": 2,
+    "endpoints": 2,
+    "services": 3
+  },
+  "coverage": {
+    "confidence": 1,
+    "edge_support_min": 1,
+    "endpoint_support_min": 1,
+    "service_support_min": 1
+  },
+  "dimensions": [
+    {
+      "missing": [
+        "frontend"
+      ],
+      "missing_count": 1,
+      "name": "services.failure_eligible",
+      "present": 2,
+      "ratio": 0.667,
+      "status": "partial",
+      "total": 3
+    },
+    {
+      "missing": [
+        "frontend",
+        "payment"
+      ],
+      "missing_count": 2,
+      "name": "services.placements",
+      "present": 1,
+      "ratio": 0.333,
+      "status": "partial",
+      "total": 3
+    },
+    {
+      "missing": [
+        "frontend",
+        "payment"
+      ],
+      "missing_count": 2,
+      "name": "services.shared_resource_refs",
+      "present": 1,
+      "ratio": 0.333,
+      "status": "partial",
+      "total": 3
+    },
+    {
+      "missing_count": 0,
+      "name": "edges.weight",
+      "present": 2,
+      "ratio": 1,
+      "status": "complete",
+      "total": 2
+    },
+    {
+      "missing": [
+        "checkout|payment|async|false"
+      ],
+      "missing_count": 1,
+      "name": "edges.request_timeout_ms",
+      "present": 1,
+      "ratio": 0.5,
+      "status": "partial",
+      "total": 2
+    },
+    {
+      "missing": [
+        "checkout|payment|async|false"
+      ],
+      "missing_count": 1,
+      "name": "edges.retry_policy",
+      "present": 1,
+      "ratio": 0.5,
+      "status": "partial",
+      "total": 2
+    },
+    {
+      "missing": [
+        "checkout|payment|async|false"
+      ],
+      "missing_count": 1,
+      "name": "edges.circuit_breaker",
+      "present": 1,
+      "ratio": 0.5,
+      "status": "partial",
+      "total": 2
+    },
+    {
+      "missing": [
+        "checkout|payment|async|false",
+        "frontend|checkout|sync|true"
+      ],
+      "missing_count": 2,
+      "name": "edges.observed_latency",
+      "present": 0,
+      "ratio": 0,
+      "status": "missing",
+      "total": 2
+    },
+    {
+      "missing": [
+        "checkout|payment|async|false",
+        "frontend|checkout|sync|true"
+      ],
+      "missing_count": 2,
+      "name": "edges.observed_error_rate",
+      "present": 0,
+      "ratio": 0,
+      "status": "missing",
+      "total": 2
+    },
+    {
+      "missing": [
+        "checkout|payment|async|false"
+      ],
+      "missing_count": 1,
+      "name": "edges.policy_scope",
+      "present": 1,
+      "ratio": 0.5,
+      "status": "partial",
+      "total": 2
+    },
+    {
+      "missing_count": 0,
+      "name": "endpoints.route",
+      "present": 2,
+      "ratio": 1,
+      "status": "complete",
+      "total": 2
+    },
+    {
+      "missing_count": 0,
+      "name": "endpoints.weight",
+      "present": 2,
+      "ratio": 1,
+      "status": "complete",
+      "total": 2
+    },
+    {
+      "missing_count": 0,
+      "name": "endpoints.custom_success_predicate",
+      "present": 2,
+      "ratio": 1,
+      "status": "complete",
+      "total": 2
+    },
+    {
+      "missing": [
+        "edge:checkout|payment|async|false",
+        "edge:frontend|checkout|sync|true",
+        "endpoint:checkout:POST /process",
+        "endpoint:frontend:GET /checkout",
+        "service:checkout",
+        "service:frontend",
+        "service:payment"
+      ],
+      "missing_count": 7,
+      "name": "provenance.traces",
+      "present": 0,
+      "ratio": 0,
+      "status": "missing",
+      "total": 7
+    },
+    {
+      "missing_count": 0,
+      "name": "provenance.topology_api",
+      "present": 7,
+      "ratio": 1,
+      "status": "complete",
+      "total": 7
+    },
+    {
+      "missing": [
+        "edge:checkout|payment|async|false",
+        "edge:frontend|checkout|sync|true",
+        "endpoint:checkout:POST /process",
+        "endpoint:frontend:GET /checkout",
+        "service:checkout",
+        "service:frontend",
+        "service:payment"
+      ],
+      "missing_count": 7,
+      "name": "provenance.overlay",
+      "present": 0,
+      "ratio": 0,
+      "status": "missing",
+      "total": 7
+    }
+  ],
+  "generated_at": "2026-03-03T00:00:00Z",
+  "schema_version": "1.0.0",
+  "source_mix": {
+    "provenance_mentions_by_type": {
+      "topology_api": 7
+    },
+    "provenance_records_by_type": {
+      "topology_api": 7
+    },
+    "records": 7,
+    "records_with_provenance": 7,
+    "records_without_provenance": 0,
+    "source_observations_by_type": {
+      "topology_api": 7
+    },
+    "sources_by_type": {
+      "topology_api": 1
+    }
+  },
+  "warnings": [
+    "edges.observed_error_rate coverage below 50% (0/2)",
+    "edges.observed_latency coverage below 50% (0/2)",
+    "services.placements coverage below 50% (1/3)",
+    "services.shared_resource_refs coverage below 50% (1/3)"
+  ]
+}

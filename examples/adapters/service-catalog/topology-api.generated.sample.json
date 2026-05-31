@@ -1,0 +1,102 @@
+{
+  "source": {
+    "type": "topology_api",
+    "ref": "service-catalog://checkout-sample"
+  },
+  "services": [
+    {
+      "id": "frontend",
+      "replicas": 2,
+      "labels": {
+        "team": "web",
+        "tier": "edge"
+      }
+    },
+    {
+      "id": "checkout",
+      "replicas": 3,
+      "failure_eligible": true,
+      "labels": {
+        "team": "commerce",
+        "tier": "backend"
+      },
+      "placements": [
+        {
+          "replicas": 2,
+          "labels": {
+            "az": "us-east-1a",
+            "region": "us-east-1"
+          }
+        },
+        {
+          "replicas": 1,
+          "labels": {
+            "az": "us-east-1b",
+            "region": "us-east-1"
+          }
+        }
+      ],
+      "shared_resource_refs": [
+        "kafka-orders",
+        "payments-db"
+      ]
+    },
+    {
+      "id": "payment",
+      "replicas": 2,
+      "failure_eligible": true,
+      "labels": {
+        "team": "payments",
+        "tier": "backend"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "frontend|checkout|sync|true",
+      "from": "frontend",
+      "to": "checkout",
+      "kind": "sync",
+      "blocking": true,
+      "weight": 0.85,
+      "resilience": {
+        "request_timeout_ms": 2000,
+        "retry": {
+          "max_attempts": 3
+        },
+        "circuit_breaker": {
+          "enabled": true
+        }
+      },
+      "policy_scope": {
+        "source_endpoint_id": "frontend:GET /checkout",
+        "method": "GET",
+        "source_route": "/checkout"
+      }
+    },
+    {
+      "id": "checkout|payment|async|false",
+      "from": "checkout",
+      "to": "payment",
+      "kind": "async",
+      "blocking": false,
+      "weight": 0.35
+    }
+  ],
+  "endpoints": [
+    {
+      "entry_service": "frontend",
+      "method": "GET",
+      "path": "/checkout",
+      "predicate_ref": "catalog.frontend.checkout.success",
+      "weight": 0.7
+    },
+    {
+      "entry_service": "checkout",
+      "method": "POST",
+      "path": "/process",
+      "predicate_ref": "catalog.checkout.process.success",
+      "weight": 0.6
+    }
+  ]
+}
