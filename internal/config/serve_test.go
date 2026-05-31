@@ -25,6 +25,7 @@ runtime:
     enabled: true
     state_path: out/runtime/reconciliation-state.json
     report_path: out/runtime/reconciliation-report.json
+    summary_path: out/runtime/reconciliation-summary.md
     raw_window_path: out/runtime/raw-window.json
     stable_core_path: out/runtime/stable-core.json
     decay_half_life: 5m
@@ -44,6 +45,7 @@ runtime:
 sink:
   directory: out/runtime
   latest_path: out/runtime/latest.json
+  signal_quality_path: out/runtime/latest-signal-quality.json
 logging:
   structured: true
 overlays:
@@ -78,6 +80,9 @@ overlays:
 	if got, want := cfg.Runtime.Reconciliation.StatePath, "out/runtime/reconciliation-state.json"; got != want {
 		t.Fatalf("state path mismatch: got=%s want=%s", got, want)
 	}
+	if got, want := cfg.Runtime.Reconciliation.SummaryPath, "out/runtime/reconciliation-summary.md"; got != want {
+		t.Fatalf("summary path mismatch: got=%s want=%s", got, want)
+	}
 	if got, want := cfg.Runtime.Reconciliation.MinimumOpportunityWindows, 3; got != want {
 		t.Fatalf("minimum opportunity windows mismatch: got=%d want=%d", got, want)
 	}
@@ -86,6 +91,9 @@ overlays:
 	}
 	if got, want := cfg.Runtime.Reconciliation.CompactionInterval.Duration(), 90*time.Second; got != want {
 		t.Fatalf("compaction interval mismatch: got=%s want=%s", got, want)
+	}
+	if got, want := cfg.Sink.SignalQualityPath, "out/runtime/latest-signal-quality.json"; got != want {
+		t.Fatalf("signal quality path mismatch: got=%s want=%s", got, want)
 	}
 	if !cfg.Logging.Structured {
 		t.Fatal("expected structured logging to be enabled")

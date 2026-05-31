@@ -11,6 +11,7 @@ Bering now has two user-facing flows built on one normalized discovery core.
 3. The discovery engine or adapter-specific builder produces services, edges, endpoints, confidence, and overlay-driven metadata.
 4. Bering writes the stable `io.mb3r.bering.model` artifact.
 5. Optional `--snapshot-out` also writes a `io.mb3r.bering.snapshot` envelope.
+6. Batch and runtime artifacts get adjacent signal-quality sidecars that report source mix, provenance, and typed-field coverage without changing the public schemas.
 
 ### Runtime flow
 
@@ -27,7 +28,7 @@ The runtime additions are intentionally interface-driven so future connectors ca
 
 - source adapters: normalize external data into internal spans or overlays
 - overlay loaders: decode reusable discovery-side metadata files
-- snapshot sinks: write snapshot envelopes to one or more destinations
+- snapshot sinks: write snapshot envelopes and signal-quality sidecars to one or more destinations
 - clocks: make windowing deterministic in tests
 - storage boundary: one active in-memory tumbling window with an explicit cap
 

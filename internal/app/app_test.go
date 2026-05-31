@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/MB3R-Lab/Bering/internal/connectors/topology"
+	"github.com/MB3R-Lab/Bering/internal/quality"
 	"github.com/MB3R-Lab/Bering/internal/snapshot"
 )
 
@@ -39,6 +40,9 @@ func TestDiscoverAndValidate_NormalizedFixture(t *testing.T) {
 	})
 	if exitCode != ExitOK {
 		t.Fatalf("discover failed (exit=%d): stderr=%s", exitCode, stderr.String())
+	}
+	if _, err := os.Stat(quality.SidecarPath(out)); err != nil {
+		t.Fatalf("model signal quality report was not written: %v", err)
 	}
 
 	actualRaw, err := os.ReadFile(out)
@@ -154,6 +158,9 @@ endpoints:
 	})
 	if exitCode != ExitOK {
 		t.Fatalf("discover failed (exit=%d): stderr=%s", exitCode, stderr.String())
+	}
+	if _, err := os.Stat(quality.SidecarPath(snapshotOut)); err != nil {
+		t.Fatalf("snapshot signal quality report was not written: %v", err)
 	}
 
 	stdout.Reset()

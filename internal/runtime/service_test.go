@@ -54,6 +54,7 @@ func TestServiceEndToEndOTLPHTTP(t *testing.T) {
 	cfg.Sink.LatestPath = filepath.Join(dir, "latest.json")
 	cfg.Runtime.Reconciliation.StatePath = filepath.Join(dir, "reconciliation-state.json")
 	cfg.Runtime.Reconciliation.ReportPath = filepath.Join(dir, "reconciliation-report.json")
+	cfg.Runtime.Reconciliation.SummaryPath = filepath.Join(dir, "reconciliation-summary.md")
 	cfg.Runtime.Reconciliation.RawWindowPath = filepath.Join(dir, "raw-window.json")
 	cfg.Runtime.Reconciliation.StableCorePath = filepath.Join(dir, "stable-core.json")
 
@@ -82,6 +83,7 @@ func TestServiceEndToEndOTLPHTTP(t *testing.T) {
 	postOTLPSpanHTTP(t, "http://"+addr+"/v1/traces")
 
 	waitForRuntimeOutput(t, service, cfg.Sink.LatestPath, 10*time.Second)
+	waitForRuntimeOutput(t, service, resolveSignalQualityPath(cfg), 5*time.Second)
 	latestRaw, err := os.ReadFile(cfg.Sink.LatestPath)
 	if err != nil {
 		t.Fatalf("read latest snapshot: %v", err)
@@ -93,12 +95,14 @@ func TestServiceEndToEndOTLPHTTP(t *testing.T) {
 		t.Fatalf("latest snapshot failed schema validation: %v", err)
 	}
 	waitForRuntimeOutput(t, service, cfg.Runtime.Reconciliation.ReportPath, 5*time.Second)
+	waitForRuntimeOutput(t, service, cfg.Runtime.Reconciliation.SummaryPath, 5*time.Second)
 	waitForRuntimeOutput(t, service, cfg.Runtime.Reconciliation.RawWindowPath, 5*time.Second)
 	waitForRuntimeOutput(t, service, cfg.Runtime.Reconciliation.StableCorePath, 5*time.Second)
 
 	checkStatus(t, "http://"+addr+"/healthz", http.StatusOK)
 	checkStatus(t, "http://"+addr+"/readyz", http.StatusOK)
 	checkStatus(t, "http://"+addr+"/reconciliation/report", http.StatusOK)
+	checkStatus(t, "http://"+addr+"/reconciliation/summary", http.StatusOK)
 	metricsBody := readBody(t, "http://"+addr+"/metrics")
 	if !strings.Contains(metricsBody, "spans_ingested_total") {
 		t.Fatalf("metrics endpoint missing spans_ingested_total:\n%s", metricsBody)
@@ -123,6 +127,7 @@ func TestServiceEndToEndOTLPGRPC(t *testing.T) {
 	cfg.Sink.LatestPath = filepath.Join(dir, "latest.json")
 	cfg.Runtime.Reconciliation.StatePath = filepath.Join(dir, "reconciliation-state.json")
 	cfg.Runtime.Reconciliation.ReportPath = filepath.Join(dir, "reconciliation-report.json")
+	cfg.Runtime.Reconciliation.SummaryPath = filepath.Join(dir, "reconciliation-summary.md")
 	cfg.Runtime.Reconciliation.RawWindowPath = filepath.Join(dir, "raw-window.json")
 	cfg.Runtime.Reconciliation.StableCorePath = filepath.Join(dir, "stable-core.json")
 
@@ -152,6 +157,7 @@ func TestServiceEndToEndOTLPGRPC(t *testing.T) {
 	postOTLPSpanGRPC(t, grpcAddr)
 
 	waitForRuntimeOutput(t, service, cfg.Sink.LatestPath, 10*time.Second)
+	waitForRuntimeOutput(t, service, resolveSignalQualityPath(cfg), 5*time.Second)
 	latestRaw, err := os.ReadFile(cfg.Sink.LatestPath)
 	if err != nil {
 		t.Fatalf("read latest snapshot: %v", err)
@@ -166,6 +172,7 @@ func TestServiceEndToEndOTLPGRPC(t *testing.T) {
 	checkStatus(t, "http://"+httpAddr+"/healthz", http.StatusOK)
 	checkStatus(t, "http://"+httpAddr+"/readyz", http.StatusOK)
 	checkStatus(t, "http://"+httpAddr+"/reconciliation/report", http.StatusOK)
+	checkStatus(t, "http://"+httpAddr+"/reconciliation/summary", http.StatusOK)
 }
 
 func waitForAddr(t *testing.T, service *Service, timeout time.Duration) string {

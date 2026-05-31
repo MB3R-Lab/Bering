@@ -1,0 +1,83 @@
+{
+  "source_ref": "service-catalog://checkout-sample",
+  "services": [
+    {
+      "id": "frontend",
+      "replicas": 2,
+      "team": "web",
+      "tier": "edge"
+    },
+    {
+      "id": "checkout",
+      "replicas": 3,
+      "team": "commerce",
+      "tier": "backend",
+      "failure_eligible": true,
+      "placements": [
+        {
+          "replicas": 2,
+          "labels": {
+            "region": "us-east-1",
+            "az": "us-east-1a"
+          }
+        },
+        {
+          "replicas": 1,
+          "labels": {
+            "region": "us-east-1",
+            "az": "us-east-1b"
+          }
+        }
+      ],
+      "shared_resources": [
+        "kafka-orders",
+        "payments-db"
+      ]
+    },
+    {
+      "id": "payment",
+      "replicas": 2,
+      "team": "payments",
+      "tier": "backend",
+      "failure_eligible": true
+    }
+  ],
+  "dependencies": [
+    {
+      "from": "frontend",
+      "to": "checkout",
+      "mode": "sync",
+      "blocking": true,
+      "weight": 0.85,
+      "request_timeout_ms": 2000,
+      "retry_max_attempts": 3,
+      "circuit_breaker_enabled": true,
+      "source_endpoint_id": "frontend:GET /checkout",
+      "method": "GET",
+      "route": "/checkout"
+    },
+    {
+      "from": "checkout",
+      "to": "payment",
+      "mode": "async",
+      "blocking": false,
+      "weight": 0.35
+    }
+  ],
+  "endpoints": [
+    {
+      "service": "frontend",
+      "method": "GET",
+      "path": "/checkout",
+      "predicate_ref": "catalog.frontend.checkout.success",
+      "weight": 0.7
+    },
+    {
+      "service": "checkout",
+      "method": "POST",
+      "path": "/process",
+      "predicate_ref": "catalog.checkout.process.success",
+      "weight": 0.6
+    }
+  ]
+}

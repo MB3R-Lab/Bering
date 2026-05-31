@@ -230,18 +230,19 @@ func TestEngineReconciliationRetainsMissingTopologyAndWritesViews(t *testing.T) 
 	clock := &fakeClock{now: time.Date(2026, 3, 21, 12, 0, 0, 0, time.UTC)}
 	sink := &sinkRecorder{}
 	engine, err := NewEngine(EngineConfig{
-		WindowSize:               time.Minute,
-		MaxInMemorySpans:         20,
-		LateSpanPolicy:           "drop",
-		Sink:                     sink,
-		Metrics:                  NewMetrics(),
-		Logger:                   slog.New(slog.NewTextHandler(ioDiscard{}, nil)),
-		Now:                      clock.Now,
-		SourceRef:                "bering://serve?listen=:4318",
-		ReconciliationConfig:     buildRuntimeReconciliationConfigForTest(dir),
-		ReconciliationReportPath: filepath.Join(dir, "reconciliation-report.json"),
-		RawWindowPath:            filepath.Join(dir, "raw-window.json"),
-		StableCorePath:           filepath.Join(dir, "stable-core.json"),
+		WindowSize:                time.Minute,
+		MaxInMemorySpans:          20,
+		LateSpanPolicy:            "drop",
+		Sink:                      sink,
+		Metrics:                   NewMetrics(),
+		Logger:                    slog.New(slog.NewTextHandler(ioDiscard{}, nil)),
+		Now:                       clock.Now,
+		SourceRef:                 "bering://serve?listen=:4318",
+		ReconciliationConfig:      buildRuntimeReconciliationConfigForTest(dir),
+		ReconciliationReportPath:  filepath.Join(dir, "reconciliation-report.json"),
+		ReconciliationSummaryPath: filepath.Join(dir, "reconciliation-summary.md"),
+		RawWindowPath:             filepath.Join(dir, "raw-window.json"),
+		StableCorePath:            filepath.Join(dir, "stable-core.json"),
 	})
 	if err != nil {
 		t.Fatalf("NewEngine returned error: %v", err)
@@ -306,6 +307,13 @@ func TestEngineReconciliationRetainsMissingTopologyAndWritesViews(t *testing.T) 
 	if !strings.Contains(string(reportRaw), "guardrail_union") {
 		t.Fatalf("reconciliation report missing projection summary: %s", reportRaw)
 	}
+	summaryRaw, err := os.ReadFile(filepath.Join(dir, "reconciliation-summary.md"))
+	if err != nil {
+		t.Fatalf("read reconciliation summary: %v", err)
+	}
+	if !strings.Contains(string(summaryRaw), "Bering Runtime Reconciliation Summary") {
+		t.Fatalf("reconciliation summary missing title: %s", summaryRaw)
+	}
 	latestRaw, err := snapshot.MarshalCanonical(env)
 	if err != nil {
 		t.Fatalf("marshal guardrail snapshot: %v", err)
@@ -324,18 +332,19 @@ func TestEngineReconciliationReloadsStateAcrossRestartAndKeepsGuardrailVersion(t
 	clockFirst := &fakeClock{now: start}
 
 	engineFirst, err := NewEngine(EngineConfig{
-		WindowSize:               time.Minute,
-		MaxInMemorySpans:         20,
-		LateSpanPolicy:           "drop",
-		Sink:                     sinkFirst,
-		Metrics:                  NewMetrics(),
-		Logger:                   slog.New(slog.NewTextHandler(ioDiscard{}, nil)),
-		Now:                      clockFirst.Now,
-		SourceRef:                "bering://serve?listen=:4318",
-		ReconciliationConfig:     buildRuntimeReconciliationConfigForTest(dir),
-		ReconciliationReportPath: filepath.Join(dir, "reconciliation-report.json"),
-		RawWindowPath:            filepath.Join(dir, "raw-window.json"),
-		StableCorePath:           filepath.Join(dir, "stable-core.json"),
+		WindowSize:                time.Minute,
+		MaxInMemorySpans:          20,
+		LateSpanPolicy:            "drop",
+		Sink:                      sinkFirst,
+		Metrics:                   NewMetrics(),
+		Logger:                    slog.New(slog.NewTextHandler(ioDiscard{}, nil)),
+		Now:                       clockFirst.Now,
+		SourceRef:                 "bering://serve?listen=:4318",
+		ReconciliationConfig:      buildRuntimeReconciliationConfigForTest(dir),
+		ReconciliationReportPath:  filepath.Join(dir, "reconciliation-report.json"),
+		ReconciliationSummaryPath: filepath.Join(dir, "reconciliation-summary.md"),
+		RawWindowPath:             filepath.Join(dir, "raw-window.json"),
+		StableCorePath:            filepath.Join(dir, "stable-core.json"),
 	})
 	if err != nil {
 		t.Fatalf("NewEngine returned error: %v", err)
@@ -361,18 +370,19 @@ func TestEngineReconciliationReloadsStateAcrossRestartAndKeepsGuardrailVersion(t
 	sinkSecond := &sinkRecorder{}
 	clockSecond := &fakeClock{now: start.Add(61 * time.Second)}
 	engineSecond, err := NewEngine(EngineConfig{
-		WindowSize:               time.Minute,
-		MaxInMemorySpans:         20,
-		LateSpanPolicy:           "drop",
-		Sink:                     sinkSecond,
-		Metrics:                  NewMetrics(),
-		Logger:                   slog.New(slog.NewTextHandler(ioDiscard{}, nil)),
-		Now:                      clockSecond.Now,
-		SourceRef:                "bering://serve?listen=:4318",
-		ReconciliationConfig:     buildRuntimeReconciliationConfigForTest(dir),
-		ReconciliationReportPath: filepath.Join(dir, "reconciliation-report.json"),
-		RawWindowPath:            filepath.Join(dir, "raw-window.json"),
-		StableCorePath:           filepath.Join(dir, "stable-core.json"),
+		WindowSize:                time.Minute,
+		MaxInMemorySpans:          20,
+		LateSpanPolicy:            "drop",
+		Sink:                      sinkSecond,
+		Metrics:                   NewMetrics(),
+		Logger:                    slog.New(slog.NewTextHandler(ioDiscard{}, nil)),
+		Now:                       clockSecond.Now,
+		SourceRef:                 "bering://serve?listen=:4318",
+		ReconciliationConfig:      buildRuntimeReconciliationConfigForTest(dir),
+		ReconciliationReportPath:  filepath.Join(dir, "reconciliation-report.json"),
+		ReconciliationSummaryPath: filepath.Join(dir, "reconciliation-summary.md"),
+		RawWindowPath:             filepath.Join(dir, "raw-window.json"),
+		StableCorePath:            filepath.Join(dir, "stable-core.json"),
 	})
 	if err != nil {
 		t.Fatalf("NewEngine after restart returned error: %v", err)

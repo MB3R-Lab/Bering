@@ -1,0 +1,98 @@
+source:
+  type: topology_api
+  ref: service-catalog://checkout-onboarding
+services:
+  - id: frontend
+    replicas: 2
+    support:
+      observations: 2
+      evidence:
+        - service_catalog
+    labels:
+      team: web
+      tier: edge
+  - id: checkout
+    replicas: 3
+    failure_eligible: true
+    support:
+      observations: 3
+      evidence:
+        - service_catalog
+        - deployment_inventory
+    labels:
+      team: commerce
+      tier: backend
+    placements:
+      - replicas: 2
+        labels:
+          region: us-east-1
+          az: us-east-1a
+          cell: commerce-a
+      - replicas: 1
+        labels:
+          region: us-east-1
+          az: us-east-1b
+          cell: commerce-b
+    shared_resource_refs:
+      - kafka-orders
+      - payments-db
+  - id: payment
+    replicas: 2
+    failure_eligible: true
+    labels:
+      team: payments
+      tier: backend
+edges:
+  - id: frontend|checkout|sync|true
+    from: frontend
+    to: checkout
+    kind: sync
+    blocking: true
+    weight: 0.85
+    resilience:
+      request_timeout_ms: 2000
+      retry:
+        max_attempts: 3
+        budget_cap: 1.5
+        retry_on:
+          - 5xx
+          - gateway-error
+          - timeout
+        backoff:
+          initial_ms: 50
+          max_ms: 500
+          multiplier: 2
+      circuit_breaker:
+        enabled: true
+        max_pending_requests: 1024
+        consecutive_5xx: 5
+    observed:
+      latency_ms:
+        p50: 40
+        p90: 120
+        p95: 250
+        p99: 900
+      error_rate: 0.02
+    policy_scope:
+      source_endpoint_id: frontend:GET /checkout
+      method: GET
+      source_route: /checkout
+  - id: checkout|payment|async|false
+    from: checkout
+    to: payment
+    kind: async
+    blocking: false
+    weight: 0.35
+endpoints:
+  - id: frontend:GET /checkout
+    entry_service: frontend
+    method: GET
+    path: /checkout
+    predicate_ref: catalog.frontend.checkout.success
+    weight: 0.7
+  - id: checkout:POST /process
+    entry_service: checkout
+    method: POST
+    path: /process
+    predicate_ref: catalog.checkout.process.success
+    weight: 0.6

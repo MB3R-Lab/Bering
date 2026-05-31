@@ -11,6 +11,7 @@ runtime:
     enabled: true
     state_path: out/reconciliation-state.json
     report_path: out/reconciliation-report.json
+    summary_path: out/reconciliation-summary.md
     raw_window_path: out/latest-raw-window.json
     stable_core_path: out/latest-stable-core.json
     decay_half_life: 10m
@@ -30,6 +31,7 @@ runtime:
 sink:
   directory: out/snapshots
   latest_path: out/latest-snapshot.json
+  signal_quality_path: out/latest-signal-quality.json
 logging:
   structured: true
 overlays:

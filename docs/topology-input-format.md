@@ -4,6 +4,8 @@ Bering supports an explicit non-trace batch source: `topology_api`.
 
 Use this when topology, placement, or resilience metadata already exists in a service registry, mesh export, inventory API, or curated file and you want Bering to publish the same stable model and snapshot artifacts without trace inference.
 
+A reference non-trace adapter lives at [examples/adapters/service-catalog](../examples/adapters/service-catalog/README.md). It converts a small service catalog JSON document into `topology_api` JSON before calling `bering discover`.
+
 ## Contract line
 
 - `bering discover` now emits `io.mb3r.bering.model@1.1.0` and `io.mb3r.bering.snapshot@1.1.0` by default.

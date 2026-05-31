@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/MB3R-Lab/Bering/internal/atomicfile"
+	"github.com/MB3R-Lab/Bering/internal/quality"
 	"github.com/MB3R-Lab/Bering/internal/snapshot"
 )
 
@@ -17,8 +18,9 @@ type SnapshotSink interface {
 }
 
 type FileSink struct {
-	Directory  string
-	LatestPath string
+	Directory         string
+	LatestPath        string
+	SignalQualityPath string
 }
 
 type ProjectionView struct {
@@ -36,9 +38,19 @@ func (s FileSink) Write(_ context.Context, env snapshot.Envelope) error {
 	if err := snapshot.WriteToFile(path, env); err != nil {
 		return fmt.Errorf("write snapshot sink file: %w", err)
 	}
+	if err := quality.WriteFile(quality.SidecarPath(path), quality.FromSnapshot(env, path)); err != nil {
+		return err
+	}
 	if strings.TrimSpace(s.LatestPath) != "" {
 		if err := snapshot.WriteToFile(s.LatestPath, env); err != nil {
 			return fmt.Errorf("write latest snapshot file: %w", err)
+		}
+		qualityPath := strings.TrimSpace(s.SignalQualityPath)
+		if qualityPath == "" {
+			qualityPath = quality.SidecarPath(s.LatestPath)
+		}
+		if err := quality.WriteFile(qualityPath, quality.FromSnapshot(env, s.LatestPath)); err != nil {
+			return err
 		}
 	}
 	return nil
@@ -53,6 +65,16 @@ func WriteProjectionView(path string, view ProjectionView) error {
 		return fmt.Errorf("marshal projection view: %w", err)
 	}
 	return writeJSONAtomically(path, raw)
+}
+
+func WriteProjectionViewWithQuality(path string, view ProjectionView) error {
+	if err := WriteProjectionView(path, view); err != nil {
+		return err
+	}
+	if strings.TrimSpace(path) == "" || view.Snapshot == nil {
+		return nil
+	}
+	return quality.WriteFile(quality.SidecarPath(path), quality.FromSnapshotArtifact(*view.Snapshot, "projection_view", path))
 }
 
 func writeJSONAtomically(path string, raw []byte) error {

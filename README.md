@@ -87,6 +87,8 @@ go run ./cmd/bering discover \
 
 Expected result: a deterministic `io.mb3r.bering.model@1.1.0` artifact.
 
+`discover` also writes `out/bering-model.signal-quality.json` next to the model.
+
 ### 2) Validate an artifact
 
 ```bash
@@ -109,6 +111,8 @@ go run ./cmd/bering discover \
 
 Expected result: a model artifact plus an `io.mb3r.bering.snapshot@1.1.0` envelope.
 
+The snapshot gets its own `out/bering-snapshot.signal-quality.json` sidecar.
+
 ### 4) Run runtime mode
 
 ```bash
@@ -126,6 +130,8 @@ Useful endpoints:
 - `GET /healthz`
 - `GET /readyz`
 - `GET /metrics`
+- `GET /reconciliation/report`
+- `GET /reconciliation/summary`
 
 ### 5) Use the result with Sheaft
 
@@ -160,6 +166,10 @@ This is the stable topology artifact intended for file-based consumers and tools
 
 This wraps the model with runtime window metadata, ingest counts, coverage, provenance, topology diffs, and discovery-side copies of the same typed placement, resilience, and observed edge metadata.
 
+### Signal quality report
+
+Every batch model, batch snapshot, and runtime snapshot gets a separate `*.signal-quality.json` sidecar. The sidecar reports source mix, provenance, field coverage for typed enrichment fields, and warnings for low-coverage dimensions without changing the public model or snapshot schemas.
+
 ### Runtime reconciliation views
 
 Runtime mode also keeps a conservative reconciliation layer for sparse traffic and telemetry gaps:
@@ -168,6 +178,7 @@ Runtime mode also keeps a conservative reconciliation layer for sparse traffic a
 - `stable_core`: the high-confidence retained view
 - `guardrail_union`: the conservative default downstream artifact
 - a machine-readable reconciliation report for operators
+- an operator-facing reconciliation summary in Markdown
 
 These runtime views do not change the public `io.mb3r.bering.model@1.1.0` or `io.mb3r.bering.snapshot@1.1.0` contracts.
 
@@ -203,6 +214,8 @@ Release outputs include:
 - Batch outputs: [examples/outputs/bering-model.normalized.sample.json](examples/outputs/bering-model.normalized.sample.json), [examples/outputs/bering-snapshot.normalized.sample.json](examples/outputs/bering-snapshot.normalized.sample.json), [examples/outputs/bering-model.topology-api.sample.json](examples/outputs/bering-model.topology-api.sample.json), [examples/outputs/bering-snapshot.topology-api.sample.json](examples/outputs/bering-snapshot.topology-api.sample.json)
 - Runtime config: [configs/serve.sample.yaml](configs/serve.sample.yaml)
 - Discovery overlay: [configs/discovery.overlay.sample.yaml](configs/discovery.overlay.sample.yaml)
+- Enrichment onboarding: [examples/enrichment](examples/enrichment/README.md)
+- Non-trace adapter: [examples/adapters/service-catalog](examples/adapters/service-catalog/README.md)
 - Collector sidecar: [examples/collector/otelcol.sidecar.yaml](examples/collector/otelcol.sidecar.yaml)
 - Prometheus scrape config: [examples/prometheus/bering.prometheus.yml](examples/prometheus/bering.prometheus.yml)
 - Grafana dashboard: [examples/grafana/bering-runtime-dashboard.json](examples/grafana/bering-runtime-dashboard.json)
@@ -216,6 +229,7 @@ Release outputs include:
 - [docs/schema-publishing.md](docs/schema-publishing.md)
 - [docs/trace-input-format.md](docs/trace-input-format.md)
 - [docs/topology-input-format.md](docs/topology-input-format.md)
+- [docs/enrichment-onboarding.md](docs/enrichment-onboarding.md)
 - [docs/mvp-scope-and-limits.md](docs/mvp-scope-and-limits.md)
 - [Delivery tracker](https://github.com/MB3R-Lab/Bering/issues/19)
 - [docs/architecture.md](docs/architecture.md)

@@ -70,6 +70,7 @@ Suggested fields:
 - `enabled`: toggle the reconciliation module on or off
 - `state_path`: JSON file used to persist reconciliation state between windows and restarts
 - `report_path`: machine-readable report file for the latest reconciliation result
+- `summary_path`: operator-facing Markdown summary for the latest reconciliation result
 - `decay_half_life`: controls how quickly older evidence loses weight
 - `minimum_opportunity_windows`: minimum opportunity evidence before misses can count
 - `telemetry_health_freeze_threshold`: freeze or heavily damp retirement below this score
@@ -94,6 +95,14 @@ Example: `out/snapshots`
 Optional stable path that is rewritten on every successful snapshot.
 
 Example: `out/latest-snapshot.json`
+
+### `sink.signal_quality_path`
+
+Stable path for the latest signal quality and field coverage report.
+
+Example: `out/latest-signal-quality.json`
+
+Each timestamped snapshot also gets an adjacent `*.signal-quality.json` sidecar.
 
 ### `logging.structured`
 
@@ -126,7 +135,9 @@ overlays:
 - `--reconciliation-enabled`
 - `--reconciliation-state-path`
 - `--reconciliation-report-path`
+- `--reconciliation-summary-path`
 - `--sink-dir`
 - `--latest-path`
+- `--signal-quality-path`
 - `--log-format text|json`
 - `--overlay` (repeatable)

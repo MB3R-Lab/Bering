@@ -23,6 +23,7 @@ import (
 	"github.com/MB3R-Lab/Bering/internal/connectors/otlp"
 	"github.com/MB3R-Lab/Bering/internal/discovery"
 	"github.com/MB3R-Lab/Bering/internal/overlay"
+	"github.com/MB3R-Lab/Bering/internal/reconciliation"
 	"github.com/MB3R-Lab/Bering/internal/snapshot"
 )
 
@@ -50,21 +51,23 @@ func NewService(cfg config.ServeConfig, overlays []overlay.File, logger *slog.Lo
 	if logger == nil {
 		logger = slog.New(slog.NewTextHandler(ioDiscard{}, nil))
 	}
-	_, reportPath, rawWindowPath, stableCorePath := resolveReconciliationPaths(cfg)
+	_, reportPath, summaryPath, rawWindowPath, stableCorePath := resolveReconciliationPaths(cfg)
+	signalQualityPath := resolveSignalQualityPath(cfg)
 	engine, err := NewEngine(EngineConfig{
-		WindowSize:               cfg.Runtime.WindowSize.Duration(),
-		MaxInMemorySpans:         cfg.Runtime.MaxInMemorySpans,
-		LateSpanPolicy:           cfg.Runtime.LateSpanPolicy,
-		Sink:                     FileSink{Directory: cfg.Sink.Directory, LatestPath: cfg.Sink.LatestPath},
-		Metrics:                  metrics,
-		Logger:                   logger,
-		SourceRef:                discovery.BuildServeSourceRef(cfg.Server.ListenAddress),
-		Sources:                  []snapshot.SourceSummary{{Type: "traces", Connector: otlp.HTTPConnectorName, Ref: discovery.BuildServeSourceRef(cfg.Server.ListenAddress)}},
-		Overlays:                 overlays,
-		ReconciliationConfig:     buildRuntimeReconciliationConfig(cfg),
-		ReconciliationReportPath: reportPath,
-		RawWindowPath:            rawWindowPath,
-		StableCorePath:           stableCorePath,
+		WindowSize:                cfg.Runtime.WindowSize.Duration(),
+		MaxInMemorySpans:          cfg.Runtime.MaxInMemorySpans,
+		LateSpanPolicy:            cfg.Runtime.LateSpanPolicy,
+		Sink:                      FileSink{Directory: cfg.Sink.Directory, LatestPath: cfg.Sink.LatestPath, SignalQualityPath: signalQualityPath},
+		Metrics:                   metrics,
+		Logger:                    logger,
+		SourceRef:                 discovery.BuildServeSourceRef(cfg.Server.ListenAddress),
+		Sources:                   []snapshot.SourceSummary{{Type: "traces", Connector: otlp.HTTPConnectorName, Ref: discovery.BuildServeSourceRef(cfg.Server.ListenAddress)}},
+		Overlays:                  overlays,
+		ReconciliationConfig:      buildRuntimeReconciliationConfig(cfg),
+		ReconciliationReportPath:  reportPath,
+		ReconciliationSummaryPath: summaryPath,
+		RawWindowPath:             rawWindowPath,
+		StableCorePath:            stableCorePath,
 	})
 	if err != nil {
 		return nil, err
@@ -75,6 +78,7 @@ func NewService(cfg config.ServeConfig, overlays []overlay.File, logger *slog.Lo
 	mux.HandleFunc("/healthz", service.handleHealth)
 	mux.HandleFunc("/readyz", service.handleReady)
 	mux.HandleFunc("/reconciliation/report", service.handleReconciliationReport)
+	mux.HandleFunc("/reconciliation/summary", service.handleReconciliationSummary)
 	mux.Handle("/metrics", metrics.Handler())
 	service.httpServer = newHTTPServer(mux)
 	if strings.TrimSpace(cfg.Server.GRPCListenAddress) != "" {
@@ -245,6 +249,17 @@ func (s *Service) handleReconciliationReport(w http.ResponseWriter, _ *http.Requ
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write(raw)
+}
+
+func (s *Service) handleReconciliationSummary(w http.ResponseWriter, _ *http.Request) {
+	report, ok := s.engine.LatestReconciliationReport()
+	if !ok {
+		http.Error(w, "reconciliation summary not available", http.StatusNotFound)
+		return
+	}
+	w.Header().Set("Content-Type", "text/markdown; charset=utf-8")
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write([]byte(reconciliation.BuildOperatorSummary(report)))
 }
 
 func writeOTLPResponse(w http.ResponseWriter, r *http.Request) error {

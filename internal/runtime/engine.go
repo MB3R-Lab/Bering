@@ -19,20 +19,21 @@ import (
 )
 
 type EngineConfig struct {
-	WindowSize               time.Duration
-	MaxInMemorySpans         int
-	LateSpanPolicy           string
-	Sink                     SnapshotSink
-	Metrics                  *Metrics
-	Logger                   *slog.Logger
-	Now                      func() time.Time
-	SourceRef                string
-	Sources                  []snapshot.SourceSummary
-	Overlays                 []overlay.File
-	ReconciliationConfig     reconciliation.Config
-	ReconciliationReportPath string
-	RawWindowPath            string
-	StableCorePath           string
+	WindowSize                time.Duration
+	MaxInMemorySpans          int
+	LateSpanPolicy            string
+	Sink                      SnapshotSink
+	Metrics                   *Metrics
+	Logger                    *slog.Logger
+	Now                       func() time.Time
+	SourceRef                 string
+	Sources                   []snapshot.SourceSummary
+	Overlays                  []overlay.File
+	ReconciliationConfig      reconciliation.Config
+	ReconciliationReportPath  string
+	ReconciliationSummaryPath string
+	RawWindowPath             string
+	StableCorePath            string
 }
 
 type Engine struct {
@@ -267,6 +268,9 @@ func (e *Engine) flushReconciled(ctx context.Context, current windowState, raw d
 	if err := reconciliation.WriteReport(e.cfg.ReconciliationReportPath, reconciliationResult.Report); err != nil {
 		return err
 	}
+	if err := reconciliation.WriteSummary(e.cfg.ReconciliationSummaryPath, reconciliationResult.Report); err != nil {
+		return err
+	}
 	e.cfg.Metrics.RecordReconciliation(reconciliationResult.Report)
 
 	if len(reconciliationResult.RawWindow.Model.Services) > 0 {
@@ -274,7 +278,7 @@ func (e *Engine) flushReconciled(ctx context.Context, current windowState, raw d
 		if err != nil {
 			return err
 		}
-		if err := WriteProjectionView(e.cfg.RawWindowPath, ProjectionView{
+		if err := WriteProjectionViewWithQuality(e.cfg.RawWindowPath, ProjectionView{
 			Name:              string(reconciliationResult.RawWindow.Name),
 			Observation:       reconciliationResult.Report.Versions.ObservationVersion,
 			StructuralVersion: reconciliationResult.Report.Versions.ObservationVersion,
@@ -302,7 +306,7 @@ func (e *Engine) flushReconciled(ctx context.Context, current windowState, raw d
 		if err != nil {
 			return err
 		}
-		if err := WriteProjectionView(e.cfg.StableCorePath, ProjectionView{
+		if err := WriteProjectionViewWithQuality(e.cfg.StableCorePath, ProjectionView{
 			Name:              string(reconciliationResult.StableCore.Name),
 			Observation:       reconciliationResult.Report.Versions.ObservationVersion,
 			StructuralVersion: reconciliationResult.Report.Versions.StableCoreVersion,

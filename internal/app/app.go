@@ -19,6 +19,7 @@ import (
 	"github.com/MB3R-Lab/Bering/internal/discovery"
 	"github.com/MB3R-Lab/Bering/internal/model"
 	"github.com/MB3R-Lab/Bering/internal/overlay"
+	"github.com/MB3R-Lab/Bering/internal/quality"
 	beringruntime "github.com/MB3R-Lab/Bering/internal/runtime"
 	"github.com/MB3R-Lab/Bering/internal/schema"
 	"github.com/MB3R-Lab/Bering/internal/snapshot"
@@ -73,6 +74,8 @@ func (r Runner) runDiscover(args []string) int {
 	input := fs.String("input", "", "Path to discovery input file or directory")
 	out := fs.String("out", "bering-model.json", "Path to output model JSON")
 	snapshotOut := fs.String("snapshot-out", "", "Optional path to output snapshot envelope JSON")
+	qualityOut := fs.String("quality-out", "", "Optional path to output model signal quality JSON; defaults next to --out")
+	snapshotQualityOut := fs.String("snapshot-quality-out", "", "Optional path to output snapshot signal quality JSON; defaults next to --snapshot-out")
 	replicas := fs.String("replicas", "", "Path to replicas override file (yaml or json)")
 	discoveredAt := fs.String("discovered-at", "", "RFC3339 timestamp override for metadata.discovered_at")
 	var overlays stringSliceFlag
@@ -130,6 +133,14 @@ func (r Runner) runDiscover(args []string) int {
 		r.printfErr("write output model: %v\n", err)
 		return ExitError
 	}
+	modelQualityPath := strings.TrimSpace(*qualityOut)
+	if modelQualityPath == "" {
+		modelQualityPath = quality.SidecarPath(*out)
+	}
+	if err := quality.WriteFile(modelQualityPath, quality.FromModel(result.Model, result.Discovery, result.Sources, result.Coverage, discoveredAtValue, *out)); err != nil {
+		r.printfErr("write model signal quality report: %v\n", err)
+		return ExitError
+	}
 
 	if strings.TrimSpace(*snapshotOut) != "" {
 		env, err := buildBatchSnapshot(result, discoveredAtValue)
@@ -150,10 +161,20 @@ func (r Runner) runDiscover(args []string) int {
 			r.printfErr("write snapshot output: %v\n", err)
 			return ExitError
 		}
+		snapshotQualityPath := strings.TrimSpace(*snapshotQualityOut)
+		if snapshotQualityPath == "" {
+			snapshotQualityPath = quality.SidecarPath(*snapshotOut)
+		}
+		if err := quality.WriteFile(snapshotQualityPath, quality.FromSnapshot(env, *snapshotOut)); err != nil {
+			r.printfErr("write snapshot signal quality report: %v\n", err)
+			return ExitError
+		}
 		r.printf("snapshot written: %s\n", *snapshotOut)
+		r.printf("snapshot signal quality written: %s\n", snapshotQualityPath)
 	}
 
 	r.printf("model written: %s\n", *out)
+	r.printf("model signal quality written: %s\n", modelQualityPath)
 	r.printf("services=%d edges=%d endpoints=%d confidence=%.2f\n", len(result.Model.Services), len(result.Model.Edges), len(result.Model.Endpoints), result.Model.Metadata.Confidence)
 	return ExitOK
 }
@@ -222,8 +243,10 @@ func (r Runner) runServe(args []string) int {
 	reconciliationEnabled := fs.String("reconciliation-enabled", "", "Override config runtime reconciliation enabled state (true|false)")
 	reconciliationStatePath := fs.String("reconciliation-state-path", "", "Override config runtime reconciliation state path")
 	reconciliationReportPath := fs.String("reconciliation-report-path", "", "Override config runtime reconciliation report path")
+	reconciliationSummaryPath := fs.String("reconciliation-summary-path", "", "Override config runtime reconciliation operator summary path")
 	sinkDir := fs.String("sink-dir", "", "Override config sink directory")
 	latestPath := fs.String("latest-path", "", "Override config stable latest snapshot path")
+	signalQualityPath := fs.String("signal-quality-path", "", "Override config stable latest signal quality report path")
 	logFormat := fs.String("log-format", "", "Override log format (text|json)")
 	var overlays stringSliceFlag
 	fs.Var(&overlays, "overlay", "Override overlay file list; may be repeated")
@@ -283,11 +306,17 @@ func (r Runner) runServe(args []string) int {
 	if strings.TrimSpace(*reconciliationReportPath) != "" {
 		cfg.Runtime.Reconciliation.ReportPath = strings.TrimSpace(*reconciliationReportPath)
 	}
+	if strings.TrimSpace(*reconciliationSummaryPath) != "" {
+		cfg.Runtime.Reconciliation.SummaryPath = strings.TrimSpace(*reconciliationSummaryPath)
+	}
 	if strings.TrimSpace(*sinkDir) != "" {
 		cfg.Sink.Directory = strings.TrimSpace(*sinkDir)
 	}
 	if strings.TrimSpace(*latestPath) != "" {
 		cfg.Sink.LatestPath = strings.TrimSpace(*latestPath)
+	}
+	if strings.TrimSpace(*signalQualityPath) != "" {
+		cfg.Sink.SignalQualityPath = strings.TrimSpace(*signalQualityPath)
 	}
 	if len(overlays.items) > 0 {
 		cfg.Overlays = overlays.Values()
@@ -323,9 +352,9 @@ func (r Runner) printUsage() {
 	fmt.Fprintln(r.stdout, "Bering CLI")
 	fmt.Fprintln(r.stdout)
 	fmt.Fprintln(r.stdout, "Usage:")
-	fmt.Fprintln(r.stdout, "  bering discover --input <trace-file|topology-file|dir> [--out bering-model.json] [--snapshot-out bering-snapshot.json] [--replicas replicas.yaml|json] [--overlay overlay.yaml] [--discovered-at RFC3339]")
+	fmt.Fprintln(r.stdout, "  bering discover --input <trace-file|topology-file|dir> [--out bering-model.json] [--snapshot-out bering-snapshot.json] [--quality-out bering-model.signal-quality.json] [--snapshot-quality-out bering-snapshot.signal-quality.json] [--replicas replicas.yaml|json] [--overlay overlay.yaml] [--discovered-at RFC3339]")
 	fmt.Fprintln(r.stdout, "  bering validate --input <bering-model.json|bering-snapshot.json>")
-	fmt.Fprintln(r.stdout, "  bering serve --config configs/serve.sample.yaml [--listen :4318] [--grpc-listen :4317] [--window-size 30s] [--flush-interval 5s]")
+	fmt.Fprintln(r.stdout, "  bering serve --config configs/serve.sample.yaml [--listen :4318] [--grpc-listen :4317] [--window-size 30s] [--flush-interval 5s] [--reconciliation-summary-path out/reconciliation-summary.md] [--signal-quality-path out/latest-signal-quality.json]")
 }
 
 func (r Runner) printf(format string, args ...any) {

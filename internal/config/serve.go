@@ -84,6 +84,7 @@ type RuntimeReconciliationConfig struct {
 	Enabled                        bool     `json:"enabled" yaml:"enabled"`
 	StatePath                      string   `json:"state_path" yaml:"state_path"`
 	ReportPath                     string   `json:"report_path" yaml:"report_path"`
+	SummaryPath                    string   `json:"summary_path" yaml:"summary_path"`
 	RawWindowPath                  string   `json:"raw_window_path" yaml:"raw_window_path"`
 	StableCorePath                 string   `json:"stable_core_path" yaml:"stable_core_path"`
 	DecayHalfLife                  Duration `json:"decay_half_life" yaml:"decay_half_life"`
@@ -103,8 +104,9 @@ type RuntimeReconciliationConfig struct {
 }
 
 type SinkConfig struct {
-	Directory  string `json:"directory" yaml:"directory"`
-	LatestPath string `json:"latest_path" yaml:"latest_path"`
+	Directory         string `json:"directory" yaml:"directory"`
+	LatestPath        string `json:"latest_path" yaml:"latest_path"`
+	SignalQualityPath string `json:"signal_quality_path" yaml:"signal_quality_path"`
 }
 
 type LoggingConfig struct {
@@ -127,6 +129,7 @@ func DefaultServeConfig() ServeConfig {
 				Enabled:                        true,
 				StatePath:                      "out/reconciliation-state.json",
 				ReportPath:                     "out/reconciliation-report.json",
+				SummaryPath:                    "out/reconciliation-summary.md",
 				RawWindowPath:                  "out/latest-raw-window.json",
 				StableCorePath:                 "out/latest-stable-core.json",
 				DecayHalfLife:                  Duration(10 * time.Minute),
@@ -146,8 +149,9 @@ func DefaultServeConfig() ServeConfig {
 			},
 		},
 		Sink: SinkConfig{
-			Directory:  "out/snapshots",
-			LatestPath: "out/latest-snapshot.json",
+			Directory:         "out/snapshots",
+			LatestPath:        "out/latest-snapshot.json",
+			SignalQualityPath: "out/latest-signal-quality.json",
 		},
 	}
 }

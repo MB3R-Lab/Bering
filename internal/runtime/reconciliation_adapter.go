@@ -4,6 +4,7 @@ import (
 	"math"
 	"path"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/MB3R-Lab/Bering/internal/config"
@@ -12,7 +13,7 @@ import (
 
 func buildRuntimeReconciliationConfig(cfg config.ServeConfig) reconciliation.Config {
 	rcfg := cfg.Runtime.Reconciliation
-	statePath, _, _, _ := resolveReconciliationPaths(cfg)
+	statePath, _, _, _, _ := resolveReconciliationPaths(cfg)
 	out := reconciliation.DefaultConfig()
 	out.Enabled = rcfg.Enabled
 	out.StatePath = statePath
@@ -33,7 +34,7 @@ func buildRuntimeReconciliationConfig(cfg config.ServeConfig) reconciliation.Con
 	return out.WithDefaults()
 }
 
-func resolveReconciliationPaths(cfg config.ServeConfig) (string, string, string, string) {
+func resolveReconciliationPaths(cfg config.ServeConfig) (string, string, string, string, string) {
 	defaults := config.DefaultServeConfig().Runtime.Reconciliation
 	baseDir := reconciliationBaseDirectory(cfg)
 	if baseDir == "." || baseDir == "" {
@@ -47,8 +48,22 @@ func resolveReconciliationPaths(cfg config.ServeConfig) (string, string, string,
 	}
 	return resolve(cfg.Runtime.Reconciliation.StatePath, defaults.StatePath, "reconciliation-state.json"),
 		resolve(cfg.Runtime.Reconciliation.ReportPath, defaults.ReportPath, "reconciliation-report.json"),
+		resolve(cfg.Runtime.Reconciliation.SummaryPath, defaults.SummaryPath, "reconciliation-summary.md"),
 		resolve(cfg.Runtime.Reconciliation.RawWindowPath, defaults.RawWindowPath, "latest-raw-window.json"),
 		resolve(cfg.Runtime.Reconciliation.StableCorePath, defaults.StableCorePath, "latest-stable-core.json")
+}
+
+func resolveSignalQualityPath(cfg config.ServeConfig) string {
+	defaults := config.DefaultServeConfig().Sink
+	current := strings.TrimSpace(cfg.Sink.SignalQualityPath)
+	if current != "" && current != defaults.SignalQualityPath {
+		return current
+	}
+	baseDir := reconciliationBaseDirectory(cfg)
+	if baseDir == "." || baseDir == "" {
+		baseDir = "out"
+	}
+	return filepath.Join(baseDir, "latest-signal-quality.json")
 }
 
 func reconciliationBaseDirectory(cfg config.ServeConfig) string {

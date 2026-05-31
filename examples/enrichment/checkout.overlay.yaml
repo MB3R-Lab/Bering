@@ -1,0 +1,71 @@
+name: checkout-enrichment-onboarding
+services:
+  - id: frontend
+    labels:
+      team: web
+      tier: edge
+  - id: checkout
+    replicas: 3
+    failure_eligible: true
+    labels:
+      team: commerce
+      tier: backend
+    placements:
+      - replicas: 2
+        labels:
+          region: us-east-1
+          az: us-east-1a
+          cell: commerce-a
+      - replicas: 1
+        labels:
+          region: us-east-1
+          az: us-east-1b
+          cell: commerce-b
+    shared_resource_refs:
+      - kafka-orders
+      - payments-db
+  - id: payment
+    failure_eligible: true
+    labels:
+      team: payments
+edges:
+  - from: frontend
+    to: checkout
+    kind: sync
+    blocking: true
+    weight: 0.85
+    resilience:
+      request_timeout_ms: 2000
+      retry:
+        max_attempts: 3
+        budget_cap: 1.5
+        retry_on:
+          - 5xx
+          - timeout
+        backoff:
+          initial_ms: 50
+          max_ms: 500
+          multiplier: 2
+      circuit_breaker:
+        enabled: true
+        max_pending_requests: 1024
+    policy_scope:
+      source_endpoint_id: frontend:GET /checkout
+      method: GET
+      source_route: /checkout
+  - from: checkout
+    to: payment
+    kind: async
+    blocking: false
+    weight: 0.35
+endpoints:
+  - id: frontend:GET /checkout
+    predicate_ref: catalog.frontend.checkout.success
+    weight: 0.7
+    labels:
+      workflow: purchase
+  - id: checkout:POST /process
+    predicate_ref: catalog.checkout.process.success
+    weight: 0.6
+    labels:
+      workflow: purchase
