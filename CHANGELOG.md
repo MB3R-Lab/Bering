@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+## v0.3.4
+
+Patch release for the post-`v0.3.3` capability backlog.
+
+### Added
+
+- Signal-quality sidecar reports for batch model artifacts, batch snapshot artifacts, runtime snapshots, and runtime projection snapshots.
+- Enrichment onboarding docs and examples for moving from trace-only discovery to overlay and `topology_api` inputs.
+- Operator-facing runtime reconciliation summary output, including a Markdown file and `GET /reconciliation/summary`.
+- Reference non-trace service-catalog adapter example that maps external inventory-style input back into the existing `topology_api` contract.
+- Checked-in adapter-generated `topology_api`, model, snapshot, and signal-quality example artifacts.
+
 ## v0.3.3
 
 Patch release focused on release metadata hygiene after the `v0.3.2` hardening release.
