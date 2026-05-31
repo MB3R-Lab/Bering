@@ -4,7 +4,7 @@ This directory keeps checked-in planning notes for active and recently completed
 
 GitHub Issues and Milestones are the authoritative task tracker for committed implementation work. These checked-in notes are supplemental design and implementation context only; they should not duplicate open or closed task lists from the tracker.
 
-For the product capability backlog and its concrete GitHub issue links, see [Product Capability Backlog](../backlog.md).
+For the active product capability backlog, use the pinned [delivery tracker](https://github.com/MB3R-Lab/Bering/issues/19) and the active [GitHub milestone](https://github.com/MB3R-Lab/Bering/milestone/4).
 
 ## Milestones
 
