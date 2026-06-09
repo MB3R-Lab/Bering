@@ -8,6 +8,10 @@
 [![Current release](https://img.shields.io/badge/current-v0.3.4-blue)](https://github.com/MB3R-Lab/Bering/releases/tag/v0.3.4)
 [![Public schema](https://img.shields.io/badge/public_schema-1.0%20%7C%201.1-blue)](https://github.com/MB3R-Lab/Bering/blob/main/VERSIONING.md)
 
+## Related MB3R repositories
+
+Bering publishes topology and snapshot artifacts for downstream consumers. For example, [Sheaft](https://github.com/MB3R-Lab/Sheaft) can consume Bering artifacts for resilience analysis and CI/CD gating. [mb3r-stack](https://github.com/MB3R-Lab/mb3r-stack) packages compatible Bering and Sheaft releases with integration assets.
+
 `Bering v0.3.4` is the current product release of Bering: a discovery and publishing layer for service topology and endpoint contracts.
 
 Bering turns trace input or explicit topology input into stable JSON artifacts, and it can also run as a long-lived runtime service that emits rolling discovery snapshots plus conservative reconciliation views for trace gaps.
