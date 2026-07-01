@@ -8,7 +8,7 @@ Files:
 - `bering-model.v1.sample.json`: standalone model artifact
 - `bering-snapshot.v1.sample.json`: snapshot envelope with the same model embedded
 
-The fixtures exercise the Bering `1.1.0` contract fields Sheaft v1 consumes:
+The fixtures exercise the Bering `1.2.0` contract fields Sheaft v1 consumes:
 
 - replica counts and placement buckets
 - operation-aware edge IDs and identity metadata

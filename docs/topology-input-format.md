@@ -8,7 +8,7 @@ A reference non-trace adapter lives at [examples/adapters/service-catalog](../ex
 
 ## Contract line
 
-- `bering discover` now emits `io.mb3r.bering.model@1.1.0` and `io.mb3r.bering.snapshot@1.1.0` by default.
+- `bering discover` now emits `io.mb3r.bering.model@1.2.0` and `io.mb3r.bering.snapshot@1.2.0` by default.
 - `io.mb3r.bering.model@1.0.0` and `io.mb3r.bering.snapshot@1.0.0` remain valid and immutable for existing consumers.
 - New typed placement, reliability, resilience, observed-edge, policy-scope, endpoint-fidelity, and endpoint semantic-hint fields are first-class contract fields. They are not hidden in generic `attributes` bags.
 

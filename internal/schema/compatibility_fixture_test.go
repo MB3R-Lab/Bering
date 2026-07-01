@@ -42,7 +42,7 @@ func TestSheaftV1CompatibilityFixtures(t *testing.T) {
 	if err := json.Unmarshal(rawManifest, &manifest); err != nil {
 		t.Fatalf("decode manifest: %v", err)
 	}
-	if manifest.Producer.Product != "bering" || manifest.Producer.AppVersion != "v0.3.4" || manifest.Producer.SchemaLine != "1.1.0" {
+	if manifest.Producer.Product != "bering" || manifest.Producer.AppVersion != "v1.0.0" || manifest.Producer.SchemaLine != "1.2.0" {
 		t.Fatalf("unexpected producer checkpoint: %+v", manifest.Producer)
 	}
 	if len(manifest.Contracts) != 2 {

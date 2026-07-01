@@ -5,14 +5,14 @@
 [![ci](https://img.shields.io/github/actions/workflow/status/MB3R-Lab/Bering/ci.yml?branch=main&label=ci)](https://github.com/MB3R-Lab/Bering/actions/workflows/ci.yml)
 [![publish-schema](https://img.shields.io/github/actions/workflow/status/MB3R-Lab/Bering/publish-schema.yml?branch=main&label=publish-schema)](https://github.com/MB3R-Lab/Bering/actions/workflows/publish-schema.yml)
 [![Go version](https://img.shields.io/github/go-mod/go-version/MB3R-Lab/Bering)](https://github.com/MB3R-Lab/Bering/blob/main/go.mod)
-[![Current release](https://img.shields.io/badge/current-v0.3.4-blue)](https://github.com/MB3R-Lab/Bering/releases/tag/v0.3.4)
-[![Public schema](https://img.shields.io/badge/public_schema-1.0%20%7C%201.1-blue)](https://github.com/MB3R-Lab/Bering/blob/main/VERSIONING.md)
+[![Current release](https://img.shields.io/badge/current-v1.0.0-blue)](https://github.com/MB3R-Lab/Bering/releases/tag/v1.0.0)
+[![Public schema](https://img.shields.io/badge/public_schema-1.0%20%7C%201.1%20%7C%201.2-blue)](https://github.com/MB3R-Lab/Bering/blob/main/VERSIONING.md)
 
 ## Related MB3R repositories
 
 Bering publishes topology and snapshot artifacts for downstream consumers. For example, [Sheaft](https://github.com/MB3R-Lab/Sheaft) can consume Bering artifacts for resilience analysis and CI/CD gating. [mb3r-stack](https://github.com/MB3R-Lab/mb3r-stack) packages compatible Bering and Sheaft releases with integration assets.
 
-`Bering v0.3.4` is the current product release of Bering: a discovery and publishing layer for service topology and endpoint contracts.
+`Bering v1.0.0` is the current product release of Bering: a discovery and publishing layer for service topology and endpoint contracts.
 
 Bering turns trace input or explicit topology input into stable JSON artifacts, and it can also run as a long-lived runtime service that emits rolling discovery snapshots plus conservative reconciliation views for trace gaps.
 
@@ -32,17 +32,19 @@ Bering owns discovery and discovery-side public contracts. It does not own simul
 
 Do not treat the product release tag as the schema contract version.
 
-- Current product release for this repository: `Bering v0.3.4`
-- Current product git tag / GitHub Release: `v0.3.4`
+- Current product release for this repository: `Bering v1.0.0`
+- Current product git tag / GitHub Release: `v1.0.0`
 - Default emitted schema contracts now are:
-  - `io.mb3r.bering.model@1.1.0`
-  - `io.mb3r.bering.snapshot@1.1.0`
+  - `io.mb3r.bering.model@1.2.0`
+  - `io.mb3r.bering.snapshot@1.2.0`
 - Previously published contracts remain valid and immutable:
   - `io.mb3r.bering.model@1.0.0`
   - `io.mb3r.bering.snapshot@1.0.0`
-- Schema publishing tag remains separate: `schema-v1.1.0`
+  - `io.mb3r.bering.model@1.1.0`
+  - `io.mb3r.bering.snapshot@1.1.0`
+- Schema publishing tag remains separate: `schema-v1.2.0`
 
-`bering validate` accepts both the preserved `1.0.0` artifacts and the current `1.1.0` artifacts.
+`bering validate` accepts preserved `1.0.0` and `1.1.0` artifacts plus the current `1.2.0` artifacts.
 
 ## Installation
 
@@ -64,7 +66,7 @@ Also packaged today:
 Example:
 
 ```bash
-tar -xzf bering_0.3.4_linux_amd64.tar.gz
+tar -xzf bering_1.0.0_linux_amd64.tar.gz
 ./bering help
 ```
 
@@ -89,7 +91,7 @@ go run ./cmd/bering discover \
   --discovered-at 2026-03-03T00:00:00Z
 ```
 
-Expected result: a deterministic `io.mb3r.bering.model@1.1.0` artifact.
+Expected result: a deterministic `io.mb3r.bering.model@1.2.0` artifact.
 
 `discover` also writes `out/bering-model.signal-quality.json` next to the model.
 
@@ -113,7 +115,7 @@ go run ./cmd/bering discover \
   --discovered-at 2026-03-03T00:00:00Z
 ```
 
-Expected result: a model artifact plus an `io.mb3r.bering.snapshot@1.1.0` envelope.
+Expected result: a model artifact plus an `io.mb3r.bering.snapshot@1.2.0` envelope.
 
 The snapshot gets its own `out/bering-snapshot.signal-quality.json` sidecar.
 
@@ -150,25 +152,25 @@ go run ./cmd/sheaft run \
   --seed 42
 ```
 
-For Sheaft `v1.0.0` stochastic-connectivity compatibility, use the canonical fixture checkpoint in [examples/compatibility/sheaft-v1](examples/compatibility/sheaft-v1/README.md). It pins Bering `v0.3.4` / schema line `1.1.0` and includes model and snapshot artifacts with reliability evidence, observed edge metadata, and immediate/eventual endpoint semantic hints.
+For Sheaft `v1.0.0` stochastic-connectivity compatibility, use the canonical fixture checkpoint in [examples/compatibility/sheaft-v1](examples/compatibility/sheaft-v1/README.md). It pins Bering `v1.0.0` / schema line `1.2.0` and includes model and snapshot artifacts with reliability evidence, observed edge metadata, and immediate/eventual endpoint semantic hints.
 
 ## Published Artifacts
 
 ### Core model
 
 - `name`: `io.mb3r.bering.model`
-- `version`: `1.1.0`
-- `uri`: `https://mb3r-lab.github.io/Bering/schema/model/v1.1.0/model.schema.json`
-- `digest`: `sha256:76b2b22422b6e64f437fb144a02b6bd4629bf510cec5479a8496c41eb25fc406`
+- `version`: `1.2.0`
+- `uri`: `https://mb3r-lab.github.io/Bering/schema/model/v1.2.0/model.schema.json`
+- `digest`: `sha256:4fa1a34e64703524cfe2289341fcea79986265db08c0220d6c89e38c0ff76bf8`
 
 This is the stable topology artifact intended for file-based consumers and tools such as Sheaft. It now carries first-class operation-aware edge ids, typed service placement and shared-fate metadata, optional service/placement/edge reliability evidence, typed edge resilience policy, optional observed edge timing summaries, policy scope metadata, richer endpoint fidelity, and endpoint semantic hints.
 
 ### Snapshot envelope
 
 - `name`: `io.mb3r.bering.snapshot`
-- `version`: `1.1.0`
-- `uri`: `https://mb3r-lab.github.io/Bering/schema/snapshot/v1.1.0/snapshot.schema.json`
-- `digest`: `sha256:c669dbc483ca8cfe1f58f994b6041a6767fdaa3df4fb5ae27d8253607b3f5cb5`
+- `version`: `1.2.0`
+- `uri`: `https://mb3r-lab.github.io/Bering/schema/snapshot/v1.2.0/snapshot.schema.json`
+- `digest`: `sha256:cb737b0a4038e0bf30a397ca7ba7ff017d684fe3b25e7d8e3ae74ac59b45210b`
 
 This wraps the model with runtime window metadata, ingest counts, coverage, provenance, topology diffs, and discovery-side copies of the same typed placement, reliability, resilience, observed edge, and endpoint metadata.
 
@@ -186,7 +188,7 @@ Runtime mode also keeps a conservative reconciliation layer for sparse traffic a
 - a machine-readable reconciliation report for operators
 - an operator-facing reconciliation summary in Markdown
 
-These runtime views do not change the public `io.mb3r.bering.model@1.1.0` or `io.mb3r.bering.snapshot@1.1.0` contracts.
+These runtime views do not change the public `io.mb3r.bering.model@1.2.0` or `io.mb3r.bering.snapshot@1.2.0` contracts.
 
 ### Population Today
 

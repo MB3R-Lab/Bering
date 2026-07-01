@@ -11,8 +11,8 @@ This workflow is separate from the product release workflow:
 
 For the current release line, that means:
 
-- product release: `v0.3.4`
-- schema publishing: `schema-v1.1.0`
+- product release: `v1.0.0`
+- schema publishing: `schema-v1.2.0`
 
 ## One-time repository setup
 
@@ -58,10 +58,10 @@ The workflow should publish both schema families:
 ## Notes
 
 - The stable model and the snapshot envelope are distinct contracts with separate names, URIs, and digests.
-- `io.mb3r.bering.model@1.0.0` and `io.mb3r.bering.snapshot@1.0.0` remain published and immutable. Do not mutate those files in place.
+- `io.mb3r.bering.model@1.0.0`, `io.mb3r.bering.snapshot@1.0.0`, `io.mb3r.bering.model@1.1.0`, and `io.mb3r.bering.snapshot@1.1.0` remain published and immutable. Do not mutate those files in place.
 - The current workflow expects the pushed `schema-v<version>` tag to match the pinned version of both schema files.
 - Downstream consumers such as Sheaft can remain pinned to the model schema while runtime consumers adopt the snapshot schema.
 - Never silently mutate a published schema version in place.
-- The generated contracts pack now carries the versioned schema tree, for example `schema/model/v1.1.0/model.schema.json`, not a single unversioned flat copy.
+- The generated contracts pack now carries the versioned schema tree, for example `schema/model/v1.2.0/model.schema.json`, not a single unversioned flat copy.
 - The GitHub Pages publish workflow mirrors the full versioned schema tree from `api/schema/` and refreshes `schema/model/latest/` plus `schema/snapshot/latest/` to the currently pinned contract line.
-- `schema-v1.1.0` is published; the `v1.1.0` versioned URLs and both `latest/` aliases are live GitHub Pages endpoints.
+- `schema-v1.2.0` is published; the `v1.2.0` versioned URLs and both `latest/` aliases are live GitHub Pages endpoints.

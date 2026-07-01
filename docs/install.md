@@ -1,6 +1,6 @@
 # Install
 
-Bering `v0.3.4` is the current product release. It emits `io.mb3r.bering.model@1.1.0` and `io.mb3r.bering.snapshot@1.1.0` by default, while still validating the preserved `1.0.0` contracts.
+Bering `v1.0.0` is the current product release. It emits `io.mb3r.bering.model@1.2.0` and `io.mb3r.bering.snapshot@1.2.0` by default, while still validating the preserved `1.0.0` and `1.1.0` contracts.
 
 ## Binary Archives
 
@@ -14,18 +14,18 @@ Supported release targets:
 - `darwin/arm64`
 - `windows/amd64`
 
-Example release asset names for `v0.3.4`:
+Example release asset names for `v1.0.0`:
 
-- `bering_0.3.4_linux_amd64.tar.gz`
-- `bering_0.3.4_linux_arm64.tar.gz`
-- `bering_0.3.4_darwin_amd64.tar.gz`
-- `bering_0.3.4_darwin_arm64.tar.gz`
-- `bering_0.3.4_windows_amd64.zip`
+- `bering_1.0.0_linux_amd64.tar.gz`
+- `bering_1.0.0_linux_arm64.tar.gz`
+- `bering_1.0.0_darwin_amd64.tar.gz`
+- `bering_1.0.0_darwin_arm64.tar.gz`
+- `bering_1.0.0_windows_amd64.zip`
 
 Example:
 
 ```bash
-tar -xzf bering_0.3.4_linux_amd64.tar.gz
+tar -xzf bering_1.0.0_linux_amd64.tar.gz
 ./bering help
 ```
 
@@ -40,8 +40,8 @@ go build ./cmd/bering
 Pull the published runtime image:
 
 ```bash
-docker pull ghcr.io/mb3r-lab/bering:v0.3.4
-docker run --rm ghcr.io/mb3r-lab/bering:v0.3.4 help
+docker pull ghcr.io/mb3r-lab/bering:v1.0.0
+docker run --rm ghcr.io/mb3r-lab/bering:v1.0.0 help
 ```
 
 The release manifest records all published image references and the final digest in `oci_images`.
@@ -51,13 +51,13 @@ The release manifest records all published image references and the final digest
 Install directly from the published OCI chart:
 
 ```bash
-helm install bering oci://ghcr.io/mb3r-lab/charts/bering --version 0.3.4
+helm install bering oci://ghcr.io/mb3r-lab/charts/bering --version 1.0.0
 ```
 
 Override the image repository, tag, or digest if you mirror artifacts:
 
 ```bash
-helm install bering oci://ghcr.io/mb3r-lab/charts/bering --version 0.3.4 \
+helm install bering oci://ghcr.io/mb3r-lab/charts/bering --version 1.0.0 \
   --set image.repository=ghcr.io/mb3r-lab/bering \
   --set image.digest=sha256:...
 ```
@@ -67,7 +67,7 @@ helm install bering oci://ghcr.io/mb3r-lab/charts/bering --version 0.3.4 \
 Download `bering-contracts_<version>.tar.gz` to consume the public schema contracts offline:
 
 ```bash
-tar -xzf bering-contracts_0.3.4.tar.gz
+tar -xzf bering-contracts_1.0.0.tar.gz
 cat contracts-manifest.json
 ```
 
@@ -77,7 +77,9 @@ The pack contains:
 - `contracts-manifest.schema.json`
 - `schema/model/v1.0.0/model.schema.json`
 - `schema/model/v1.1.0/model.schema.json`
+- `schema/model/v1.2.0/model.schema.json`
 - `schema/snapshot/v1.0.0/snapshot.schema.json`
 - `schema/snapshot/v1.1.0/snapshot.schema.json`
+- `schema/snapshot/v1.2.0/snapshot.schema.json`
 
 The contracts pack version is the Bering product release version. The schema contracts inside it remain independently versioned and stay pinned to their own `name@version` values.

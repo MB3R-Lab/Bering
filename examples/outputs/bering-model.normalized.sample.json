@@ -90,10 +90,10 @@
     "confidence": 0.94,
     "discovered_at": "2026-03-03T00:00:00Z",
     "schema": {
-      "digest": "sha256:76b2b22422b6e64f437fb144a02b6bd4629bf510cec5479a8496c41eb25fc406",
+      "digest": "sha256:4fa1a34e64703524cfe2289341fcea79986265db08c0220d6c89e38c0ff76bf8",
       "name": "io.mb3r.bering.model",
-      "uri": "https://mb3r-lab.github.io/Bering/schema/model/v1.1.0/model.schema.json",
-      "version": "1.1.0"
+      "uri": "https://mb3r-lab.github.io/Bering/schema/model/v1.2.0/model.schema.json",
+      "version": "1.2.0"
     },
     "source_ref": "bering://discover?input=examples%2Ftraces%2Fnormalized.sample.json",
     "source_type": "bering"

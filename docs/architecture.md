@@ -50,13 +50,13 @@ This keeps discovery logic source-agnostic. File JSON, OTLP/HTTP, OTLP/gRPC, and
 
 ### Stable model contract
 
-`io.mb3r.bering.model` v1.1.0 is the default downstream-facing topology contract.
+`io.mb3r.bering.model` v1.2.0 is the default downstream-facing topology contract.
 
 It remains deterministic for identical inputs and now carries first-class operation-aware edge ids, typed service placement and shared-fate metadata, typed edge resilience policy, optional observed edge timing summaries, policy-scope metadata, richer endpoint fidelity, and endpoint semantic hints.
 
 ### Snapshot contract
 
-`io.mb3r.bering.snapshot` v1.1.0 wraps the stable model with:
+`io.mb3r.bering.snapshot` v1.2.0 wraps the stable model with:
 
 - `snapshot_id`
 - `topology_version`

@@ -4,8 +4,8 @@
   "description": "Canonical Bering v1 contract fixtures for Sheaft stochastic-connectivity compatibility checks.",
   "producer": {
     "product": "bering",
-    "app_version": "v0.3.4",
-    "schema_line": "1.1.0"
+    "app_version": "v1.0.0",
+    "schema_line": "1.2.0"
   },
   "consumer": {
     "product": "sheaft",
@@ -14,27 +14,27 @@
   "contracts": [
     {
       "name": "io.mb3r.bering.model",
-      "version": "1.1.0",
-      "uri": "https://mb3r-lab.github.io/Bering/schema/model/v1.1.0/model.schema.json",
-      "digest": "sha256:76b2b22422b6e64f437fb144a02b6bd4629bf510cec5479a8496c41eb25fc406"
+      "version": "1.2.0",
+      "uri": "https://mb3r-lab.github.io/Bering/schema/model/v1.2.0/model.schema.json",
+      "digest": "sha256:4fa1a34e64703524cfe2289341fcea79986265db08c0220d6c89e38c0ff76bf8"
     },
     {
       "name": "io.mb3r.bering.snapshot",
-      "version": "1.1.0",
-      "uri": "https://mb3r-lab.github.io/Bering/schema/snapshot/v1.1.0/snapshot.schema.json",
-      "digest": "sha256:c669dbc483ca8cfe1f58f994b6041a6767fdaa3df4fb5ae27d8253607b3f5cb5"
+      "version": "1.2.0",
+      "uri": "https://mb3r-lab.github.io/Bering/schema/snapshot/v1.2.0/snapshot.schema.json",
+      "digest": "sha256:cb737b0a4038e0bf30a397ca7ba7ff017d684fe3b25e7d8e3ae74ac59b45210b"
     }
   ],
   "artifacts": [
     {
       "kind": "model",
       "path": "bering-model.v1.sample.json",
-      "sha256": "4ba5e10cd2c320f22b81ac5570aefe43fc016760f19f7cb9c111637a0d4815a0"
+      "sha256": "e360a31311b6667030a014036e3481a200c2a7f8607dd689aa4e670fd09054ba"
     },
     {
       "kind": "snapshot",
       "path": "bering-snapshot.v1.sample.json",
-      "sha256": "9ad7613875302c1c3c1427dbc5029465debf19738e0ebae784a6eb1b490205f3"
+      "sha256": "d21d9509cc656fb32469b98adb53862d099980b74c357c9f8c488e280e628db4"
     }
   ],
   "coverage": {

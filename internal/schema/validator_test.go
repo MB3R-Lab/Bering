@@ -16,9 +16,9 @@ func TestValidateJSON_SuccessLatest(t *testing.T) {
     "confidence":0.72,
     "schema":{
       "name":"io.mb3r.bering.model",
-      "version":"1.1.0",
-      "uri":"https://mb3r-lab.github.io/Bering/schema/model/v1.1.0/model.schema.json",
-      "digest":"sha256:76b2b22422b6e64f437fb144a02b6bd4629bf510cec5479a8496c41eb25fc406"
+      "version":"1.2.0",
+      "uri":"https://mb3r-lab.github.io/Bering/schema/model/v1.2.0/model.schema.json",
+      "digest":"sha256:4fa1a34e64703524cfe2289341fcea79986265db08c0220d6c89e38c0ff76bf8"
     }
   }
 }`)
@@ -68,8 +68,8 @@ func TestValidateJSON_StrictDigestFail(t *testing.T) {
     "confidence":0.72,
     "schema":{
       "name":"io.mb3r.bering.model",
-      "version":"1.1.0",
-      "uri":"https://mb3r-lab.github.io/Bering/schema/model/v1.1.0/model.schema.json",
+      "version":"1.2.0",
+      "uri":"https://mb3r-lab.github.io/Bering/schema/model/v1.2.0/model.schema.json",
       "digest":"sha256:deadbeef"
     }
   }
@@ -109,9 +109,9 @@ func TestValidateSnapshotJSON_SuccessLatest(t *testing.T) {
       "confidence":0.72,
       "schema":{
         "name":"io.mb3r.bering.model",
-        "version":"1.1.0",
-        "uri":"https://mb3r-lab.github.io/Bering/schema/model/v1.1.0/model.schema.json",
-        "digest":"sha256:76b2b22422b6e64f437fb144a02b6bd4629bf510cec5479a8496c41eb25fc406"
+        "version":"1.2.0",
+        "uri":"https://mb3r-lab.github.io/Bering/schema/model/v1.2.0/model.schema.json",
+        "digest":"sha256:4fa1a34e64703524cfe2289341fcea79986265db08c0220d6c89e38c0ff76bf8"
       }
     }
   },
@@ -122,9 +122,9 @@ func TestValidateSnapshotJSON_SuccessLatest(t *testing.T) {
     "confidence":0.72,
     "schema":{
       "name":"io.mb3r.bering.snapshot",
-      "version":"1.1.0",
-      "uri":"https://mb3r-lab.github.io/Bering/schema/snapshot/v1.1.0/snapshot.schema.json",
-      "digest":"sha256:c669dbc483ca8cfe1f58f994b6041a6767fdaa3df4fb5ae27d8253607b3f5cb5"
+      "version":"1.2.0",
+      "uri":"https://mb3r-lab.github.io/Bering/schema/snapshot/v1.2.0/snapshot.schema.json",
+      "digest":"sha256:cb737b0a4038e0bf30a397ca7ba7ff017d684fe3b25e7d8e3ae74ac59b45210b"
     }
   }
 }`)
