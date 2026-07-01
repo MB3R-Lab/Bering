@@ -65,6 +65,12 @@ The contracts pack now carries a versioned schema tree such as:
 - `schema/snapshot/v1.0.0/snapshot.schema.json`
 - `schema/snapshot/v1.1.0/snapshot.schema.json`
 
+It also carries the Sheaft v1 compatibility checkpoint under:
+
+- `fixtures/sheaft-v1/manifest.json`
+- `fixtures/sheaft-v1/bering-model.v1.sample.json`
+- `fixtures/sheaft-v1/bering-snapshot.v1.sample.json`
+
 ### `release-checksums.txt`
 
 Stable SHA-256 manifest for the generated release files in `dist/`.

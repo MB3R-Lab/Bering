@@ -8,7 +8,7 @@ func TestValidateJSON_SuccessLatest(t *testing.T) {
 	raw := []byte(`{
   "services": [{"id":"frontend","name":"frontend","replicas":1}],
   "edges": [],
-  "endpoints": [{"id":"frontend:GET /health","entry_service":"frontend","success_predicate_ref":"frontend:GET /health","method":"GET","path":"/health"}],
+  "endpoints": [{"id":"frontend:GET /health","entry_service":"frontend","success_predicate_ref":"frontend:GET /health","method":"GET","path":"/health","metadata":{"semantics":{"predicate_mode":"immediate_response","mandatory_targets":["frontend"],"dependency_modes":["sync"],"source":"fixture","confidence":0.9}}}],
   "metadata": {
     "source_type":"bering",
     "source_ref":"bering://discover?input=examples%2Ftraces",
@@ -18,7 +18,7 @@ func TestValidateJSON_SuccessLatest(t *testing.T) {
       "name":"io.mb3r.bering.model",
       "version":"1.1.0",
       "uri":"https://mb3r-lab.github.io/Bering/schema/model/v1.1.0/model.schema.json",
-      "digest":"sha256:bc9a60736c9e6bda9599243fd68f293b88f42ade65321d8267369a5c3214779a"
+      "digest":"sha256:76b2b22422b6e64f437fb144a02b6bd4629bf510cec5479a8496c41eb25fc406"
     }
   }
 }`)
@@ -96,12 +96,12 @@ func TestValidateSnapshotJSON_SuccessLatest(t *testing.T) {
   "discovery":{
     "services":[{"id":"frontend","name":"frontend","replicas":1,"support":{"observations":1,"trace_count":1}}],
     "edges":[],
-    "endpoints":[{"id":"frontend:GET /health","entry_service":"frontend","method":"GET","path":"/health","support":{"observations":1,"trace_count":1}}]
+    "endpoints":[{"id":"frontend:GET /health","entry_service":"frontend","method":"GET","path":"/health","support":{"observations":1,"trace_count":1},"metadata":{"semantics":{"predicate_mode":"immediate_response","mandatory_targets":["frontend"],"dependency_modes":["sync"],"source":"fixture","confidence":0.9}}}]
   },
   "model": {
     "services": [{"id":"frontend","name":"frontend","replicas":1}],
     "edges": [],
-    "endpoints": [{"id":"frontend:GET /health","entry_service":"frontend","success_predicate_ref":"frontend:GET /health","method":"GET","path":"/health"}],
+    "endpoints": [{"id":"frontend:GET /health","entry_service":"frontend","success_predicate_ref":"frontend:GET /health","method":"GET","path":"/health","metadata":{"semantics":{"predicate_mode":"immediate_response","mandatory_targets":["frontend"],"dependency_modes":["sync"],"source":"fixture","confidence":0.9}}}],
     "metadata": {
       "source_type":"bering",
       "source_ref":"bering://discover?input=examples%2Ftraces",
@@ -111,7 +111,7 @@ func TestValidateSnapshotJSON_SuccessLatest(t *testing.T) {
         "name":"io.mb3r.bering.model",
         "version":"1.1.0",
         "uri":"https://mb3r-lab.github.io/Bering/schema/model/v1.1.0/model.schema.json",
-        "digest":"sha256:bc9a60736c9e6bda9599243fd68f293b88f42ade65321d8267369a5c3214779a"
+        "digest":"sha256:76b2b22422b6e64f437fb144a02b6bd4629bf510cec5479a8496c41eb25fc406"
       }
     }
   },
@@ -124,7 +124,7 @@ func TestValidateSnapshotJSON_SuccessLatest(t *testing.T) {
       "name":"io.mb3r.bering.snapshot",
       "version":"1.1.0",
       "uri":"https://mb3r-lab.github.io/Bering/schema/snapshot/v1.1.0/snapshot.schema.json",
-      "digest":"sha256:53b127608b2aaa4fabb352b998cd6b2c5ed558764729a09abea56f4f9b40fa01"
+      "digest":"sha256:c669dbc483ca8cfe1f58f994b6041a6767fdaa3df4fb5ae27d8253607b3f5cb5"
     }
   }
 }`)

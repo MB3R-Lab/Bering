@@ -52,7 +52,7 @@ This keeps discovery logic source-agnostic. File JSON, OTLP/HTTP, OTLP/gRPC, and
 
 `io.mb3r.bering.model` v1.1.0 is the default downstream-facing topology contract.
 
-It remains deterministic for identical inputs and now carries first-class edge ids, typed service placement and shared-fate metadata, typed edge resilience policy, optional observed edge timing summaries, policy-scope metadata, and richer endpoint fidelity.
+It remains deterministic for identical inputs and now carries first-class operation-aware edge ids, typed service placement and shared-fate metadata, typed edge resilience policy, optional observed edge timing summaries, policy-scope metadata, richer endpoint fidelity, and endpoint semantic hints.
 
 ### Snapshot contract
 
@@ -78,7 +78,7 @@ Overlay precedence is explicit and deterministic.
 3. overlay files in the order they are provided
 4. command flags override config fields, not overlay content
 
-Overlays enrich discovery artifacts. They do not introduce gating, pass/fail semantics, or execution logic.
+Overlays enrich discovery artifacts. Endpoint semantic hints describe producer evidence for downstream predicate selection, but overlays do not introduce Bering-side gating, pass/fail evaluation, or execution logic.
 
 ## Async/sync edge classification
 

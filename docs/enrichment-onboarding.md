@@ -19,7 +19,7 @@ For Sheaft advanced analysis, treat trace-only artifacts as incomplete until the
 - edge `weight` when traffic split or dependency importance is not uniform
 - edge `resilience.request_timeout_ms` and retry policy when timeout or retry-wave behavior matters
 - edge `circuit_breaker` metadata when breaker behavior is part of the resilience envelope
-- endpoint `method`, `path`, and custom `predicate_ref` for workflow-specific success evaluation
+- endpoint `method`, `path`, custom `predicate_ref`, and `metadata.semantics` for immediate-response, eventual-completion, or external-predicate intent
 - `policy_scope` when a dependency policy applies only to a source route or operation
 
 ## Trace-only baseline
@@ -45,7 +45,7 @@ go run ./cmd/bering discover \
   --discovered-at 2026-03-03T00:00:00Z
 ```
 
-Use overlays when the trace-derived topology is acceptable but operational metadata comes from configuration, ownership catalogs, SLO catalogs, or curated policy files.
+Use overlays when the trace-derived topology is acceptable but operational metadata comes from configuration, ownership catalogs, SLO catalogs, predicate catalogs, or curated policy files.
 
 ## topology_api upgrade
 

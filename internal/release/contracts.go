@@ -44,6 +44,20 @@ func publicContractSources(repoRoot string) []contractSource {
 	return out
 }
 
+func compatibilityFixtureSources(repoRoot string) map[string]string {
+	fixtureDir := filepath.Join(repoRoot, "examples", "compatibility", "sheaft-v1")
+	files := map[string]string{}
+	for _, name := range []string{
+		"README.md",
+		"manifest.json",
+		"bering-model.v1.sample.json",
+		"bering-snapshot.v1.sample.json",
+	} {
+		files[filepath.ToSlash(filepath.Join("fixtures", "sheaft-v1", name))] = filepath.Join(fixtureDir, name)
+	}
+	return files
+}
+
 func BuildContractsManifest(repoRoot, appVersion, buildDate string) (ContractsManifest, error) {
 	if err := ValidateSemVer(appVersion); err != nil {
 		return ContractsManifest{}, err
@@ -124,6 +138,9 @@ func GenerateContractsPack(opts ContractsPackOptions) (ContractsManifest, string
 	}
 	for _, source := range publicContractSources(opts.RepoRoot) {
 		files[source.Archive] = source.File
+	}
+	for archivePath, sourcePath := range compatibilityFixtureSources(opts.RepoRoot) {
+		files[archivePath] = sourcePath
 	}
 
 	archiveName := fmt.Sprintf("%s-contracts_%s.tar.gz", ProductName, opts.AppVersion)

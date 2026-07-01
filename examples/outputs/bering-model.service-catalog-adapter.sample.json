@@ -3,7 +3,11 @@
     {
       "blocking": false,
       "from": "checkout",
-      "id": "checkout|payment|async|false",
+      "id": "checkout|payment|async|false|protocol=kafka|topic=payment-events",
+      "identity": {
+        "protocol": "kafka",
+        "topic": "payment-events"
+      },
       "kind": "async",
       "metadata": {
         "weight": 0.35
@@ -13,7 +17,12 @@
     {
       "blocking": true,
       "from": "frontend",
-      "id": "frontend|checkout|sync|true",
+      "id": "frontend|checkout|sync|true|protocol=http|operation=GET|route=%2Fcheckout",
+      "identity": {
+        "operation": "GET",
+        "protocol": "http",
+        "route": "/checkout"
+      },
       "kind": "sync",
       "metadata": {
         "weight": 0.85
@@ -40,6 +49,18 @@
       "entry_service": "checkout",
       "id": "checkout:POST /process",
       "metadata": {
+        "semantics": {
+          "confidence": 0.8,
+          "dependency_modes": [
+            "async",
+            "sync"
+          ],
+          "mandatory_targets": [
+            "payment"
+          ],
+          "predicate_mode": "eventual_completion",
+          "source": "service-catalog"
+        },
         "weight": 0.6
       },
       "method": "POST",
@@ -50,6 +71,17 @@
       "entry_service": "frontend",
       "id": "frontend:GET /checkout",
       "metadata": {
+        "semantics": {
+          "confidence": 0.9,
+          "dependency_modes": [
+            "sync"
+          ],
+          "mandatory_targets": [
+            "checkout"
+          ],
+          "predicate_mode": "immediate_response",
+          "source": "service-catalog"
+        },
         "weight": 0.7
       },
       "method": "GET",
@@ -61,7 +93,7 @@
     "confidence": 1,
     "discovered_at": "2026-03-03T00:00:00Z",
     "schema": {
-      "digest": "sha256:bc9a60736c9e6bda9599243fd68f293b88f42ade65321d8267369a5c3214779a",
+      "digest": "sha256:76b2b22422b6e64f437fb144a02b6bd4629bf510cec5479a8496c41eb25fc406",
       "name": "io.mb3r.bering.model",
       "uri": "https://mb3r-lab.github.io/Bering/schema/model/v1.1.0/model.schema.json",
       "version": "1.1.0"

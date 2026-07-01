@@ -82,6 +82,7 @@ func DiscoverTopology(doc topology.Document, opts Options) (Result, error) {
 			To:          item.To,
 			Kind:        kind,
 			Blocking:    blocking,
+			Identity:    cloneEdgeIdentity(item.Identity),
 			Metadata:    buildEdgeMetadataFromTopology(item),
 			Resilience:  cloneResiliencePolicy(item.Resilience),
 			Observed:    cloneObservedEdge(item.Observed),
@@ -93,6 +94,7 @@ func DiscoverTopology(doc topology.Document, opts Options) (Result, error) {
 			To:          item.To,
 			Kind:        kind,
 			Blocking:    blocking,
+			Identity:    cloneEdgeIdentity(item.Identity),
 			Support:     topologySupport(item.Support),
 			FirstSeen:   strings.TrimSpace(item.FirstSeen),
 			LastSeen:    strings.TrimSpace(item.LastSeen),
@@ -160,6 +162,9 @@ func DiscoverTopology(doc topology.Document, opts Options) (Result, error) {
 		return Result{}, err
 	}
 	mdl.SortDeterministic()
+	if err := mdl.ValidateSemantic(); err != nil {
+		return Result{}, fmt.Errorf("model validation after overlays failed: %w", err)
+	}
 	serviceRecords = rebuildServiceRecords(serviceRecords, mdl.Services)
 
 	coverage := snapshot.CoverageSummary{
@@ -231,9 +236,11 @@ func clonePlacements(values []model.Placement) []model.Placement {
 	out := make([]model.Placement, len(values))
 	for i, item := range values {
 		out[i] = model.Placement{
-			Replicas: item.Replicas,
-			Labels:   cloneStringMap(item.Labels),
+			Replicas:    item.Replicas,
+			Labels:      cloneStringMap(item.Labels),
+			Reliability: cloneReliabilityEvidence(item.Reliability),
 		}
+		out[i].Normalize()
 	}
 	return out
 }
@@ -241,6 +248,7 @@ func clonePlacements(values []model.Placement) []model.Placement {
 func buildServiceMetadataFromTopology(item topology.Service) *model.ServiceMetadata {
 	meta := &model.ServiceMetadata{
 		CommonMetadata:     cloneCommonMetadata(item.CommonMetadata),
+		Reliability:        cloneReliabilityEvidence(item.Reliability),
 		FailureEligible:    item.FailureEligible,
 		Placements:         clonePlacements(item.Placements),
 		SharedResourceRefs: cloneStringSlice(item.SharedResourceRefs),
@@ -256,6 +264,7 @@ func buildSnapshotServiceMetadataFromTopology(item topology.Service) *snapshot.S
 	meta := &snapshot.ServiceMetadata{
 		ServiceMetadata: model.ServiceMetadata{
 			CommonMetadata:     cloneCommonMetadata(item.CommonMetadata),
+			Reliability:        cloneReliabilityEvidence(item.Reliability),
 			FailureEligible:    item.FailureEligible,
 			Placements:         clonePlacements(item.Placements),
 			SharedResourceRefs: cloneStringSlice(item.SharedResourceRefs),
@@ -273,6 +282,7 @@ func buildEdgeMetadataFromTopology(item topology.Edge) *model.EdgeMetadata {
 	meta := &model.EdgeMetadata{
 		CommonMetadata: cloneCommonMetadata(item.CommonMetadata),
 		Weight:         item.Weight,
+		Reliability:    cloneReliabilityEvidence(item.Reliability),
 	}
 	meta.Normalize()
 	if meta.IsZero() {
@@ -286,6 +296,7 @@ func buildSnapshotEdgeMetadataFromTopology(item topology.Edge) *snapshot.EdgeMet
 		EdgeMetadata: model.EdgeMetadata{
 			CommonMetadata: cloneCommonMetadata(item.CommonMetadata),
 			Weight:         item.Weight,
+			Reliability:    cloneReliabilityEvidence(item.Reliability),
 		},
 		Attributes: cloneStringMap(item.Attributes),
 	}
@@ -300,6 +311,7 @@ func buildEndpointMetadataFromTopology(item topology.Endpoint) *model.EndpointMe
 	meta := &model.EndpointMetadata{
 		CommonMetadata: cloneCommonMetadata(item.CommonMetadata),
 		Weight:         item.Weight,
+		Semantics:      cloneEndpointSemantics(item.Semantics),
 	}
 	meta.Normalize()
 	if meta.IsZero() {
@@ -313,6 +325,7 @@ func buildSnapshotEndpointMetadataFromTopology(item topology.Endpoint, predicate
 		EndpointMetadata: model.EndpointMetadata{
 			CommonMetadata: cloneCommonMetadata(item.CommonMetadata),
 			Weight:         item.Weight,
+			Semantics:      cloneEndpointSemantics(item.Semantics),
 		},
 		PredicateRef: predicateRef,
 		Attributes:   cloneStringMap(item.Attributes),
@@ -402,6 +415,58 @@ func cloneObservedEdge(values *model.ObservedEdge) *model.ObservedEdge {
 	out := &model.ObservedEdge{
 		LatencyMS: cloneLatencySummary(values.LatencyMS),
 		ErrorRate: cloneFloatPointer(values.ErrorRate),
+	}
+	out.Normalize()
+	if out.IsZero() {
+		return nil
+	}
+	return out
+}
+
+func cloneEdgeIdentity(values *model.EdgeIdentity) *model.EdgeIdentity {
+	if values == nil {
+		return nil
+	}
+	out := &model.EdgeIdentity{
+		Protocol:  values.Protocol,
+		Operation: values.Operation,
+		Route:     values.Route,
+		Topic:     values.Topic,
+		SpanKind:  values.SpanKind,
+	}
+	out.Normalize()
+	if out.IsZero() {
+		return nil
+	}
+	return out
+}
+
+func cloneReliabilityEvidence(values *model.ReliabilityEvidence) *model.ReliabilityEvidence {
+	if values == nil {
+		return nil
+	}
+	out := &model.ReliabilityEvidence{
+		LiveProbability: cloneFloatPointer(values.LiveProbability),
+		Source:          values.Source,
+		Confidence:      cloneFloatPointer(values.Confidence),
+	}
+	out.Normalize()
+	if out.IsZero() {
+		return nil
+	}
+	return out
+}
+
+func cloneEndpointSemantics(values *model.EndpointSemantics) *model.EndpointSemantics {
+	if values == nil {
+		return nil
+	}
+	out := &model.EndpointSemantics{
+		PredicateMode:    values.PredicateMode,
+		MandatoryTargets: cloneStringSlice(values.MandatoryTargets),
+		DependencyModes:  cloneStringSlice(values.DependencyModes),
+		Source:           values.Source,
+		Confidence:       cloneFloatPointer(values.Confidence),
 	}
 	out.Normalize()
 	if out.IsZero() {

@@ -111,8 +111,9 @@ func Discover(spans []traces.Span, opts Options) (Result, error) {
 		if hasParent && strings.TrimSpace(parent.Service) != "" && parent.Service != span.Service {
 			kind, evidence := edgeKind(parent, span)
 			blocking := kind == model.EdgeKindSync
-			key := edgeKey(parent.Service, span.Service, kind, blocking)
-			edgeStats[key] = updateEdgeAccumulator(edgeStats[key], key, parent, span, kind, blocking, evidence, opts.RuntimeMode)
+			identity := edgeIdentity(parent, span)
+			key := edgeKey(parent.Service, span.Service, kind, blocking, identity)
+			edgeStats[key] = updateEdgeAccumulator(edgeStats[key], key, parent, span, kind, blocking, identity, evidence, opts.RuntimeMode)
 			linkedCrossServiceEdges++
 		}
 
@@ -150,6 +151,7 @@ func Discover(spans []traces.Span, opts Options) (Result, error) {
 			To:         stat.edge.To,
 			Kind:       stat.edge.Kind,
 			Blocking:   stat.edge.Blocking,
+			Identity:   cloneEdgeIdentity(stat.edge.Identity),
 			Support:    stat.supportSummary(),
 			FirstSeen:  formatOptionalTime(stat.firstSeen, opts.RuntimeMode),
 			LastSeen:   formatOptionalTime(stat.lastSeen, opts.RuntimeMode),
@@ -159,6 +161,9 @@ func Discover(spans []traces.Span, opts Options) (Result, error) {
 	}
 	sort.Slice(edges, func(i, j int) bool {
 		left, right := edges[i], edges[j]
+		if left.ID != right.ID {
+			return left.ID < right.ID
+		}
 		if left.From != right.From {
 			return left.From < right.From
 		}
@@ -218,6 +223,9 @@ func Discover(spans []traces.Span, opts Options) (Result, error) {
 		return Result{}, err
 	}
 	mdl.SortDeterministic()
+	if err := mdl.ValidateSemantic(); err != nil {
+		return Result{}, fmt.Errorf("model validation after overlays failed: %w", err)
+	}
 	serviceRecords = rebuildServiceRecords(serviceRecords, mdl.Services)
 
 	coverage := snapshot.CoverageSummary{
@@ -315,6 +323,81 @@ func asyncEvidence(span traces.Span) []string {
 	return out
 }
 
+func edgeIdentity(parent, child traces.Span) *model.EdgeIdentity {
+	identity := &model.EdgeIdentity{
+		Protocol:  inferDependencyProtocol(parent, child),
+		Operation: inferDependencyOperation(parent, child),
+		Route:     inferDependencyRoute(parent, child),
+		Topic:     inferDependencyTopic(parent, child),
+		SpanKind:  child.Kind,
+	}
+	identity.Normalize()
+	if identity.IsZero() {
+		return nil
+	}
+	return identity
+}
+
+func inferDependencyProtocol(parent, child traces.Span) string {
+	if protocol := firstAttr(child.Attributes, "rpc.system", "network.protocol.name"); protocol != "" {
+		return protocol
+	}
+	if hasHTTPIdentity(child) || hasHTTPIdentity(parent) {
+		return "http"
+	}
+	if system := firstAttr(child.Attributes, "messaging.system"); system != "" {
+		return system
+	}
+	if system := firstAttr(parent.Attributes, "messaging.system"); system != "" {
+		return system
+	}
+	return ""
+}
+
+func inferDependencyOperation(parent, child traces.Span) string {
+	if method := firstAttr(child.Attributes, "http.request.method", "http.method"); method != "" {
+		return strings.ToUpper(method)
+	}
+	if method, _ := parseMethodAndPathFromSpanName(child.Name); method != "" {
+		return method
+	}
+	if value := firstAttr(child.Attributes, "rpc.method", "messaging.operation"); value != "" {
+		return value
+	}
+	if value := firstAttr(parent.Attributes, "rpc.method", "messaging.operation"); value != "" {
+		return value
+	}
+	return ""
+}
+
+func inferDependencyRoute(parent, child traces.Span) string {
+	if route := firstAttr(child.Attributes, "http.route", "url.path", "http.target"); route != "" {
+		return normalizePath(route)
+	}
+	if _, path := parseMethodAndPathFromSpanName(child.Name); path != "" {
+		return normalizePath(path)
+	}
+	if route := firstAttr(parent.Attributes, "http.route", "url.path", "http.target"); route != "" {
+		return normalizePath(route)
+	}
+	return ""
+}
+
+func inferDependencyTopic(parent, child traces.Span) string {
+	if topic := firstAttr(child.Attributes, "messaging.destination", "messaging.destination.name"); topic != "" {
+		return topic
+	}
+	return firstAttr(parent.Attributes, "messaging.destination", "messaging.destination.name")
+}
+
+func hasHTTPIdentity(span traces.Span) bool {
+	if firstAttr(span.Attributes, "http.request.method", "http.method", "http.route", "url.path", "http.target") != "" {
+		return true
+	}
+	method, path := parseMethodAndPathFromSpanName(span.Name)
+	return method != "" && path != ""
+}
+
 func inferEndpoint(span, parent traces.Span, hasParent bool) (model.Endpoint, bool) {
 	method, path, ok := inferEndpointDetails(span, parent, hasParent)
 	if !ok {
@@ -385,8 +468,8 @@ func calculateConfidence(totalSpans, serviceCount, edgeCount, endpointCount, lin
 	return math.Round(score*100) / 100
 }
 
-func edgeKey(from, to string, kind model.EdgeKind, blocking bool) string {
-	return model.EdgeID(from, to, kind, blocking)
+func edgeKey(from, to string, kind model.EdgeKind, blocking bool, identity *model.EdgeIdentity) string {
+	return model.EdgeIDWithIdentity(from, to, kind, blocking, identity)
 }
 
 func firstAttr(attrs map[string]any, keys ...string) string {
@@ -505,11 +588,11 @@ type edgeAccumulator struct {
 	lastSeen     time.Time
 }
 
-func updateEdgeAccumulator(acc *edgeAccumulator, id string, parent, child traces.Span, kind model.EdgeKind, blocking bool, evidence []string, runtimeMode bool) *edgeAccumulator {
+func updateEdgeAccumulator(acc *edgeAccumulator, id string, parent, child traces.Span, kind model.EdgeKind, blocking bool, identity *model.EdgeIdentity, evidence []string, runtimeMode bool) *edgeAccumulator {
 	if acc == nil {
 		acc = &edgeAccumulator{
 			id:       id,
-			edge:     model.Edge{ID: id, From: parent.Service, To: child.Service, Kind: kind, Blocking: blocking},
+			edge:     model.Edge{ID: id, From: parent.Service, To: child.Service, Kind: kind, Blocking: blocking, Identity: cloneEdgeIdentity(identity)},
 			traceIDs: map[string]struct{}{},
 			evidence: map[string]struct{}{},
 		}
@@ -623,6 +706,10 @@ func applyOverlays(mdl *model.ResilienceModel, services []snapshot.ServiceRecord
 	serviceModelIndex := make(map[string]int, len(mdl.Services))
 	edgeIndex := make(map[string]int, len(edges))
 	edgeModelIndex := make(map[string]int, len(mdl.Edges))
+	legacyEdgeIndex := make(map[string]int, len(edges))
+	legacyEdgeModelIndex := make(map[string]int, len(mdl.Edges))
+	ambiguousLegacyEdges := map[string]struct{}{}
+	ambiguousLegacyModelEdges := map[string]struct{}{}
 	endpointIndex := make(map[string]int, len(endpoints))
 	endpointModelIndex := make(map[string]int, len(mdl.Endpoints))
 	for i, item := range services {
@@ -633,9 +720,21 @@ func applyOverlays(mdl *model.ResilienceModel, services []snapshot.ServiceRecord
 	}
 	for i, item := range edges {
 		edgeIndex[item.ID] = i
+		legacyID := model.EdgeID(item.From, item.To, item.Kind, item.Blocking)
+		if _, exists := legacyEdgeIndex[legacyID]; exists {
+			ambiguousLegacyEdges[legacyID] = struct{}{}
+		} else {
+			legacyEdgeIndex[legacyID] = i
+		}
 	}
 	for i, item := range mdl.Edges {
 		edgeModelIndex[item.ID] = i
+		legacyID := model.EdgeID(item.From, item.To, item.Kind, item.Blocking)
+		if _, exists := legacyEdgeModelIndex[legacyID]; exists {
+			ambiguousLegacyModelEdges[legacyID] = struct{}{}
+		} else {
+			legacyEdgeModelIndex[legacyID] = i
+		}
 	}
 	for i, item := range endpoints {
 		endpointIndex[item.ID] = i
@@ -667,11 +766,23 @@ func applyOverlays(mdl *model.ResilienceModel, services []snapshot.ServiceRecord
 		for _, item := range file.Edges {
 			index, ok := edgeIndex[item.ID]
 			if !ok {
-				return nil, fmt.Errorf("overlay %q references unknown edge %q", file.Name, item.ID)
+				if _, ambiguous := ambiguousLegacyEdges[item.ID]; ambiguous {
+					return nil, fmt.Errorf("overlay %q references ambiguous legacy edge %q", file.Name, item.ID)
+				}
+				index, ok = legacyEdgeIndex[item.ID]
+				if !ok {
+					return nil, fmt.Errorf("overlay %q references unknown edge %q", file.Name, item.ID)
+				}
 			}
 			modelIndex, ok := edgeModelIndex[item.ID]
 			if !ok {
-				return nil, fmt.Errorf("overlay %q references unknown model edge %q", file.Name, item.ID)
+				if _, ambiguous := ambiguousLegacyModelEdges[item.ID]; ambiguous {
+					return nil, fmt.Errorf("overlay %q references ambiguous legacy model edge %q", file.Name, item.ID)
+				}
+				modelIndex, ok = legacyEdgeModelIndex[item.ID]
+				if !ok {
+					return nil, fmt.Errorf("overlay %q references unknown model edge %q", file.Name, item.ID)
+				}
 			}
 			mergeEdgeMetadata(&edges[index], &mdl.Edges[modelIndex], item)
 			edges[index].Provenance = append(edges[index].Provenance, prov)
@@ -698,6 +809,8 @@ func mergeServiceMetadata(target *snapshot.ServiceRecord, modelTarget *model.Ser
 	mergeCommonMetadata(&recordMeta.ServiceMetadata.CommonMetadata, item.CommonMetadata.CommonMetadata)
 	mergeCommonMetadata(&modelMeta.CommonMetadata, item.CommonMetadata.CommonMetadata)
 	mergeAttributes(&recordMeta.Attributes, item.Attributes)
+	mergeReliabilityEvidence(&recordMeta.Reliability, item.Reliability)
+	mergeReliabilityEvidence(&modelMeta.Reliability, item.Reliability)
 	if item.FailureEligible != nil {
 		recordMeta.FailureEligible = cloneBoolPointer(item.FailureEligible)
 		modelMeta.FailureEligible = cloneBoolPointer(item.FailureEligible)
@@ -725,6 +838,13 @@ func mergeEdgeMetadata(target *snapshot.EdgeRecord, modelTarget *model.Edge, ite
 		recordMeta.Weight = cloneFloatPointer(item.Weight)
 		modelMeta.Weight = cloneFloatPointer(item.Weight)
 	}
+	if item.Identity != nil && modelTarget.Identity == nil {
+		identity := cloneEdgeIdentity(item.Identity)
+		target.Identity = cloneEdgeIdentity(identity)
+		modelTarget.Identity = identity
+	}
+	mergeReliabilityEvidence(&recordMeta.Reliability, item.Reliability)
+	mergeReliabilityEvidence(&modelMeta.Reliability, item.Reliability)
 	mergeResiliencePolicy(&target.Resilience, item.Resilience)
 	mergeResiliencePolicy(&modelTarget.Resilience, item.Resilience)
 	mergeObservedEdge(&target.Observed, item.Observed)
@@ -743,6 +863,8 @@ func mergeEndpointMetadata(target *snapshot.EndpointRecord, modelTarget *model.E
 		recordMeta.Weight = cloneFloatPointer(item.Weight)
 		modelMeta.Weight = cloneFloatPointer(item.Weight)
 	}
+	mergeEndpointSemantics(&recordMeta.Semantics, item.Semantics)
+	mergeEndpointSemantics(&modelMeta.Semantics, item.Semantics)
 	if strings.TrimSpace(item.PredicateRef) != "" {
 		recordMeta.PredicateRef = strings.TrimSpace(item.PredicateRef)
 		modelTarget.SuccessPredicateRef = strings.TrimSpace(item.PredicateRef)
@@ -757,6 +879,32 @@ func mergeEndpointMetadata(target *snapshot.EndpointRecord, modelTarget *model.E
 		target.Path = path
 		modelTarget.Path = path
 	}
+}
+
+func mergeEndpointSemantics(target **model.EndpointSemantics, source *model.EndpointSemantics) {
+	if source == nil {
+		return
+	}
+	if *target == nil {
+		*target = cloneEndpointSemantics(source)
+		return
+	}
+	if strings.TrimSpace(source.PredicateMode) != "" {
+		(*target).PredicateMode = strings.ToLower(strings.TrimSpace(source.PredicateMode))
+	}
+	if len(source.MandatoryTargets) > 0 {
+		(*target).MandatoryTargets = cloneStringSlice(source.MandatoryTargets)
+	}
+	if len(source.DependencyModes) > 0 {
+		(*target).DependencyModes = cloneStringSlice(source.DependencyModes)
+	}
+	if strings.TrimSpace(source.Source) != "" {
+		(*target).Source = strings.TrimSpace(source.Source)
+	}
+	if source.Confidence != nil {
+		(*target).Confidence = cloneFloatPointer(source.Confidence)
+	}
+	(*target).Normalize()
 }
 
 func mergeCommonMetadata(target *model.CommonMetadata, source model.CommonMetadata) {
@@ -786,6 +934,13 @@ func mergeAttributes(target *map[string]string, source map[string]string) {
 	for key, value := range source {
 		(*target)[key] = value
 	}
+}
+
+func mergeReliabilityEvidence(target **model.ReliabilityEvidence, source *model.ReliabilityEvidence) {
+	if source == nil {
+		return
+	}
+	*target = cloneReliabilityEvidence(source)
 }
 
 func ensureSnapshotServiceMetadata(target *snapshot.ServiceRecord) *snapshot.ServiceMetadata {

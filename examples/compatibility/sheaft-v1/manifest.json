@@ -1,0 +1,51 @@
+{
+  "schema_version": "1.0",
+  "name": "bering-sheaft-v1-compatibility",
+  "description": "Canonical Bering v1 contract fixtures for Sheaft stochastic-connectivity compatibility checks.",
+  "producer": {
+    "product": "bering",
+    "app_version": "v0.3.4",
+    "schema_line": "1.1.0"
+  },
+  "consumer": {
+    "product": "sheaft",
+    "milestone": "v1.0.0"
+  },
+  "contracts": [
+    {
+      "name": "io.mb3r.bering.model",
+      "version": "1.1.0",
+      "uri": "https://mb3r-lab.github.io/Bering/schema/model/v1.1.0/model.schema.json",
+      "digest": "sha256:76b2b22422b6e64f437fb144a02b6bd4629bf510cec5479a8496c41eb25fc406"
+    },
+    {
+      "name": "io.mb3r.bering.snapshot",
+      "version": "1.1.0",
+      "uri": "https://mb3r-lab.github.io/Bering/schema/snapshot/v1.1.0/snapshot.schema.json",
+      "digest": "sha256:c669dbc483ca8cfe1f58f994b6041a6767fdaa3df4fb5ae27d8253607b3f5cb5"
+    }
+  ],
+  "artifacts": [
+    {
+      "kind": "model",
+      "path": "bering-model.v1.sample.json",
+      "sha256": "4ba5e10cd2c320f22b81ac5570aefe43fc016760f19f7cb9c111637a0d4815a0"
+    },
+    {
+      "kind": "snapshot",
+      "path": "bering-snapshot.v1.sample.json",
+      "sha256": "9ad7613875302c1c3c1427dbc5029465debf19738e0ebae784a6eb1b490205f3"
+    }
+  ],
+  "coverage": {
+    "replicas": true,
+    "typed_edge_ids": true,
+    "service_reliability": true,
+    "placement_reliability": true,
+    "edge_reliability": true,
+    "observed_edge_metadata": true,
+    "endpoint_predicate_refs": true,
+    "immediate_response_semantics": true,
+    "eventual_completion_semantics": true
+  }
+}

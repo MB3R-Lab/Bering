@@ -1,4 +1,9 @@
+ifeq ($(OS),Windows_NT)
+POSIX_SH ?= C:/Program Files/Git/usr/bin/sh.exe
+SHELL := $(POSIX_SH)
+else
 SHELL := /bin/sh
+endif
 
 GO ?= go
 GORELEASER ?= goreleaser
@@ -18,6 +23,24 @@ BOOL_TRUE := 1 true TRUE yes YES
 
 .PHONY: help lint test build run-checks docker-build goreleaser-release contracts-pack chart-package oci-image release-manifest validate-release release-dry-run release-local clean
 
+ifeq ($(OS),Windows_NT)
+define MKDIR_P
+powershell -NoProfile -Command "New-Item -ItemType Directory -Force '$(1)' | Out-Null"
+endef
+
+define RM_RF
+powershell -NoProfile -Command "if (Test-Path '$(1)') { Remove-Item -Recurse -Force '$(1)' }"
+endef
+else
+define MKDIR_P
+mkdir -p $(1)
+endef
+
+define RM_RF
+rm -rf $(1)
+endef
+endif
+
 help:
 	@echo "Targets:"
 	@echo "  lint              Run gofmt and go vet"
@@ -33,7 +56,7 @@ help:
 	@echo "  clean             Remove generated binaries and release artifacts"
 
 lint:
-	@fmt_out="$$(gofmt -l .)"; \
+	@fmt_out="$$(gofmt -l $$(git ls-files -co --exclude-standard -- '*.go'))"; \
 	if [ -n "$$fmt_out" ]; then \
 		echo "gofmt required for:"; \
 		echo "$$fmt_out"; \
@@ -45,7 +68,7 @@ test:
 	$(GO) test ./...
 
 build:
-	mkdir -p bin
+	$(call MKDIR_P,bin)
 	$(GO) build -trimpath -o bin/bering ./cmd/bering
 
 run-checks: lint test build
@@ -54,7 +77,7 @@ docker-build:
 	docker build -f build/Dockerfile -t $(IMAGE) .
 
 goreleaser-release:
-	rm -rf $(DIST_DIR)
+	$(call RM_RF,$(DIST_DIR))
 	RELEASE_VERSION=$(VERSION) $(GORELEASER) release --snapshot --clean --skip=publish
 
 contracts-pack:
@@ -77,4 +100,6 @@ release-dry-run: lint test goreleaser-release contracts-pack chart-package oci-i
 release-local: test goreleaser-release contracts-pack chart-package oci-image release-manifest validate-release
 
 clean:
-	rm -rf bin out dist
+	$(call RM_RF,bin)
+	$(call RM_RF,out)
+	$(call RM_RF,dist)

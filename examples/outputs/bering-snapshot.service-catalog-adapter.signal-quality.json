@@ -2,13 +2,13 @@
   "artifact": {
     "path": "examples/outputs/bering-snapshot.service-catalog-adapter.sample.json",
     "schema": {
-      "digest": "sha256:53b127608b2aaa4fabb352b998cd6b2c5ed558764729a09abea56f4f9b40fa01",
+      "digest": "sha256:c669dbc483ca8cfe1f58f994b6041a6767fdaa3df4fb5ae27d8253607b3f5cb5",
       "name": "io.mb3r.bering.snapshot",
       "uri": "https://mb3r-lab.github.io/Bering/schema/snapshot/v1.1.0/snapshot.schema.json",
       "version": "1.1.0"
     },
-    "snapshot_id": "snap-3a864b268c97fd0ddd2ff4be",
-    "topology_version": "sha256:5191d4610de8b4f0e14ae67c8b182a056dbf1623a12254916de896b728cb7f5e",
+    "snapshot_id": "snap-5b2c93ef1a9d0522116b0ab0",
+    "topology_version": "sha256:dfa0e8db1d1bf52b0c1a7caa4fdd5f41b1171249cd85800603c9024f7e85a3ea",
     "type": "snapshot",
     "window_end": "2026-03-03T00:00:00Z",
     "window_start": "2026-03-03T00:00:00Z"
@@ -70,7 +70,7 @@
     },
     {
       "missing": [
-        "checkout|payment|async|false"
+        "checkout|payment|async|false|protocol=kafka|topic=payment-events"
       ],
       "missing_count": 1,
       "name": "edges.request_timeout_ms",
@@ -81,7 +81,7 @@
     },
     {
       "missing": [
-        "checkout|payment|async|false"
+        "checkout|payment|async|false|protocol=kafka|topic=payment-events"
       ],
       "missing_count": 1,
       "name": "edges.retry_policy",
@@ -92,7 +92,7 @@
     },
     {
       "missing": [
-        "checkout|payment|async|false"
+        "checkout|payment|async|false|protocol=kafka|topic=payment-events"
       ],
       "missing_count": 1,
       "name": "edges.circuit_breaker",
@@ -103,8 +103,8 @@
     },
     {
       "missing": [
-        "checkout|payment|async|false",
-        "frontend|checkout|sync|true"
+        "checkout|payment|async|false|protocol=kafka|topic=payment-events",
+        "frontend|checkout|sync|true|protocol=http|operation=GET|route=%2Fcheckout"
       ],
       "missing_count": 2,
       "name": "edges.observed_latency",
@@ -115,8 +115,8 @@
     },
     {
       "missing": [
-        "checkout|payment|async|false",
-        "frontend|checkout|sync|true"
+        "checkout|payment|async|false|protocol=kafka|topic=payment-events",
+        "frontend|checkout|sync|true|protocol=http|operation=GET|route=%2Fcheckout"
       ],
       "missing_count": 2,
       "name": "edges.observed_error_rate",
@@ -127,7 +127,7 @@
     },
     {
       "missing": [
-        "checkout|payment|async|false"
+        "checkout|payment|async|false|protocol=kafka|topic=payment-events"
       ],
       "missing_count": 1,
       "name": "edges.policy_scope",
@@ -162,8 +162,8 @@
     },
     {
       "missing": [
-        "edge:checkout|payment|async|false",
-        "edge:frontend|checkout|sync|true",
+        "edge:checkout|payment|async|false|protocol=kafka|topic=payment-events",
+        "edge:frontend|checkout|sync|true|protocol=http|operation=GET|route=%2Fcheckout",
         "endpoint:checkout:POST /process",
         "endpoint:frontend:GET /checkout",
         "service:checkout",
@@ -187,8 +187,8 @@
     },
     {
       "missing": [
-        "edge:checkout|payment|async|false",
-        "edge:frontend|checkout|sync|true",
+        "edge:checkout|payment|async|false|protocol=kafka|topic=payment-events",
+        "edge:frontend|checkout|sync|true|protocol=http|operation=GET|route=%2Fcheckout",
         "endpoint:checkout:POST /process",
         "endpoint:frontend:GET /checkout",
         "service:checkout",

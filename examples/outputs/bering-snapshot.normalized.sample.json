@@ -26,7 +26,12 @@
       {
         "blocking": true,
         "from": "checkout",
-        "id": "checkout|inventory|sync|true",
+        "id": "checkout|inventory|sync|true|protocol=http|route=%2Fprocess|span_kind=client",
+        "identity": {
+          "protocol": "http",
+          "route": "/process",
+          "span_kind": "client"
+        },
         "kind": "sync",
         "observed": {
           "latency_ms": {
@@ -55,7 +60,13 @@
       {
         "blocking": false,
         "from": "checkout",
-        "id": "checkout|payment|async|false",
+        "id": "checkout|payment|async|false|protocol=http|route=%2Fprocess|topic=payment-events|span_kind=consumer",
+        "identity": {
+          "protocol": "http",
+          "route": "/process",
+          "span_kind": "consumer",
+          "topic": "payment-events"
+        },
         "kind": "async",
         "observed": {
           "latency_ms": {
@@ -87,7 +98,13 @@
       {
         "blocking": true,
         "from": "frontend",
-        "id": "frontend|checkout|sync|true",
+        "id": "frontend|checkout|sync|true|protocol=http|operation=POST|route=%2Fprocess|span_kind=server",
+        "identity": {
+          "operation": "POST",
+          "protocol": "http",
+          "route": "/process",
+          "span_kind": "server"
+        },
         "kind": "sync",
         "observed": {
           "latency_ms": {
@@ -244,7 +261,7 @@
     "confidence": 0.94,
     "emitted_at": "2026-03-03T00:00:00Z",
     "schema": {
-      "digest": "sha256:53b127608b2aaa4fabb352b998cd6b2c5ed558764729a09abea56f4f9b40fa01",
+      "digest": "sha256:c669dbc483ca8cfe1f58f994b6041a6767fdaa3df4fb5ae27d8253607b3f5cb5",
       "name": "io.mb3r.bering.snapshot",
       "uri": "https://mb3r-lab.github.io/Bering/schema/snapshot/v1.1.0/snapshot.schema.json",
       "version": "1.1.0"
@@ -257,7 +274,12 @@
       {
         "blocking": true,
         "from": "checkout",
-        "id": "checkout|inventory|sync|true",
+        "id": "checkout|inventory|sync|true|protocol=http|route=%2Fprocess|span_kind=client",
+        "identity": {
+          "protocol": "http",
+          "route": "/process",
+          "span_kind": "client"
+        },
         "kind": "sync",
         "observed": {
           "latency_ms": {
@@ -272,7 +294,13 @@
       {
         "blocking": false,
         "from": "checkout",
-        "id": "checkout|payment|async|false",
+        "id": "checkout|payment|async|false|protocol=http|route=%2Fprocess|topic=payment-events|span_kind=consumer",
+        "identity": {
+          "protocol": "http",
+          "route": "/process",
+          "span_kind": "consumer",
+          "topic": "payment-events"
+        },
         "kind": "async",
         "observed": {
           "latency_ms": {
@@ -287,7 +315,13 @@
       {
         "blocking": true,
         "from": "frontend",
-        "id": "frontend|checkout|sync|true",
+        "id": "frontend|checkout|sync|true|protocol=http|operation=POST|route=%2Fprocess|span_kind=server",
+        "identity": {
+          "operation": "POST",
+          "protocol": "http",
+          "route": "/process",
+          "span_kind": "server"
+        },
         "kind": "sync",
         "observed": {
           "latency_ms": {
@@ -327,7 +361,7 @@
       "confidence": 0.94,
       "discovered_at": "2026-03-03T00:00:00Z",
       "schema": {
-        "digest": "sha256:bc9a60736c9e6bda9599243fd68f293b88f42ade65321d8267369a5c3214779a",
+        "digest": "sha256:76b2b22422b6e64f437fb144a02b6bd4629bf510cec5479a8496c41eb25fc406",
         "name": "io.mb3r.bering.model",
         "uri": "https://mb3r-lab.github.io/Bering/schema/model/v1.1.0/model.schema.json",
         "version": "1.1.0"
@@ -358,7 +392,7 @@
       }
     ]
   },
-  "snapshot_id": "snap-5fc252215ea477dfee1ae9e4",
+  "snapshot_id": "snap-1e8e1ed5fc1c5dc6340302d3",
   "sources": [
     {
       "connector": "trace_file",
@@ -367,7 +401,7 @@
       "type": "traces"
     }
   ],
-  "topology_version": "sha256:5b407bed5efbf8ee610028c1a9446a26aeda2f5b96fbe1881ea54c3677b96332",
+  "topology_version": "sha256:e37c5af4dcca592c361ab262793b5f750a2ae4199c748138ca83cd73c791e0e3",
   "window_end": "2026-03-03T00:00:00Z",
   "window_start": "2026-03-03T00:00:00Z"
 }

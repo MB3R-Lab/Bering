@@ -3,6 +3,7 @@ package model
 import (
 	"errors"
 	"fmt"
+	"net/url"
 	"sort"
 	"strconv"
 	"strings"
@@ -14,6 +15,12 @@ type EdgeKind string
 const (
 	EdgeKindSync  EdgeKind = "sync"
 	EdgeKindAsync EdgeKind = "async"
+)
+
+const (
+	EndpointPredicateModeImmediate = "immediate_response"
+	EndpointPredicateModeEventual  = "eventual_completion"
+	EndpointPredicateModeExternal  = "external_predicate"
 )
 
 type Service struct {
@@ -29,6 +36,7 @@ type Edge struct {
 	To          string            `json:"to"`
 	Kind        EdgeKind          `json:"kind"`
 	Blocking    bool              `json:"blocking"`
+	Identity    *EdgeIdentity     `json:"identity,omitempty"`
 	Metadata    *EdgeMetadata     `json:"metadata,omitempty"`
 	Resilience  *ResiliencePolicy `json:"resilience,omitempty"`
 	Observed    *ObservedEdge     `json:"observed,omitempty"`
@@ -59,32 +67,58 @@ type SchemaRef struct {
 	Digest  string `json:"digest"`
 }
 
+type EdgeIdentity struct {
+	Protocol  string `json:"protocol,omitempty" yaml:"protocol,omitempty"`
+	Operation string `json:"operation,omitempty" yaml:"operation,omitempty"`
+	Route     string `json:"route,omitempty" yaml:"route,omitempty"`
+	Topic     string `json:"topic,omitempty" yaml:"topic,omitempty"`
+	SpanKind  string `json:"span_kind,omitempty" yaml:"span_kind,omitempty"`
+}
+
 type CommonMetadata struct {
 	Labels  map[string]string `json:"labels,omitempty" yaml:"labels,omitempty"`
 	Tags    []string          `json:"tags,omitempty" yaml:"tags,omitempty"`
 	SLORefs []string          `json:"slo_refs,omitempty" yaml:"slo_refs,omitempty"`
 }
 
+type ReliabilityEvidence struct {
+	LiveProbability *float64 `json:"live_probability,omitempty" yaml:"live_probability,omitempty"`
+	Source          string   `json:"source,omitempty" yaml:"source,omitempty"`
+	Confidence      *float64 `json:"confidence,omitempty" yaml:"confidence,omitempty"`
+}
+
 type Placement struct {
-	Replicas int               `json:"replicas" yaml:"replicas"`
-	Labels   map[string]string `json:"labels,omitempty" yaml:"labels,omitempty"`
+	Replicas    int                  `json:"replicas" yaml:"replicas"`
+	Labels      map[string]string    `json:"labels,omitempty" yaml:"labels,omitempty"`
+	Reliability *ReliabilityEvidence `json:"reliability,omitempty" yaml:"reliability,omitempty"`
 }
 
 type ServiceMetadata struct {
 	CommonMetadata
-	FailureEligible    *bool       `json:"failure_eligible,omitempty" yaml:"failure_eligible,omitempty"`
-	Placements         []Placement `json:"placements,omitempty" yaml:"placements,omitempty"`
-	SharedResourceRefs []string    `json:"shared_resource_refs,omitempty" yaml:"shared_resource_refs,omitempty"`
+	Reliability        *ReliabilityEvidence `json:"reliability,omitempty" yaml:"reliability,omitempty"`
+	FailureEligible    *bool                `json:"failure_eligible,omitempty" yaml:"failure_eligible,omitempty"`
+	Placements         []Placement          `json:"placements,omitempty" yaml:"placements,omitempty"`
+	SharedResourceRefs []string             `json:"shared_resource_refs,omitempty" yaml:"shared_resource_refs,omitempty"`
 }
 
 type EdgeMetadata struct {
 	CommonMetadata
-	Weight *float64 `json:"weight,omitempty" yaml:"weight,omitempty"`
+	Weight      *float64             `json:"weight,omitempty" yaml:"weight,omitempty"`
+	Reliability *ReliabilityEvidence `json:"reliability,omitempty" yaml:"reliability,omitempty"`
 }
 
 type EndpointMetadata struct {
 	CommonMetadata
-	Weight *float64 `json:"weight,omitempty" yaml:"weight,omitempty"`
+	Weight    *float64           `json:"weight,omitempty" yaml:"weight,omitempty"`
+	Semantics *EndpointSemantics `json:"semantics,omitempty" yaml:"semantics,omitempty"`
+}
+
+type EndpointSemantics struct {
+	PredicateMode    string   `json:"predicate_mode,omitempty" yaml:"predicate_mode,omitempty"`
+	MandatoryTargets []string `json:"mandatory_targets,omitempty" yaml:"mandatory_targets,omitempty"`
+	DependencyModes  []string `json:"dependency_modes,omitempty" yaml:"dependency_modes,omitempty"`
+	Source           string   `json:"source,omitempty" yaml:"source,omitempty"`
+	Confidence       *float64 `json:"confidence,omitempty" yaml:"confidence,omitempty"`
 }
 
 type ResiliencePolicy struct {
@@ -226,6 +260,9 @@ func (m ResilienceModel) ValidateSemantic() error {
 			}
 			edgeIDSet[trimmed] = struct{}{}
 		}
+		if err := validateEdgeIdentity(edge.Identity); err != nil {
+			return fmt.Errorf("edge %q identity: %w", edgeIdentifier(edge), err)
+		}
 		if err := validateEdgeMetadata(edge.Metadata); err != nil {
 			return fmt.Errorf("edge %q metadata: %w", edgeIdentifier(edge), err)
 		}
@@ -253,7 +290,7 @@ func (m ResilienceModel) ValidateSemantic() error {
 		if strings.TrimSpace(endpoint.SuccessPredicateRef) == "" {
 			return fmt.Errorf("endpoint %q success_predicate_ref cannot be empty", endpoint.ID)
 		}
-		if err := validateEndpointMetadata(endpoint.Metadata); err != nil {
+		if err := validateEndpointMetadata(endpoint.Metadata, serviceSet); err != nil {
 			return fmt.Errorf("endpoint %q metadata: %w", endpoint.ID, err)
 		}
 	}
@@ -279,6 +316,33 @@ func (m ResilienceModel) ValidateSemantic() error {
 
 func EdgeID(from, to string, kind EdgeKind, blocking bool) string {
 	return fmt.Sprintf("%s|%s|%s|%t", strings.TrimSpace(from), strings.TrimSpace(to), kind, blocking)
+}
+
+func EdgeIDWithIdentity(from, to string, kind EdgeKind, blocking bool, identity *EdgeIdentity) string {
+	base := EdgeID(from, to, kind, blocking)
+	if identity == nil || identity.IsZero() {
+		return base
+	}
+	parts := make([]string, 0, 5)
+	for _, item := range []struct {
+		name  string
+		value string
+	}{
+		{"protocol", identity.Protocol},
+		{"operation", identity.Operation},
+		{"route", identity.Route},
+		{"topic", identity.Topic},
+		{"span_kind", identity.SpanKind},
+	} {
+		if strings.TrimSpace(item.value) == "" {
+			continue
+		}
+		parts = append(parts, item.name+"="+url.QueryEscape(strings.TrimSpace(item.value)))
+	}
+	if len(parts) == 0 {
+		return base
+	}
+	return base + "|" + strings.Join(parts, "|")
 }
 
 func FormatMilliseconds(value float64) float64 {
@@ -310,8 +374,14 @@ func (e *Edge) normalizeForOutput() {
 	if e == nil {
 		return
 	}
+	if e.Identity != nil {
+		e.Identity.Normalize()
+		if e.Identity.IsZero() {
+			e.Identity = nil
+		}
+	}
 	if strings.TrimSpace(e.ID) == "" {
-		e.ID = EdgeID(e.From, e.To, e.Kind, e.Blocking)
+		e.ID = EdgeIDWithIdentity(e.From, e.To, e.Kind, e.Blocking, e.Identity)
 	}
 	if e.Metadata != nil {
 		e.Metadata.Normalize()
@@ -369,8 +439,14 @@ func (m *ServiceMetadata) Normalize() {
 		return
 	}
 	m.CommonMetadata.Normalize()
+	if m.Reliability != nil {
+		m.Reliability.Normalize()
+		if m.Reliability.IsZero() {
+			m.Reliability = nil
+		}
+	}
 	for i := range m.Placements {
-		m.Placements[i].Labels = normalizeStringMap(m.Placements[i].Labels)
+		m.Placements[i].Normalize()
 	}
 	sort.Slice(m.Placements, func(i, j int) bool {
 		left, right := m.Placements[i], m.Placements[j]
@@ -383,7 +459,7 @@ func (m *ServiceMetadata) Normalize() {
 }
 
 func (m ServiceMetadata) IsZero() bool {
-	return m.CommonMetadata.IsZero() && m.FailureEligible == nil && len(m.Placements) == 0 && len(m.SharedResourceRefs) == 0
+	return m.CommonMetadata.IsZero() && m.Reliability == nil && m.FailureEligible == nil && len(m.Placements) == 0 && len(m.SharedResourceRefs) == 0
 }
 
 func (m *EdgeMetadata) Normalize() {
@@ -391,10 +467,16 @@ func (m *EdgeMetadata) Normalize() {
 		return
 	}
 	m.CommonMetadata.Normalize()
+	if m.Reliability != nil {
+		m.Reliability.Normalize()
+		if m.Reliability.IsZero() {
+			m.Reliability = nil
+		}
+	}
 }
 
 func (m EdgeMetadata) IsZero() bool {
-	return m.CommonMetadata.IsZero() && m.Weight == nil
+	return m.CommonMetadata.IsZero() && m.Weight == nil && m.Reliability == nil
 }
 
 func (m *EndpointMetadata) Normalize() {
@@ -402,10 +484,38 @@ func (m *EndpointMetadata) Normalize() {
 		return
 	}
 	m.CommonMetadata.Normalize()
+	if m.Semantics != nil {
+		m.Semantics.Normalize()
+		if m.Semantics.IsZero() {
+			m.Semantics = nil
+		}
+	}
 }
 
 func (m EndpointMetadata) IsZero() bool {
-	return m.CommonMetadata.IsZero() && m.Weight == nil
+	return m.CommonMetadata.IsZero() && m.Weight == nil && m.Semantics == nil
+}
+
+func (s *EndpointSemantics) Normalize() {
+	if s == nil {
+		return
+	}
+	s.PredicateMode = strings.ToLower(strings.TrimSpace(s.PredicateMode))
+	s.MandatoryTargets = normalizeStringSlice(s.MandatoryTargets)
+	s.DependencyModes = normalizeDependencyModes(s.DependencyModes)
+	s.Source = strings.TrimSpace(s.Source)
+	if s.Confidence != nil {
+		value := roundFloat(*s.Confidence)
+		s.Confidence = &value
+	}
+}
+
+func (s EndpointSemantics) IsZero() bool {
+	return strings.TrimSpace(s.PredicateMode) == "" &&
+		len(s.MandatoryTargets) == 0 &&
+		len(s.DependencyModes) == 0 &&
+		strings.TrimSpace(s.Source) == "" &&
+		s.Confidence == nil
 }
 
 func (p *ResiliencePolicy) Normalize() {
@@ -525,34 +635,140 @@ func (s PolicyScope) IsZero() bool {
 	return s.SourceEndpointID == "" && s.SourceRoute == "" && s.Method == "" && s.Operation == ""
 }
 
+func (i *EdgeIdentity) Normalize() {
+	if i == nil {
+		return
+	}
+	i.Protocol = strings.ToLower(strings.TrimSpace(i.Protocol))
+	i.Operation = strings.TrimSpace(i.Operation)
+	i.Route = strings.TrimSpace(i.Route)
+	i.Topic = strings.TrimSpace(i.Topic)
+	i.SpanKind = strings.ToLower(strings.TrimSpace(i.SpanKind))
+}
+
+func (i EdgeIdentity) IsZero() bool {
+	return strings.TrimSpace(i.Protocol) == "" &&
+		strings.TrimSpace(i.Operation) == "" &&
+		strings.TrimSpace(i.Route) == "" &&
+		strings.TrimSpace(i.Topic) == "" &&
+		strings.TrimSpace(i.SpanKind) == ""
+}
+
+func (p *Placement) Normalize() {
+	if p == nil {
+		return
+	}
+	p.Labels = normalizeStringMap(p.Labels)
+	if p.Reliability != nil {
+		p.Reliability.Normalize()
+		if p.Reliability.IsZero() {
+			p.Reliability = nil
+		}
+	}
+}
+
+func (r *ReliabilityEvidence) Normalize() {
+	if r == nil {
+		return
+	}
+	if r.LiveProbability != nil {
+		value := roundFloat(*r.LiveProbability)
+		r.LiveProbability = &value
+	}
+	r.Source = strings.TrimSpace(r.Source)
+	if r.Confidence != nil {
+		value := roundFloat(*r.Confidence)
+		r.Confidence = &value
+	}
+}
+
+func (r ReliabilityEvidence) IsZero() bool {
+	return r.LiveProbability == nil && r.Source == "" && r.Confidence == nil
+}
+
 func validateServiceMetadata(meta *ServiceMetadata) error {
 	if meta == nil {
 		return nil
+	}
+	if err := validateReliabilityEvidence("reliability", meta.Reliability); err != nil {
+		return err
 	}
 	for i, placement := range meta.Placements {
 		if placement.Replicas < 0 {
 			return fmt.Errorf("placements[%d].replicas must be >= 0", i)
 		}
+		if err := validateReliabilityEvidence(fmt.Sprintf("placements[%d].reliability", i), placement.Reliability); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func validateEdgeIdentity(identity *EdgeIdentity) error {
+	if identity == nil {
+		return nil
+	}
+	if strings.Contains(identity.Protocol, "|") ||
+		strings.Contains(identity.Operation, "|") ||
+		strings.Contains(identity.Route, "|") ||
+		strings.Contains(identity.Topic, "|") ||
+		strings.Contains(identity.SpanKind, "|") {
+		return fmt.Errorf("fields cannot contain pipe characters")
 	}
 	return nil
 }
 
 func validateEdgeMetadata(meta *EdgeMetadata) error {
-	if meta == nil || meta.Weight == nil {
+	if meta == nil {
 		return nil
 	}
-	if *meta.Weight < 0 {
+	if meta.Weight != nil && *meta.Weight < 0 {
 		return fmt.Errorf("weight must be >= 0")
 	}
-	return nil
+	return validateReliabilityEvidence("reliability", meta.Reliability)
 }
 
-func validateEndpointMetadata(meta *EndpointMetadata) error {
-	if meta == nil || meta.Weight == nil {
+func validateEndpointMetadata(meta *EndpointMetadata, serviceSet map[string]struct{}) error {
+	if meta == nil {
 		return nil
 	}
-	if *meta.Weight < 0 {
+	if meta.Weight != nil && *meta.Weight < 0 {
 		return fmt.Errorf("weight must be >= 0")
+	}
+	return validateEndpointSemantics(meta.Semantics, serviceSet)
+}
+
+func validateEndpointSemantics(semantics *EndpointSemantics, serviceSet map[string]struct{}) error {
+	if semantics == nil {
+		return nil
+	}
+	if mode := strings.TrimSpace(semantics.PredicateMode); mode != "" {
+		switch mode {
+		case EndpointPredicateModeImmediate, EndpointPredicateModeEventual, EndpointPredicateModeExternal:
+		default:
+			return fmt.Errorf("semantics.predicate_mode must be one of %q, %q, %q", EndpointPredicateModeImmediate, EndpointPredicateModeEventual, EndpointPredicateModeExternal)
+		}
+	}
+	for idx, target := range semantics.MandatoryTargets {
+		target = strings.TrimSpace(target)
+		if target == "" {
+			return fmt.Errorf("semantics.mandatory_targets[%d] cannot be empty", idx)
+		}
+		if serviceSet != nil {
+			if _, ok := serviceSet[target]; !ok {
+				return fmt.Errorf("semantics.mandatory_targets[%d] references unknown service %q", idx, target)
+			}
+		}
+	}
+	for idx, mode := range semantics.DependencyModes {
+		switch strings.TrimSpace(mode) {
+		case string(EdgeKindSync), string(EdgeKindAsync):
+		default:
+			return fmt.Errorf("semantics.dependency_modes[%d] must be %q or %q", idx, EdgeKindSync, EdgeKindAsync)
+		}
+	}
+	if semantics.Confidence != nil && (*semantics.Confidence < 0 || *semantics.Confidence > 1) {
+		return fmt.Errorf("semantics.confidence must be in [0,1]")
 	}
 	return nil
 }
@@ -674,6 +890,22 @@ func validateMonotonicLatency(summary *LatencySummary) error {
 	return nil
 }
 
+func validateReliabilityEvidence(label string, reliability *ReliabilityEvidence) error {
+	if reliability == nil {
+		return nil
+	}
+	if reliability.LiveProbability == nil {
+		return fmt.Errorf("%s.live_probability is required", label)
+	}
+	if *reliability.LiveProbability < 0 || *reliability.LiveProbability > 1 {
+		return fmt.Errorf("%s.live_probability must be in [0,1]", label)
+	}
+	if reliability.Confidence != nil && (*reliability.Confidence < 0 || *reliability.Confidence > 1) {
+		return fmt.Errorf("%s.confidence must be in [0,1]", label)
+	}
+	return nil
+}
+
 func normalizeStringMap(values map[string]string) map[string]string {
 	if len(values) == 0 {
 		return nil
@@ -700,6 +932,30 @@ func normalizeStringSlice(values []string) []string {
 	out := make([]string, 0, len(values))
 	for _, value := range values {
 		trimmed := strings.TrimSpace(value)
+		if trimmed == "" {
+			continue
+		}
+		if _, exists := set[trimmed]; exists {
+			continue
+		}
+		set[trimmed] = struct{}{}
+		out = append(out, trimmed)
+	}
+	sort.Strings(out)
+	if len(out) == 0 {
+		return nil
+	}
+	return out
+}
+
+func normalizeDependencyModes(values []string) []string {
+	if len(values) == 0 {
+		return nil
+	}
+	set := map[string]struct{}{}
+	out := make([]string, 0, len(values))
+	for _, value := range values {
+		trimmed := strings.ToLower(strings.TrimSpace(value))
 		if trimmed == "" {
 			continue
 		}

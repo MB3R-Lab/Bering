@@ -22,34 +22,38 @@ type CommonMetadata struct {
 }
 
 type ServiceOverlay struct {
-	ID                 string            `json:"id" yaml:"id"`
-	Replicas           *int              `json:"replicas" yaml:"replicas"`
-	FailureEligible    *bool             `json:"failure_eligible" yaml:"failure_eligible"`
-	Placements         []model.Placement `json:"placements" yaml:"placements"`
-	SharedResourceRefs []string          `json:"shared_resource_refs" yaml:"shared_resource_refs"`
+	ID                 string                     `json:"id" yaml:"id"`
+	Replicas           *int                       `json:"replicas" yaml:"replicas"`
+	Reliability        *model.ReliabilityEvidence `json:"reliability" yaml:"reliability"`
+	FailureEligible    *bool                      `json:"failure_eligible" yaml:"failure_eligible"`
+	Placements         []model.Placement          `json:"placements" yaml:"placements"`
+	SharedResourceRefs []string                   `json:"shared_resource_refs" yaml:"shared_resource_refs"`
 	CommonMetadata     `json:",inline" yaml:",inline"`
 }
 
 type EdgeOverlay struct {
-	ID             string                  `json:"id" yaml:"id"`
-	From           string                  `json:"from" yaml:"from"`
-	To             string                  `json:"to" yaml:"to"`
-	Kind           string                  `json:"kind" yaml:"kind"`
-	Blocking       *bool                   `json:"blocking" yaml:"blocking"`
-	Weight         *float64                `json:"weight" yaml:"weight"`
-	Resilience     *model.ResiliencePolicy `json:"resilience" yaml:"resilience"`
-	Observed       *model.ObservedEdge     `json:"observed" yaml:"observed"`
-	PolicyScope    *model.PolicyScope      `json:"policy_scope" yaml:"policy_scope"`
+	ID             string                     `json:"id" yaml:"id"`
+	From           string                     `json:"from" yaml:"from"`
+	To             string                     `json:"to" yaml:"to"`
+	Kind           string                     `json:"kind" yaml:"kind"`
+	Blocking       *bool                      `json:"blocking" yaml:"blocking"`
+	Identity       *model.EdgeIdentity        `json:"identity" yaml:"identity"`
+	Weight         *float64                   `json:"weight" yaml:"weight"`
+	Reliability    *model.ReliabilityEvidence `json:"reliability" yaml:"reliability"`
+	Resilience     *model.ResiliencePolicy    `json:"resilience" yaml:"resilience"`
+	Observed       *model.ObservedEdge        `json:"observed" yaml:"observed"`
+	PolicyScope    *model.PolicyScope         `json:"policy_scope" yaml:"policy_scope"`
 	CommonMetadata `json:",inline" yaml:",inline"`
 }
 
 type EndpointOverlay struct {
-	ID             string   `json:"id" yaml:"id"`
-	EntryService   string   `json:"entry_service" yaml:"entry_service"`
-	Method         string   `json:"method" yaml:"method"`
-	Path           string   `json:"path" yaml:"path"`
-	PredicateRef   string   `json:"predicate_ref" yaml:"predicate_ref"`
-	Weight         *float64 `json:"weight" yaml:"weight"`
+	ID             string                   `json:"id" yaml:"id"`
+	EntryService   string                   `json:"entry_service" yaml:"entry_service"`
+	Method         string                   `json:"method" yaml:"method"`
+	Path           string                   `json:"path" yaml:"path"`
+	PredicateRef   string                   `json:"predicate_ref" yaml:"predicate_ref"`
+	Semantics      *model.EndpointSemantics `json:"semantics" yaml:"semantics"`
+	Weight         *float64                 `json:"weight" yaml:"weight"`
 	CommonMetadata `json:",inline" yaml:",inline"`
 }
 
@@ -64,6 +68,9 @@ func (f *File) Normalize(path string) error {
 		if f.Services[i].ID == "" {
 			return fmt.Errorf("service overlay at index %d has empty id", i)
 		}
+		if f.Services[i].Reliability != nil {
+			f.Services[i].Reliability.Normalize()
+		}
 		normalizeCommonMetadata(&f.Services[i].CommonMetadata)
 		normalizePlacements(f.Services[i].Placements)
 		f.Services[i].SharedResourceRefs = dedupeNonEmpty(f.Services[i].SharedResourceRefs)
@@ -74,11 +81,17 @@ func (f *File) Normalize(path string) error {
 		item.From = strings.TrimSpace(item.From)
 		item.To = strings.TrimSpace(item.To)
 		item.Kind = strings.TrimSpace(item.Kind)
+		if item.Identity != nil {
+			item.Identity.Normalize()
+		}
 		if item.ID == "" {
 			if item.From == "" || item.To == "" || item.Kind == "" || item.Blocking == nil {
 				return fmt.Errorf("edge overlay at index %d requires id or from/to/kind/blocking", i)
 			}
-			item.ID = fmt.Sprintf("%s|%s|%s|%t", item.From, item.To, item.Kind, *item.Blocking)
+			item.ID = model.EdgeIDWithIdentity(item.From, item.To, model.EdgeKind(item.Kind), *item.Blocking, item.Identity)
+		}
+		if item.Reliability != nil {
+			item.Reliability.Normalize()
 		}
 		normalizeCommonMetadata(&item.CommonMetadata)
 		if item.Resilience != nil {
@@ -103,6 +116,9 @@ func (f *File) Normalize(path string) error {
 				return fmt.Errorf("endpoint overlay at index %d requires id or entry_service/method/path", i)
 			}
 			item.ID = fmt.Sprintf("%s:%s %s", item.EntryService, item.Method, item.Path)
+		}
+		if item.Semantics != nil {
+			item.Semantics.Normalize()
 		}
 		normalizeCommonMetadata(&item.CommonMetadata)
 	}
@@ -139,7 +155,7 @@ func normalizeCommonMetadata(meta *CommonMetadata) {
 
 func normalizePlacements(items []model.Placement) {
 	for i := range items {
-		items[i].Labels = trimStringMap(items[i].Labels)
+		items[i].Normalize()
 	}
 }
 

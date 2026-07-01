@@ -33,6 +33,9 @@ type catalogDependency struct {
 	Mode                  string   `json:"mode"`
 	Blocking              bool     `json:"blocking"`
 	Weight                *float64 `json:"weight,omitempty"`
+	Protocol              string   `json:"protocol,omitempty"`
+	Operation             string   `json:"operation,omitempty"`
+	Topic                 string   `json:"topic,omitempty"`
 	RequestTimeoutMS      *int     `json:"request_timeout_ms,omitempty"`
 	RetryMaxAttempts      *int     `json:"retry_max_attempts,omitempty"`
 	CircuitBreakerEnabled *bool    `json:"circuit_breaker_enabled,omitempty"`
@@ -42,11 +45,12 @@ type catalogDependency struct {
 }
 
 type catalogEndpoint struct {
-	Service      string   `json:"service"`
-	Method       string   `json:"method"`
-	Path         string   `json:"path"`
-	PredicateRef string   `json:"predicate_ref"`
-	Weight       *float64 `json:"weight,omitempty"`
+	Service      string             `json:"service"`
+	Method       string             `json:"method"`
+	Path         string             `json:"path"`
+	PredicateRef string             `json:"predicate_ref"`
+	Semantics    *endpointSemantics `json:"semantics,omitempty"`
+	Weight       *float64           `json:"weight,omitempty"`
 }
 
 type topologyDocument struct {
@@ -81,9 +85,17 @@ type topologyEdge struct {
 	To          string            `json:"to"`
 	Kind        string            `json:"kind"`
 	Blocking    bool              `json:"blocking"`
+	Identity    *edgeIdentity     `json:"identity,omitempty"`
 	Weight      *float64          `json:"weight,omitempty"`
 	Resilience  *resiliencePolicy `json:"resilience,omitempty"`
 	PolicyScope *policyScope      `json:"policy_scope,omitempty"`
+}
+
+type edgeIdentity struct {
+	Protocol  string `json:"protocol,omitempty"`
+	Operation string `json:"operation,omitempty"`
+	Route     string `json:"route,omitempty"`
+	Topic     string `json:"topic,omitempty"`
 }
 
 type resiliencePolicy struct {
@@ -106,12 +118,21 @@ type policyScope struct {
 	SourceRoute      string `json:"source_route,omitempty"`
 }
 
+type endpointSemantics struct {
+	PredicateMode    string   `json:"predicate_mode,omitempty"`
+	MandatoryTargets []string `json:"mandatory_targets,omitempty"`
+	DependencyModes  []string `json:"dependency_modes,omitempty"`
+	Source           string   `json:"source,omitempty"`
+	Confidence       *float64 `json:"confidence,omitempty"`
+}
+
 type topologyEndpoint struct {
-	EntryService string   `json:"entry_service"`
-	Method       string   `json:"method"`
-	Path         string   `json:"path"`
-	PredicateRef string   `json:"predicate_ref,omitempty"`
-	Weight       *float64 `json:"weight,omitempty"`
+	EntryService string             `json:"entry_service"`
+	Method       string             `json:"method"`
+	Path         string             `json:"path"`
+	PredicateRef string             `json:"predicate_ref,omitempty"`
+	Semantics    *endpointSemantics `json:"semantics,omitempty"`
+	Weight       *float64           `json:"weight,omitempty"`
 }
 
 func main() {
@@ -188,11 +209,11 @@ func convert(doc catalog) topologyDocument {
 	}
 	for _, dependency := range doc.Dependencies {
 		edge := topologyEdge{
-			ID:       edgeID(dependency),
 			From:     strings.TrimSpace(dependency.From),
 			To:       strings.TrimSpace(dependency.To),
 			Kind:     normalizeKind(dependency.Mode),
 			Blocking: dependency.Blocking,
+			Identity: buildIdentity(dependency),
 			Weight:   dependency.Weight,
 		}
 		edge.Resilience = buildResilience(dependency)
@@ -205,6 +226,7 @@ func convert(doc catalog) topologyDocument {
 			Method:       strings.ToUpper(strings.TrimSpace(endpoint.Method)),
 			Path:         normalizePath(endpoint.Path),
 			PredicateRef: strings.TrimSpace(endpoint.PredicateRef),
+			Semantics:    normalizeEndpointSemantics(endpoint.Semantics),
 			Weight:       endpoint.Weight,
 		})
 	}
@@ -235,6 +257,71 @@ func buildPolicyScope(dependency catalogDependency) *policyScope {
 		return nil
 	}
 	return scope
+}
+
+func buildIdentity(dependency catalogDependency) *edgeIdentity {
+	identity := &edgeIdentity{
+		Protocol:  strings.ToLower(strings.TrimSpace(dependency.Protocol)),
+		Operation: strings.TrimSpace(firstNonEmpty(dependency.Operation, strings.ToUpper(strings.TrimSpace(dependency.Method)))),
+		Route:     normalizePath(dependency.Route),
+		Topic:     strings.TrimSpace(dependency.Topic),
+	}
+	if identity.Protocol == "" && identity.Operation == "" && identity.Route == "" && identity.Topic == "" {
+		return nil
+	}
+	return identity
+}
+
+func normalizeEndpointSemantics(input *endpointSemantics) *endpointSemantics {
+	if input == nil {
+		return nil
+	}
+	out := &endpointSemantics{
+		PredicateMode:    strings.ToLower(strings.TrimSpace(input.PredicateMode)),
+		MandatoryTargets: dedupeTrimmed(input.MandatoryTargets, false),
+		DependencyModes:  dedupeTrimmed(input.DependencyModes, true),
+		Source:           strings.TrimSpace(input.Source),
+		Confidence:       input.Confidence,
+	}
+	if out.PredicateMode == "" && len(out.MandatoryTargets) == 0 && len(out.DependencyModes) == 0 && out.Source == "" && out.Confidence == nil {
+		return nil
+	}
+	return out
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, value := range values {
+		if strings.TrimSpace(value) != "" {
+			return value
+		}
+	}
+	return ""
+}
+
+func dedupeTrimmed(values []string, lower bool) []string {
+	if len(values) == 0 {
+		return nil
+	}
+	seen := map[string]struct{}{}
+	out := make([]string, 0, len(values))
+	for _, value := range values {
+		trimmed := strings.TrimSpace(value)
+		if lower {
+			trimmed = strings.ToLower(trimmed)
+		}
+		if trimmed == "" {
+			continue
+		}
+		if _, exists := seen[trimmed]; exists {
+			continue
+		}
+		seen[trimmed] = struct{}{}
+		out = append(out, trimmed)
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
 }
 
 func cloneLabels(labels map[string]string) map[string]string {
@@ -274,11 +361,6 @@ func normalizePath(path string) string {
 		return path
 	}
 	return "/" + path
-}
-
-func edgeID(dependency catalogDependency) string {
-	kind := normalizeKind(dependency.Mode)
-	return fmt.Sprintf("%s|%s|%s|%t", strings.TrimSpace(dependency.From), strings.TrimSpace(dependency.To), kind, dependency.Blocking)
 }
 
 func exitf(format string, args ...any) {

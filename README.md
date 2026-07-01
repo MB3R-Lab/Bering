@@ -150,6 +150,8 @@ go run ./cmd/sheaft run \
   --seed 42
 ```
 
+For Sheaft `v1.0.0` stochastic-connectivity compatibility, use the canonical fixture checkpoint in [examples/compatibility/sheaft-v1](examples/compatibility/sheaft-v1/README.md). It pins Bering `v0.3.4` / schema line `1.1.0` and includes model and snapshot artifacts with reliability evidence, observed edge metadata, and immediate/eventual endpoint semantic hints.
+
 ## Published Artifacts
 
 ### Core model
@@ -157,18 +159,18 @@ go run ./cmd/sheaft run \
 - `name`: `io.mb3r.bering.model`
 - `version`: `1.1.0`
 - `uri`: `https://mb3r-lab.github.io/Bering/schema/model/v1.1.0/model.schema.json`
-- `digest`: `sha256:bc9a60736c9e6bda9599243fd68f293b88f42ade65321d8267369a5c3214779a`
+- `digest`: `sha256:76b2b22422b6e64f437fb144a02b6bd4629bf510cec5479a8496c41eb25fc406`
 
-This is the stable topology artifact intended for file-based consumers and tools such as Sheaft. It now carries first-class edge ids, typed service placement and shared-fate metadata, typed edge resilience policy, optional observed edge timing summaries, policy scope metadata, and richer endpoint fidelity.
+This is the stable topology artifact intended for file-based consumers and tools such as Sheaft. It now carries first-class operation-aware edge ids, typed service placement and shared-fate metadata, optional service/placement/edge reliability evidence, typed edge resilience policy, optional observed edge timing summaries, policy scope metadata, richer endpoint fidelity, and endpoint semantic hints.
 
 ### Snapshot envelope
 
 - `name`: `io.mb3r.bering.snapshot`
 - `version`: `1.1.0`
 - `uri`: `https://mb3r-lab.github.io/Bering/schema/snapshot/v1.1.0/snapshot.schema.json`
-- `digest`: `sha256:53b127608b2aaa4fabb352b998cd6b2c5ed558764729a09abea56f4f9b40fa01`
+- `digest`: `sha256:c669dbc483ca8cfe1f58f994b6041a6767fdaa3df4fb5ae27d8253607b3f5cb5`
 
-This wraps the model with runtime window metadata, ingest counts, coverage, provenance, topology diffs, and discovery-side copies of the same typed placement, resilience, and observed edge metadata.
+This wraps the model with runtime window metadata, ingest counts, coverage, provenance, topology diffs, and discovery-side copies of the same typed placement, reliability, resilience, observed edge, and endpoint metadata.
 
 ### Signal quality report
 
@@ -188,9 +190,9 @@ These runtime views do not change the public `io.mb3r.bering.model@1.1.0` or `io
 
 ### Population Today
 
-- `topology_api` input and discovery overlays are the first-class write surfaces for typed `placements`, `shared_resource_refs`, `resilience`, `observed`, `policy_scope`, and richer endpoint metadata.
-- Trace discovery can derive stable edge ids, endpoint `method` and `path`, and `observed.latency_ms.*` summaries when span timing exists.
-- Generic trace ingestion does not currently infer timeout policies, retry policies, circuit-breaker settings, placement groups, or shared resource references. Those remain out of scope for Bering trace inference today.
+- `topology_api` input and discovery overlays are the first-class write surfaces for typed `placements`, `shared_resource_refs`, `reliability`, `resilience`, `observed`, `policy_scope`, and richer endpoint metadata, including `metadata.semantics`.
+- Trace discovery can derive operation-aware stable edge ids, endpoint `method` and `path`, and `observed.latency_ms.*` summaries when span timing exists.
+- Generic trace ingestion does not currently infer timeout policies, retry policies, circuit-breaker settings, placement groups, shared resource references, or endpoint success semantics. Those remain out of scope for Bering trace inference today.
 
 ## Release Packaging
 
@@ -217,6 +219,7 @@ Release outputs include:
 - Topology input: [examples/topology/topology-api.sample.yaml](examples/topology/topology-api.sample.yaml)
 - Batch outputs: [examples/outputs/bering-model.normalized.sample.json](examples/outputs/bering-model.normalized.sample.json), [examples/outputs/bering-snapshot.normalized.sample.json](examples/outputs/bering-snapshot.normalized.sample.json), [examples/outputs/bering-model.topology-api.sample.json](examples/outputs/bering-model.topology-api.sample.json), [examples/outputs/bering-snapshot.topology-api.sample.json](examples/outputs/bering-snapshot.topology-api.sample.json)
 - Adapter-generated outputs: [examples/outputs/bering-model.service-catalog-adapter.sample.json](examples/outputs/bering-model.service-catalog-adapter.sample.json), [examples/outputs/bering-snapshot.service-catalog-adapter.sample.json](examples/outputs/bering-snapshot.service-catalog-adapter.sample.json)
+- Sheaft v1 compatibility fixtures: [examples/compatibility/sheaft-v1](examples/compatibility/sheaft-v1/README.md)
 - Runtime config: [configs/serve.sample.yaml](configs/serve.sample.yaml)
 - Discovery overlay: [configs/discovery.overlay.sample.yaml](configs/discovery.overlay.sample.yaml)
 - Enrichment onboarding: [examples/enrichment](examples/enrichment/README.md)

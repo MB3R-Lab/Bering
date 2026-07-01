@@ -2,6 +2,10 @@ name: sample-discovery-overlay
 services:
   - id: checkout
     replicas: 3
+    reliability:
+      live_probability: 0.985
+      source: sre-calibration
+      confidence: 0.80
     failure_eligible: true
     labels:
       team: commerce
@@ -10,6 +14,10 @@ services:
       - slo:checkout-latency
     placements:
       - replicas: 2
+        reliability:
+          live_probability: 0.990
+          source: az-history
+          confidence: 0.75
         labels:
           region: us-east-1
           az: us-east-1a
@@ -30,7 +38,16 @@ edges:
     to: checkout
     kind: sync
     blocking: true
+    identity:
+      protocol: http
+      operation: POST
+      route: /process
+      span_kind: server
     weight: 0.8
+    reliability:
+      live_probability: 0.995
+      source: dependency-slo
+      confidence: 0.85
     labels:
       flow: checkout
     resilience:
@@ -51,10 +68,27 @@ edges:
 endpoints:
   - id: checkout:POST /process
     predicate_ref: catalog.checkout.success
+    semantics:
+      predicate_mode: eventual_completion
+      mandatory_targets:
+        - payment
+      dependency_modes:
+        - sync
+        - async
+      source: overlay
+      confidence: 0.8
     weight: 0.6
     labels:
       workflow: purchase
   - id: frontend:GET /checkout
+    semantics:
+      predicate_mode: immediate_response
+      mandatory_targets:
+        - checkout
+      dependency_modes:
+        - sync
+      source: overlay
+      confidence: 0.9
     weight: 0.4
     labels:
       workflow: browse

@@ -49,6 +49,7 @@
       "mode": "sync",
       "blocking": true,
       "weight": 0.85,
+      "protocol": "http",
       "request_timeout_ms": 2000,
       "retry_max_attempts": 3,
       "circuit_breaker_enabled": true,
@@ -61,7 +62,9 @@
       "to": "payment",
       "mode": "async",
       "blocking": false,
-      "weight": 0.35
+      "weight": 0.35,
+      "protocol": "kafka",
+      "topic": "payment-events"
     }
   ],
   "endpoints": [
@@ -70,6 +73,13 @@
       "method": "GET",
       "path": "/checkout",
       "predicate_ref": "catalog.frontend.checkout.success",
+      "semantics": {
+        "predicate_mode": "immediate_response",
+        "mandatory_targets": ["checkout"],
+        "dependency_modes": ["sync"],
+        "source": "service-catalog",
+        "confidence": 0.9
+      },
       "weight": 0.7
     },
     {
@@ -77,6 +87,13 @@
       "method": "POST",
       "path": "/process",
       "predicate_ref": "catalog.checkout.process.success",
+      "semantics": {
+        "predicate_mode": "eventual_completion",
+        "mandatory_targets": ["payment"],
+        "dependency_modes": ["sync", "async"],
+        "source": "service-catalog",
+        "confidence": 0.8
+      },
       "weight": 0.6
     }
   ]

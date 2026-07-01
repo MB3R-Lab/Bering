@@ -155,6 +155,10 @@ func parseNormalized(doc any) ([]Span, bool) {
 		mergeNonEmpty(attrs, "http.target", firstNonEmptyString(obj["http.target"], obj["target"]))
 		mergeNonEmpty(attrs, "url.path", firstNonEmptyString(obj["url.path"], obj["path"]))
 		mergeNonEmpty(attrs, "messaging.system", firstNonEmptyString(obj["messaging.system"]))
+		mergeNonEmpty(attrs, "messaging.destination", firstNonEmptyString(obj["messaging.destination"], obj["messaging.destination.name"], obj["topic"]))
+		mergeNonEmpty(attrs, "messaging.operation", firstNonEmptyString(obj["messaging.operation"], obj["operation"]))
+		mergeNonEmpty(attrs, "rpc.system", firstNonEmptyString(obj["rpc.system"], obj["protocol"]))
+		mergeNonEmpty(attrs, "rpc.method", firstNonEmptyString(obj["rpc.method"]))
 
 		out = append(out, Span{
 			TraceID:      firstNonEmptyString(obj["trace_id"], obj["traceId"]),

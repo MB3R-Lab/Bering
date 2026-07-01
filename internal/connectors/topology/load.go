@@ -41,44 +41,48 @@ type CommonMetadata struct {
 }
 
 type Service struct {
-	ID                 string            `json:"id" yaml:"id"`
-	Name               string            `json:"name" yaml:"name"`
-	Replicas           *int              `json:"replicas" yaml:"replicas"`
-	FirstSeen          string            `json:"first_seen" yaml:"first_seen"`
-	LastSeen           string            `json:"last_seen" yaml:"last_seen"`
-	FailureEligible    *bool             `json:"failure_eligible" yaml:"failure_eligible"`
-	Placements         []model.Placement `json:"placements" yaml:"placements"`
-	SharedResourceRefs []string          `json:"shared_resource_refs" yaml:"shared_resource_refs"`
-	Support            Support           `json:"support" yaml:"support"`
+	ID                 string                     `json:"id" yaml:"id"`
+	Name               string                     `json:"name" yaml:"name"`
+	Replicas           *int                       `json:"replicas" yaml:"replicas"`
+	FirstSeen          string                     `json:"first_seen" yaml:"first_seen"`
+	LastSeen           string                     `json:"last_seen" yaml:"last_seen"`
+	Reliability        *model.ReliabilityEvidence `json:"reliability" yaml:"reliability"`
+	FailureEligible    *bool                      `json:"failure_eligible" yaml:"failure_eligible"`
+	Placements         []model.Placement          `json:"placements" yaml:"placements"`
+	SharedResourceRefs []string                   `json:"shared_resource_refs" yaml:"shared_resource_refs"`
+	Support            Support                    `json:"support" yaml:"support"`
 	CommonMetadata     `json:",inline" yaml:",inline"`
 }
 
 type Edge struct {
-	ID             string                  `json:"id" yaml:"id"`
-	From           string                  `json:"from" yaml:"from"`
-	To             string                  `json:"to" yaml:"to"`
-	Kind           string                  `json:"kind" yaml:"kind"`
-	Blocking       *bool                   `json:"blocking" yaml:"blocking"`
-	FirstSeen      string                  `json:"first_seen" yaml:"first_seen"`
-	LastSeen       string                  `json:"last_seen" yaml:"last_seen"`
-	Weight         *float64                `json:"weight" yaml:"weight"`
-	Resilience     *model.ResiliencePolicy `json:"resilience" yaml:"resilience"`
-	Observed       *model.ObservedEdge     `json:"observed" yaml:"observed"`
-	PolicyScope    *model.PolicyScope      `json:"policy_scope" yaml:"policy_scope"`
-	Support        Support                 `json:"support" yaml:"support"`
+	ID             string                     `json:"id" yaml:"id"`
+	From           string                     `json:"from" yaml:"from"`
+	To             string                     `json:"to" yaml:"to"`
+	Kind           string                     `json:"kind" yaml:"kind"`
+	Blocking       *bool                      `json:"blocking" yaml:"blocking"`
+	Identity       *model.EdgeIdentity        `json:"identity" yaml:"identity"`
+	FirstSeen      string                     `json:"first_seen" yaml:"first_seen"`
+	LastSeen       string                     `json:"last_seen" yaml:"last_seen"`
+	Weight         *float64                   `json:"weight" yaml:"weight"`
+	Reliability    *model.ReliabilityEvidence `json:"reliability" yaml:"reliability"`
+	Resilience     *model.ResiliencePolicy    `json:"resilience" yaml:"resilience"`
+	Observed       *model.ObservedEdge        `json:"observed" yaml:"observed"`
+	PolicyScope    *model.PolicyScope         `json:"policy_scope" yaml:"policy_scope"`
+	Support        Support                    `json:"support" yaml:"support"`
 	CommonMetadata `json:",inline" yaml:",inline"`
 }
 
 type Endpoint struct {
-	ID             string   `json:"id" yaml:"id"`
-	EntryService   string   `json:"entry_service" yaml:"entry_service"`
-	Method         string   `json:"method" yaml:"method"`
-	Path           string   `json:"path" yaml:"path"`
-	PredicateRef   string   `json:"predicate_ref" yaml:"predicate_ref"`
-	FirstSeen      string   `json:"first_seen" yaml:"first_seen"`
-	LastSeen       string   `json:"last_seen" yaml:"last_seen"`
-	Weight         *float64 `json:"weight" yaml:"weight"`
-	Support        Support  `json:"support" yaml:"support"`
+	ID             string                   `json:"id" yaml:"id"`
+	EntryService   string                   `json:"entry_service" yaml:"entry_service"`
+	Method         string                   `json:"method" yaml:"method"`
+	Path           string                   `json:"path" yaml:"path"`
+	PredicateRef   string                   `json:"predicate_ref" yaml:"predicate_ref"`
+	Semantics      *model.EndpointSemantics `json:"semantics" yaml:"semantics"`
+	FirstSeen      string                   `json:"first_seen" yaml:"first_seen"`
+	LastSeen       string                   `json:"last_seen" yaml:"last_seen"`
+	Weight         *float64                 `json:"weight" yaml:"weight"`
+	Support        Support                  `json:"support" yaml:"support"`
 	CommonMetadata `json:",inline" yaml:",inline"`
 }
 
@@ -152,6 +156,9 @@ func (d *Document) Normalize() error {
 		if err := validateSeenRange(item.FirstSeen, item.LastSeen); err != nil {
 			return fmt.Errorf("service %q seen range: %w", item.ID, err)
 		}
+		if item.Reliability != nil {
+			item.Reliability.Normalize()
+		}
 		normalizeCommonMetadata(&item.CommonMetadata)
 		normalizePlacements(item.Placements)
 		item.SharedResourceRefs = dedupeNonEmpty(item.SharedResourceRefs)
@@ -184,9 +191,12 @@ func (d *Document) Normalize() error {
 			blocking := item.Kind == "sync"
 			item.Blocking = &blocking
 		}
+		if item.Identity != nil {
+			item.Identity.Normalize()
+		}
 		item.ID = strings.TrimSpace(item.ID)
 		if item.ID == "" {
-			item.ID = fmt.Sprintf("%s|%s|%s|%t", item.From, item.To, item.Kind, *item.Blocking)
+			item.ID = model.EdgeIDWithIdentity(item.From, item.To, model.EdgeKind(item.Kind), *item.Blocking, item.Identity)
 		}
 		if _, exists := edgeIDs[item.ID]; exists {
 			return fmt.Errorf("duplicate edge id: %s", item.ID)
@@ -197,6 +207,9 @@ func (d *Document) Normalize() error {
 		}
 		if err := validateSeenRange(item.FirstSeen, item.LastSeen); err != nil {
 			return fmt.Errorf("edge %q seen range: %w", item.ID, err)
+		}
+		if item.Reliability != nil {
+			item.Reliability.Normalize()
 		}
 		normalizeCommonMetadata(&item.CommonMetadata)
 		if item.Resilience != nil {
@@ -242,6 +255,9 @@ func (d *Document) Normalize() error {
 		}
 		if err := validateSeenRange(item.FirstSeen, item.LastSeen); err != nil {
 			return fmt.Errorf("endpoint %q seen range: %w", item.ID, err)
+		}
+		if item.Semantics != nil {
+			item.Semantics.Normalize()
 		}
 		normalizeCommonMetadata(&item.CommonMetadata)
 	}
@@ -303,7 +319,7 @@ func normalizeCommonMetadata(meta *CommonMetadata) {
 
 func normalizePlacements(items []model.Placement) {
 	for i := range items {
-		items[i].Labels = trimStringMap(items[i].Labels)
+		items[i].Normalize()
 	}
 }
 

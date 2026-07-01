@@ -61,11 +61,28 @@ edges:
 endpoints:
   - id: frontend:GET /checkout
     predicate_ref: catalog.frontend.checkout.success
+    semantics:
+      predicate_mode: immediate_response
+      mandatory_targets:
+        - checkout
+      dependency_modes:
+        - sync
+      source: overlay
+      confidence: 0.9
     weight: 0.7
     labels:
       workflow: purchase
   - id: checkout:POST /process
     predicate_ref: catalog.checkout.process.success
+    semantics:
+      predicate_mode: eventual_completion
+      mandatory_targets:
+        - payment
+      dependency_modes:
+        - sync
+        - async
+      source: overlay
+      confidence: 0.8
     weight: 0.6
     labels:
       workflow: purchase

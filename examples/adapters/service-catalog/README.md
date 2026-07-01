@@ -24,4 +24,4 @@ go run ./cmd/bering discover \
 
 The generated model, snapshot, and signal-quality sidecars are checked in under `examples/outputs/`.
 
-The adapter is intentionally plain Go and has no service-catalog dependency. Real adapters should map their source-specific concepts into the same `topology_api` fields shown here: services, placements, shared resources, dependencies, resilience policy, policy scope, and endpoints.
+The adapter is intentionally plain Go and has no service-catalog dependency. Real adapters should map their source-specific concepts into the same `topology_api` fields shown here: services, placements, shared resources, dependencies, resilience policy, policy scope, endpoints, and endpoint semantic hints.

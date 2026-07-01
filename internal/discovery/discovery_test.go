@@ -67,6 +67,59 @@ func TestBuild_BasicInference(t *testing.T) {
 	}
 }
 
+func TestDiscover_DistinguishesSameServicePairByOperationIdentity(t *testing.T) {
+	t.Parallel()
+
+	spans := []traces.Span{
+		{
+			TraceID: "t1", SpanID: "frontend-checkout", Service: "frontend", Name: "GET /checkout", Kind: "server",
+			Attributes: map[string]any{"http.request.method": "GET", "http.route": "/checkout"},
+		},
+		{
+			TraceID: "t1", SpanID: "checkout-process", ParentSpanID: "frontend-checkout", Service: "checkout", Kind: "server",
+			Attributes: map[string]any{"http.request.method": "POST", "http.route": "/process"},
+		},
+		{
+			TraceID: "t2", SpanID: "frontend-quote", Service: "frontend", Name: "GET /quote", Kind: "server",
+			Attributes: map[string]any{"http.request.method": "GET", "http.route": "/quote"},
+		},
+		{
+			TraceID: "t2", SpanID: "checkout-quote", ParentSpanID: "frontend-quote", Service: "checkout", Kind: "server",
+			Attributes: map[string]any{"http.request.method": "GET", "http.route": "/quote"},
+		},
+	}
+
+	result, err := Discover(spans, Options{
+		SourceRef:    BuildSourceRef("examples/traces/normalized.sample.json"),
+		DiscoveredAt: "2026-07-01T00:00:00Z",
+	})
+	if err != nil {
+		t.Fatalf("Discover returned error: %v", err)
+	}
+
+	if got, want := len(result.Model.Edges), 2; got != want {
+		t.Fatalf("edge count mismatch: got=%d want=%d edges=%+v", got, want, result.Model.Edges)
+	}
+	seen := map[string]model.Edge{}
+	for _, edge := range result.Model.Edges {
+		seen[edge.ID] = edge
+		if edge.Identity == nil {
+			t.Fatalf("expected operation-aware edge identity on %s", edge.ID)
+		}
+		if edge.Identity.Protocol != "http" {
+			t.Fatalf("edge %s protocol mismatch: %+v", edge.ID, edge.Identity)
+		}
+	}
+	process := "frontend|checkout|sync|true|protocol=http|operation=POST|route=%2Fprocess|span_kind=server"
+	quote := "frontend|checkout|sync|true|protocol=http|operation=GET|route=%2Fquote|span_kind=server"
+	if _, ok := seen[process]; !ok {
+		t.Fatalf("expected process edge id %q, got %+v", process, seen)
+	}
+	if _, ok := seen[quote]; !ok {
+		t.Fatalf("expected quote edge id %q, got %+v", quote, seen)
+	}
+}
+
 func TestBuild_UnknownReplicaOverrideFails(t *testing.T) {
 	t.Parallel()
 

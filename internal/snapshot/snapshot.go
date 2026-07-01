@@ -111,6 +111,7 @@ type EdgeRecord struct {
 	To          string                  `json:"to"`
 	Kind        model.EdgeKind          `json:"kind"`
 	Blocking    bool                    `json:"blocking"`
+	Identity    *model.EdgeIdentity     `json:"identity,omitempty"`
 	Support     SupportSummary          `json:"support"`
 	FirstSeen   string                  `json:"first_seen,omitempty"`
 	LastSeen    string                  `json:"last_seen,omitempty"`
@@ -338,6 +339,12 @@ func (r *ServiceRecord) normalizeForOutput() {
 func (r *EdgeRecord) normalizeForOutput() {
 	if r == nil {
 		return
+	}
+	if r.Identity != nil {
+		r.Identity.Normalize()
+		if r.Identity.IsZero() {
+			r.Identity = nil
+		}
 	}
 	if r.Metadata != nil {
 		r.Metadata.Normalize()

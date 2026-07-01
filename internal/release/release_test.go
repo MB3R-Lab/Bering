@@ -1,7 +1,10 @@
 package release
 
 import (
+	"archive/tar"
+	"compress/gzip"
 	"encoding/json"
+	"io"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -75,6 +78,34 @@ func TestBuildContractsManifestIncludesPublishedContractHistory(t *testing.T) {
 	}
 	if got, want := manifest.Contracts[3].File, "schema/snapshot/v1.1.0/snapshot.schema.json"; got != want {
 		t.Fatalf("last contract file mismatch: got=%s want=%s", got, want)
+	}
+}
+
+func TestGenerateContractsPackIncludesSheaftV1Fixtures(t *testing.T) {
+	t.Parallel()
+
+	repoRoot := testRepoRoot(t)
+	distDir := filepath.Join(t.TempDir(), "dist")
+	_, archivePath, err := GenerateContractsPack(ContractsPackOptions{
+		RepoRoot:   repoRoot,
+		DistDir:    distDir,
+		AppVersion: testVersion,
+		BuildDate:  testBuildDate,
+	})
+	if err != nil {
+		t.Fatalf("generate contracts pack: %v", err)
+	}
+
+	entries := readTarGzEntries(t, archivePath)
+	for _, want := range []string{
+		"fixtures/sheaft-v1/README.md",
+		"fixtures/sheaft-v1/manifest.json",
+		"fixtures/sheaft-v1/bering-model.v1.sample.json",
+		"fixtures/sheaft-v1/bering-snapshot.v1.sample.json",
+	} {
+		if _, ok := entries[want]; !ok {
+			t.Fatalf("contracts pack missing %s", want)
+		}
 	}
 }
 
@@ -408,6 +439,36 @@ func testRepoRoot(t *testing.T) string {
 		t.Fatal("runtime.Caller failed")
 	}
 	return filepath.Clean(filepath.Join(filepath.Dir(filename), "..", ".."))
+}
+
+func readTarGzEntries(t *testing.T, path string) map[string]struct{} {
+	t.Helper()
+
+	file, err := os.Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer file.Close()
+
+	gz, err := gzip.NewReader(file)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer gz.Close()
+
+	tr := tar.NewReader(gz)
+	entries := map[string]struct{}{}
+	for {
+		header, err := tr.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			t.Fatal(err)
+		}
+		entries[header.Name] = struct{}{}
+	}
+	return entries
 }
 
 func mustBuildTime(t *testing.T) (ts time.Time) {

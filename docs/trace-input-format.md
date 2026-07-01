@@ -8,7 +8,7 @@ For explicit non-trace topology input, see [topology-input-format.md](topology-i
 
 - `bering discover` and `bering serve` emit `io.mb3r.bering.model@1.1.0` and `io.mb3r.bering.snapshot@1.1.0` by default.
 - `bering validate` still accepts preserved `1.0.0` artifacts.
-- Trace inputs can now populate observed edge latency summaries when span timing exists.
+- Trace inputs can now populate operation-aware edge identity and observed edge latency summaries when span timing exists.
 
 ## 1) Normalized spans JSON
 
@@ -88,10 +88,22 @@ Supported request shape:
 
 - services
 - edges
-- deterministic edge ids using `from|to|kind|blocking`
+- deterministic edge ids using `from|to|kind|blocking` plus stable identity discriminators when available
 - endpoint ids
 - endpoint `method`
 - endpoint `path`
+
+### Operation-aware edge identity
+
+For cross-service spans, Bering derives `edges[].identity` and includes it in the stable edge ID when the trace carries enough signal:
+
+- `identity.protocol`: `http`, `rpc.system`, or messaging system such as `kafka`
+- `identity.operation`: HTTP method, RPC method, or messaging operation
+- `identity.route`: HTTP route/path
+- `identity.topic`: messaging destination
+- `identity.span_kind`: child span kind such as `server`, `consumer`, or `producer`
+
+If no identity fields are present, the edge ID stays compatible with the legacy base form `from|to|kind|blocking`.
 
 ### Edge kind and blocking hints
 
@@ -101,6 +113,8 @@ Async edge detection uses:
 - `messaging.system`
 - `messaging.destination`
 - `messaging.operation`
+
+These fields also populate edge identity for async dependencies when available.
 
 ### Observed edge timing summary
 
@@ -123,6 +137,7 @@ Generic trace ingestion does not currently infer:
 - circuit-breaker limits
 - placement groups
 - shared resource references
+- endpoint `metadata.semantics`
 
 Populate those fields through `topology_api` input or discovery overlays instead.
 
@@ -134,11 +149,15 @@ Populate those fields through `topology_api` input or discovery overlays instead
 - `http.route`, `url.path`, `http.target`
 - span-name fallback such as `GET /checkout`
 
+These fields populate edge `identity.operation` and `identity.route` for cross-service HTTP dependencies.
+
 ### Messaging and async inference
 
 - `messaging.system`
 - `messaging.destination`
 - `messaging.operation`
+
+These fields populate edge `identity.protocol`, `identity.topic`, and `identity.operation` for async dependencies.
 
 ## Input mode
 

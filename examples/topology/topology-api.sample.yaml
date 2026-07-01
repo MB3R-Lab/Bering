@@ -14,11 +14,19 @@ services:
       team: web
   - id: checkout
     replicas: 3
+    reliability:
+      live_probability: 0.985
+      source: sre-calibration
+      confidence: 0.80
     failure_eligible: true
     labels:
       team: commerce
     placements:
       - replicas: 2
+        reliability:
+          live_probability: 0.990
+          source: az-history
+          confidence: 0.75
         labels:
           region: us-east-1
           az: us-east-1a
@@ -36,8 +44,15 @@ edges:
     to: checkout
     kind: sync
     blocking: true
-    id: frontend|checkout|sync|true
+    identity:
+      protocol: http
+      operation: GET
+      route: /checkout
     weight: 0.9
+    reliability:
+      live_probability: 0.995
+      source: dependency-slo
+      confidence: 0.85
     resilience:
       request_timeout_ms: 2000
       retry:
@@ -68,12 +83,34 @@ edges:
   - from: checkout
     to: payment
     kind: async
+    identity:
+      protocol: kafka
+      topic: payment-events
+      span_kind: producer
 endpoints:
   - entry_service: frontend
     method: GET
     path: checkout
     predicate_ref: catalog.frontend.checkout.success
+    semantics:
+      predicate_mode: immediate_response
+      mandatory_targets:
+        - checkout
+      dependency_modes:
+        - sync
+      source: service-catalog
+      confidence: 0.9
   - entry_service: checkout
     method: POST
     path: /process
+    predicate_ref: catalog.checkout.process.eventual
+    semantics:
+      predicate_mode: eventual_completion
+      mandatory_targets:
+        - payment
+      dependency_modes:
+        - sync
+        - async
+      source: service-catalog
+      confidence: 0.8
     weight: 0.6
