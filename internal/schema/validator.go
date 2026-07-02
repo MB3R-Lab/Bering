@@ -13,7 +13,7 @@ import (
 	jsonschema "github.com/santhosh-tekuri/jsonschema/v5"
 )
 
-//go:embed schema/model/v1.0.0/model.schema.json schema/model/v1.1.0/model.schema.json schema/model/v1.2.0/model.schema.json schema/model/v1.3.0/model.schema.json schema/snapshot/v1.0.0/snapshot.schema.json schema/snapshot/v1.1.0/snapshot.schema.json schema/snapshot/v1.2.0/snapshot.schema.json schema/snapshot/v1.3.0/snapshot.schema.json
+//go:embed schema/model/v1.3.0/model.schema.json schema/snapshot/v1.3.0/snapshot.schema.json
 var embeddedSchemas embed.FS
 
 type compiledSchemaEntry struct {
@@ -23,13 +23,7 @@ type compiledSchemaEntry struct {
 }
 
 var compiledSchemaCache = map[string]*compiledSchemaEntry{
-	schemaKey(ModelContractName, ContractVersionV1_0_0):    {},
-	schemaKey(ModelContractName, ContractVersionV1_1_0):    {},
-	schemaKey(ModelContractName, ContractVersionV1_2_0):    {},
 	schemaKey(ModelContractName, ContractVersionV1_3_0):    {},
-	schemaKey(SnapshotContractName, ContractVersionV1_0_0): {},
-	schemaKey(SnapshotContractName, ContractVersionV1_1_0): {},
-	schemaKey(SnapshotContractName, ContractVersionV1_2_0): {},
 	schemaKey(SnapshotContractName, ContractVersionV1_3_0): {},
 }
 

@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Breaking
+
+- Retired the pre-v1 preview Bering contract lines `io.mb3r.bering.model@1.0.0`, `io.mb3r.bering.snapshot@1.0.0`, `io.mb3r.bering.model@1.1.0`, `io.mb3r.bering.snapshot@1.1.0`, `io.mb3r.bering.model@1.2.0`, and `io.mb3r.bering.snapshot@1.2.0`. Bering v1 validates and publishes only the strict `1.3.0` model and snapshot contracts; regenerate old artifacts before using them with Bering v1 or Sheaft v1.
+
 ## v0.3.4
 
 Patch release for the post-`v0.3.3` capability backlog.

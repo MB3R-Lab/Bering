@@ -45,7 +45,7 @@ func sampleEnvelope(windowEnd string, services []ServiceRecord) Envelope {
 		Services:  []model.Service{{ID: "frontend", Name: "frontend", Replicas: services[0].Replicas}},
 		Edges:     []model.Edge{},
 		Endpoints: []model.Endpoint{{ID: "frontend:GET /health", EntryService: "frontend", SuccessPredicateRef: "frontend:GET /health"}},
-		Metadata:  model.Metadata{SourceType: "bering", SourceRef: "bering://test", DiscoveredAt: windowEnd, Confidence: 0.7, Schema: model.SchemaRef{Name: "io.mb3r.bering.model", Version: "1.0.0", URI: "https://mb3r-lab.github.io/Bering/schema/model/v1.0.0/model.schema.json", Digest: "sha256:272277c093f37580adcd2dded225bd37c86539d642d7910baad7e4228227d1a7"}},
+		Metadata:  model.Metadata{SourceType: "bering", SourceRef: "bering://test", DiscoveredAt: windowEnd, Confidence: 0.7, Schema: model.SchemaRef{Name: "io.mb3r.bering.model", Version: "1.3.0", URI: "https://mb3r-lab.github.io/Bering/schema/model/v1.3.0/model.schema.json", Digest: "sha256:2aa8a3550a25dc626ba6d2f5833569efca2f382b9e5c9c3405be93695d7d48ae"}},
 	}
 	mdl.SortDeterministic()
 	topology, _ := TopologyDigest(mdl)
@@ -70,7 +70,7 @@ func sampleEnvelope(windowEnd string, services []ServiceRecord) Envelope {
 			SourceRef:  "bering://serve",
 			EmittedAt:  end.Format(time.RFC3339),
 			Confidence: 0.7,
-			Schema:     model.SchemaRef{Name: "io.mb3r.bering.snapshot", Version: "1.0.0", URI: "https://mb3r-lab.github.io/Bering/schema/snapshot/v1.0.0/snapshot.schema.json", Digest: "sha256:87e4e887ed4a37b72f6136e268b73552eccb92941c4de2c6f3a514dd066ea972"},
+			Schema:     model.SchemaRef{Name: "io.mb3r.bering.snapshot", Version: "1.3.0", URI: "https://mb3r-lab.github.io/Bering/schema/snapshot/v1.3.0/snapshot.schema.json", Digest: "sha256:cb778e5b0866d9ce5cfe7f23b8d98a339603593a0247cccd9cddaf05c7ae4bb1"},
 		},
 	}
 }

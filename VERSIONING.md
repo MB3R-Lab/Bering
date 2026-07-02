@@ -4,15 +4,12 @@ Bering separates product release versioning from public schema contract versioni
 
 The current product release is recorded in GitHub Releases and in that release's generated `release-manifest.json` asset. This file describes the versioning rules rather than serving as the mutable latest-release ledger.
 
-The current schema publication line is `schema-v1.1.0`. Default emitted schema contracts are:
+The current schema publication line is `schema-v1.3.0`. Default emitted and validated schema contracts are:
 
-- `io.mb3r.bering.model@1.1.0`
-- `io.mb3r.bering.snapshot@1.1.0`
+- `io.mb3r.bering.model@1.3.0`
+- `io.mb3r.bering.snapshot@1.3.0`
 
-Previously published and still valid contracts are:
-
-- `io.mb3r.bering.model@1.0.0`
-- `io.mb3r.bering.snapshot@1.0.0`
+Pre-v1 preview contract lines `1.0.0`, `1.1.0`, and `1.2.0` were retired before product `v1.0.0`. They are not part of the current release surface.
 
 Do not infer a schema contract version from the product release tag.
 
@@ -45,10 +42,10 @@ Each schema contract has its own version, URI, and digest. Those values are inde
 
 Examples:
 
-- Bering `v0.3.x` emits `io.mb3r.bering.model@1.1.0`
-- Bering `v0.3.x` emits `io.mb3r.bering.snapshot@1.1.0`
-- `bering validate` still accepts `1.0.0` artifacts without mutation or migration
-- `schema-v1.1.0` publishes the schema files to GitHub Pages; it is not a product release tag
+- Bering `v1.0.0` emits `io.mb3r.bering.model@1.3.0`
+- Bering `v1.0.0` emits `io.mb3r.bering.snapshot@1.3.0`
+- `bering validate` accepts the current `1.3.0` model and snapshot contracts
+- `schema-v1.3.0` publishes the schema files to GitHub Pages; it is not a product release tag
 
 Rules:
 
@@ -58,6 +55,7 @@ Rules:
 - Non-breaking schema additions require a new contract minor version.
 - Pure fixes that do not change contract meaning require a new contract patch version.
 - This repository currently keeps the model and snapshot contracts on the same schema version line for publication and default emission.
+- Pre-v1 preview contract lines may be retired only with an explicit breaking-change release note before the product `v1.0.0` release.
 
 ## Image Tags
 
@@ -102,5 +100,6 @@ Breaking changes to public schema contracts are handled by the contract version 
 Rules:
 
 - A breaking schema change increments that contract's major version.
-- Existing published contract versions remain valid and immutable.
-- If Bering changes which schema version it emits by default, call that out explicitly in release notes and keep older published contract versions available to validators and pinned consumers.
+- After product `v1.0.0`, existing published contract versions remain valid and immutable.
+- If Bering changes which schema version it emits by default after product `v1.0.0`, call that out explicitly in release notes and keep older published contract versions available to validators and pinned consumers.
+- The `v1.0.0` release notes must call out the pre-v1 removal of preview contract lines `1.0.0`, `1.1.0`, and `1.2.0`.

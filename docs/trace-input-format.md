@@ -7,7 +7,7 @@ For explicit non-trace topology input, see [topology-input-format.md](topology-i
 ## Contract line
 
 - `bering discover` and `bering serve` emit `io.mb3r.bering.model@1.3.0` and `io.mb3r.bering.snapshot@1.3.0` by default.
-- `bering validate` still accepts preserved `1.0.0` artifacts.
+- `bering validate` accepts only current strict `1.3.0` artifacts.
 - Trace inputs can now populate operation-aware edge identity and observed edge latency summaries when span timing exists.
 
 ## 1) Normalized spans JSON

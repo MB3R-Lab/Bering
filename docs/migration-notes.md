@@ -5,10 +5,10 @@
 Existing file-based workflows continue to work, but the default emitted contract line has advanced.
 
 - `bering discover` now writes `io.mb3r.bering.model@1.3.0` by default
-- `bering validate` validates `1.0.0`, `1.1.0`, `1.2.0`, and `1.3.0` model and snapshot artifacts
+- `bering validate` validates only `1.3.0` model and snapshot artifacts
 - deterministic output for identical inputs and flags is preserved
 
-If you are pinned to `1.0.0`, keep consuming the already-published `1.0.0` artifacts you have. Bering does not mutate those contracts in place.
+Breaking v1 cleanup: pre-v1 preview contract lines `1.0.0`, `1.1.0`, and `1.2.0` are no longer part of the current release surface. Regenerate artifacts on `1.3.0` before using them with Bering v1 or Sheaft v1.
 
 ## New optional capabilities
 
@@ -37,8 +37,8 @@ Downstream model readers still do not need to understand the snapshot envelope u
 
 Recommended migration path for downstream consumers:
 
-1. keep consuming `io.mb3r.bering.model@1.0.0` unchanged if you are pinned there
-2. move to `io.mb3r.bering.model@1.3.0` when you need the typed placement, reliability, operation-aware edge identity, resilience, observed-edge, and endpoint-fidelity fields
+1. regenerate artifacts as `io.mb3r.bering.model@1.3.0` / `io.mb3r.bering.snapshot@1.3.0`
+2. use the typed placement, reliability, operation-aware edge identity, resilience, observed-edge, and endpoint-fidelity fields from that strict line
 3. add optional snapshot-envelope parsing only when runtime observability features are needed
 4. treat overlay-derived metadata as published discovery context, not execution policy
 

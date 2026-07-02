@@ -80,7 +80,7 @@ func TestValidateJSON_LatestRejectsZeroReplicas(t *testing.T) {
 	}
 }
 
-func TestValidateArtifactJSON_PreservesPublishedV1_0_0(t *testing.T) {
+func TestValidateArtifactJSON_RejectsRetiredV1_0_0(t *testing.T) {
 	t.Parallel()
 
 	raw := []byte(`{
@@ -101,8 +101,8 @@ func TestValidateArtifactJSON_PreservesPublishedV1_0_0(t *testing.T) {
   }
 }`)
 
-	if err := ValidateArtifactJSON(raw); err != nil {
-		t.Fatalf("ValidateArtifactJSON returned error for v1.0.0 model: %v", err)
+	if err := ValidateArtifactJSON(raw); err == nil {
+		t.Fatal("expected retired v1.0.0 model contract to be rejected")
 	}
 }
 
@@ -189,7 +189,7 @@ func TestValidateSnapshotJSON_SuccessLatest(t *testing.T) {
 	}
 }
 
-func TestValidateSnapshotArtifactJSON_PreservesPublishedV1_0_0(t *testing.T) {
+func TestValidateSnapshotArtifactJSON_RejectsRetiredV1_0_0(t *testing.T) {
 	t.Parallel()
 
 	raw := []byte(`{
@@ -238,7 +238,7 @@ func TestValidateSnapshotArtifactJSON_PreservesPublishedV1_0_0(t *testing.T) {
   }
 }`)
 
-	if err := ValidateArtifactJSON(raw); err != nil {
-		t.Fatalf("ValidateArtifactJSON returned error for v1.0.0 snapshot: %v", err)
+	if err := ValidateArtifactJSON(raw); err == nil {
+		t.Fatal("expected retired v1.0.0 snapshot contract to be rejected")
 	}
 }

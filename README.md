@@ -6,7 +6,7 @@
 [![publish-schema](https://img.shields.io/github/actions/workflow/status/MB3R-Lab/Bering/publish-schema.yml?branch=main&label=publish-schema)](https://github.com/MB3R-Lab/Bering/actions/workflows/publish-schema.yml)
 [![Go version](https://img.shields.io/github/go-mod/go-version/MB3R-Lab/Bering)](https://github.com/MB3R-Lab/Bering/blob/main/go.mod)
 [![Current release](https://img.shields.io/badge/current-v1.0.0-blue)](https://github.com/MB3R-Lab/Bering/releases/tag/v1.0.0)
-[![Public schema](https://img.shields.io/badge/public_schema-1.0%20%7C%201.1%20%7C%201.2-blue)](https://github.com/MB3R-Lab/Bering/blob/main/VERSIONING.md)
+[![Public schema](https://img.shields.io/badge/public_schema-1.3-blue)](https://github.com/MB3R-Lab/Bering/blob/main/VERSIONING.md)
 
 ## Related MB3R repositories
 
@@ -15,6 +15,8 @@ Bering publishes topology and snapshot artifacts for downstream consumers. For e
 `Bering v1.0.0` is the current product release of Bering: a discovery and publishing layer for service topology and endpoint contracts.
 
 Bering turns trace input or explicit topology input into stable JSON artifacts, and it can also run as a long-lived runtime service that emits rolling discovery snapshots plus conservative reconciliation views for trace gaps.
+
+The trace-discovered topology model and its downstream adequacy boundary are described in the preprint [When Is a Trace-Discovered Topological Model Enough?](https://www.alphaxiv.org/abs/2607.00740).
 
 ## What Bering Does
 
@@ -37,14 +39,9 @@ Do not treat the product release tag as the schema contract version.
 - Default emitted schema contracts now are:
   - `io.mb3r.bering.model@1.3.0`
   - `io.mb3r.bering.snapshot@1.3.0`
-- Previously published contracts remain valid and immutable:
-  - `io.mb3r.bering.model@1.0.0`
-  - `io.mb3r.bering.snapshot@1.0.0`
-  - `io.mb3r.bering.model@1.1.0`
-  - `io.mb3r.bering.snapshot@1.1.0`
 - Schema publishing tag remains separate: `schema-v1.3.0`
 
-`bering validate` accepts preserved `1.0.0`, `1.1.0`, and `1.2.0` artifacts plus the current `1.3.0` artifacts.
+Breaking v1 cleanup: `bering validate` accepts only current strict `1.3.0` model and snapshot artifacts. Pre-v1 preview schema lines were removed from the current release surface before public adoption.
 
 ## Installation
 

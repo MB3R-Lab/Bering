@@ -62,7 +62,7 @@ func TestGenerateAndValidateRelease(t *testing.T) {
 	}
 }
 
-func TestBuildContractsManifestIncludesPublishedContractHistory(t *testing.T) {
+func TestBuildContractsManifestIncludesCurrentContracts(t *testing.T) {
 	t.Parallel()
 
 	repoRoot := testRepoRoot(t)
@@ -70,10 +70,10 @@ func TestBuildContractsManifestIncludesPublishedContractHistory(t *testing.T) {
 	if err != nil {
 		t.Fatalf("BuildContractsManifest returned error: %v", err)
 	}
-	if got, want := len(manifest.Contracts), 8; got != want {
+	if got, want := len(manifest.Contracts), 2; got != want {
 		t.Fatalf("contract count mismatch: got=%d want=%d", got, want)
 	}
-	if got, want := manifest.Contracts[0].File, "schema/model/v1.0.0/model.schema.json"; got != want {
+	if got, want := manifest.Contracts[0].File, "schema/model/v1.3.0/model.schema.json"; got != want {
 		t.Fatalf("first contract file mismatch: got=%s want=%s", got, want)
 	}
 	if got, want := manifest.Contracts[len(manifest.Contracts)-1].File, "schema/snapshot/v1.3.0/snapshot.schema.json"; got != want {

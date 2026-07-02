@@ -60,11 +60,7 @@ Records the public schema contract names, versions, canonical URIs, and digests 
 
 The contracts pack now carries a versioned schema tree such as:
 
-- `schema/model/v1.0.0/model.schema.json`
-- `schema/model/v1.1.0/model.schema.json`
 - `schema/model/v1.3.0/model.schema.json`
-- `schema/snapshot/v1.0.0/snapshot.schema.json`
-- `schema/snapshot/v1.1.0/snapshot.schema.json`
 - `schema/snapshot/v1.3.0/snapshot.schema.json`
 
 It also carries the Sheaft v1 compatibility checkpoint under:
