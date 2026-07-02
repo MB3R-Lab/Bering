@@ -289,8 +289,8 @@ func validateReplicas(values map[string]int) (map[string]int, error) {
 		if id == "" {
 			return nil, fmt.Errorf("replicas override contains empty service id")
 		}
-		if value < 0 {
-			return nil, fmt.Errorf("replicas override for %q must be >= 0", id)
+		if value <= 0 {
+			return nil, fmt.Errorf("replicas override for %q must be >= 1", id)
 		}
 		out[id] = value
 	}

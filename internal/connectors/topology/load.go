@@ -147,8 +147,8 @@ func (d *Document) Normalize() error {
 			replicas := 1
 			item.Replicas = &replicas
 		}
-		if *item.Replicas < 0 {
-			return fmt.Errorf("service %q replicas must be >= 0", item.ID)
+		if *item.Replicas <= 0 {
+			return fmt.Errorf("service %q replicas must be >= 1", item.ID)
 		}
 		if err := normalizeSupport(&item.Support, d.Source.Type); err != nil {
 			return fmt.Errorf("service %q support: %w", item.ID, err)

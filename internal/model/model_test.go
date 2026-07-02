@@ -47,6 +47,44 @@ func TestValidateSemantic_StrictSchemaFieldsLeftToContract(t *testing.T) {
 	}
 }
 
+func TestValidateSemantic_RejectsZeroReplicas(t *testing.T) {
+	t.Parallel()
+
+	base := ResilienceModel{
+		Services: []Service{{ID: "frontend", Name: "frontend", Replicas: 1}},
+		Edges:    []Edge{},
+		Endpoints: []Endpoint{
+			{ID: "frontend:GET /health", EntryService: "frontend", SuccessPredicateRef: "frontend:GET /health"},
+		},
+		Metadata: Metadata{
+			SourceType:   "bering",
+			SourceRef:    "bering://discover?input=test",
+			DiscoveredAt: "2026-03-03T00:00:00Z",
+			Confidence:   0.7,
+			Schema:       SchemaRef{},
+		},
+	}
+
+	serviceZero := base
+	serviceZero.Services = []Service{{ID: "frontend", Name: "frontend", Replicas: 0}}
+	if err := serviceZero.ValidateSemantic(); err == nil {
+		t.Fatal("expected zero service replicas to fail validation")
+	}
+
+	placementZero := base
+	placementZero.Services = []Service{{
+		ID:       "frontend",
+		Name:     "frontend",
+		Replicas: 1,
+		Metadata: &ServiceMetadata{
+			Placements: []Placement{{Replicas: 0, Labels: map[string]string{"zone": "a"}}},
+		},
+	}}
+	if err := placementZero.ValidateSemantic(); err == nil {
+		t.Fatal("expected zero placement replicas to fail validation")
+	}
+}
+
 func TestValidateSemantic_ReliabilityEvidenceMustBeProbability(t *testing.T) {
 	t.Parallel()
 

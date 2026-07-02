@@ -231,8 +231,8 @@ func (m ResilienceModel) ValidateSemantic() error {
 		if strings.TrimSpace(svc.Name) == "" {
 			return fmt.Errorf("service %q has empty name", svc.ID)
 		}
-		if svc.Replicas < 0 {
-			return fmt.Errorf("service %q replicas cannot be negative", svc.ID)
+		if svc.Replicas <= 0 {
+			return fmt.Errorf("service %q replicas must be >= 1", svc.ID)
 		}
 		if _, exists := serviceSet[svc.ID]; exists {
 			return fmt.Errorf("duplicate service id: %s", svc.ID)
@@ -694,8 +694,8 @@ func validateServiceMetadata(meta *ServiceMetadata) error {
 		return err
 	}
 	for i, placement := range meta.Placements {
-		if placement.Replicas < 0 {
-			return fmt.Errorf("placements[%d].replicas must be >= 0", i)
+		if placement.Replicas <= 0 {
+			return fmt.Errorf("placements[%d].replicas must be >= 1", i)
 		}
 		if err := validateReliabilityEvidence(fmt.Sprintf("placements[%d].reliability", i), placement.Reliability); err != nil {
 			return err

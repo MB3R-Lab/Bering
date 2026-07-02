@@ -2,10 +2,10 @@
   "artifact": {
     "path": "examples/outputs/bering-snapshot.service-catalog-adapter.sample.json",
     "schema": {
-      "digest": "sha256:cb737b0a4038e0bf30a397ca7ba7ff017d684fe3b25e7d8e3ae74ac59b45210b",
+      "digest": "sha256:cb778e5b0866d9ce5cfe7f23b8d98a339603593a0247cccd9cddaf05c7ae4bb1",
       "name": "io.mb3r.bering.snapshot",
-      "uri": "https://mb3r-lab.github.io/Bering/schema/snapshot/v1.2.0/snapshot.schema.json",
-      "version": "1.2.0"
+      "uri": "https://mb3r-lab.github.io/Bering/schema/snapshot/v1.3.0/snapshot.schema.json",
+      "version": "1.3.0"
     },
     "snapshot_id": "snap-5b2c93ef1a9d0522116b0ab0",
     "topology_version": "sha256:dfa0e8db1d1bf52b0c1a7caa4fdd5f41b1171249cd85800603c9024f7e85a3ea",

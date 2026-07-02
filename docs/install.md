@@ -1,6 +1,6 @@
 # Install
 
-Bering `v1.0.0` is the current product release. It emits `io.mb3r.bering.model@1.2.0` and `io.mb3r.bering.snapshot@1.2.0` by default, while still validating the preserved `1.0.0` and `1.1.0` contracts.
+Bering `v1.0.0` is the current product release. It emits `io.mb3r.bering.model@1.3.0` and `io.mb3r.bering.snapshot@1.3.0` by default, while still validating the preserved `1.0.0`, `1.1.0`, and `1.2.0` contracts.
 
 ## Binary Archives
 
@@ -77,9 +77,9 @@ The pack contains:
 - `contracts-manifest.schema.json`
 - `schema/model/v1.0.0/model.schema.json`
 - `schema/model/v1.1.0/model.schema.json`
-- `schema/model/v1.2.0/model.schema.json`
+- `schema/model/v1.3.0/model.schema.json`
 - `schema/snapshot/v1.0.0/snapshot.schema.json`
 - `schema/snapshot/v1.1.0/snapshot.schema.json`
-- `schema/snapshot/v1.2.0/snapshot.schema.json`
+- `schema/snapshot/v1.3.0/snapshot.schema.json`
 
 The contracts pack version is the Bering product release version. The schema contracts inside it remain independently versioned and stay pinned to their own `name@version` values.

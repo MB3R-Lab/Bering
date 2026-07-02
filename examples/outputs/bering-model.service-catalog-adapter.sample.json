@@ -93,10 +93,10 @@
     "confidence": 1,
     "discovered_at": "2026-03-03T00:00:00Z",
     "schema": {
-      "digest": "sha256:4fa1a34e64703524cfe2289341fcea79986265db08c0220d6c89e38c0ff76bf8",
+      "digest": "sha256:2aa8a3550a25dc626ba6d2f5833569efca2f382b9e5c9c3405be93695d7d48ae",
       "name": "io.mb3r.bering.model",
-      "uri": "https://mb3r-lab.github.io/Bering/schema/model/v1.2.0/model.schema.json",
-      "version": "1.2.0"
+      "uri": "https://mb3r-lab.github.io/Bering/schema/model/v1.3.0/model.schema.json",
+      "version": "1.3.0"
     },
     "source_ref": "bering://discover?input=examples%2Fadapters%2Fservice-catalog%2Ftopology-api.generated.sample.json",
     "source_type": "bering"

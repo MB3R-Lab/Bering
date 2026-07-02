@@ -68,6 +68,9 @@ func (f *File) Normalize(path string) error {
 		if f.Services[i].ID == "" {
 			return fmt.Errorf("service overlay at index %d has empty id", i)
 		}
+		if f.Services[i].Replicas != nil && *f.Services[i].Replicas <= 0 {
+			return fmt.Errorf("service overlay %q replicas must be >= 1", f.Services[i].ID)
+		}
 		if f.Services[i].Reliability != nil {
 			f.Services[i].Reliability.Normalize()
 		}

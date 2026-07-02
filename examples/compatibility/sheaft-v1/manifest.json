@@ -5,7 +5,7 @@
   "producer": {
     "product": "bering",
     "app_version": "v1.0.0",
-    "schema_line": "1.2.0"
+    "schema_line": "1.3.0"
   },
   "consumer": {
     "product": "sheaft",
@@ -14,27 +14,27 @@
   "contracts": [
     {
       "name": "io.mb3r.bering.model",
-      "version": "1.2.0",
-      "uri": "https://mb3r-lab.github.io/Bering/schema/model/v1.2.0/model.schema.json",
-      "digest": "sha256:4fa1a34e64703524cfe2289341fcea79986265db08c0220d6c89e38c0ff76bf8"
+      "version": "1.3.0",
+      "uri": "https://mb3r-lab.github.io/Bering/schema/model/v1.3.0/model.schema.json",
+      "digest": "sha256:2aa8a3550a25dc626ba6d2f5833569efca2f382b9e5c9c3405be93695d7d48ae"
     },
     {
       "name": "io.mb3r.bering.snapshot",
-      "version": "1.2.0",
-      "uri": "https://mb3r-lab.github.io/Bering/schema/snapshot/v1.2.0/snapshot.schema.json",
-      "digest": "sha256:cb737b0a4038e0bf30a397ca7ba7ff017d684fe3b25e7d8e3ae74ac59b45210b"
+      "version": "1.3.0",
+      "uri": "https://mb3r-lab.github.io/Bering/schema/snapshot/v1.3.0/snapshot.schema.json",
+      "digest": "sha256:cb778e5b0866d9ce5cfe7f23b8d98a339603593a0247cccd9cddaf05c7ae4bb1"
     }
   ],
   "artifacts": [
     {
       "kind": "model",
       "path": "bering-model.v1.sample.json",
-      "sha256": "e360a31311b6667030a014036e3481a200c2a7f8607dd689aa4e670fd09054ba"
+      "sha256": "b0c76ac32d14f22be984378aec948d33bbd79ce52da2d74d46702a1dbd26bba9"
     },
     {
       "kind": "snapshot",
       "path": "bering-snapshot.v1.sample.json",
-      "sha256": "d21d9509cc656fb32469b98adb53862d099980b74c357c9f8c488e280e628db4"
+      "sha256": "e7c411aec85ef715c756437cfa72b0d0f957bb5110dcfa21d0b93cdbfc5e0c87"
     }
   ],
   "coverage": {

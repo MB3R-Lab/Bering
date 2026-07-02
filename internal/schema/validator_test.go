@@ -16,15 +16,67 @@ func TestValidateJSON_SuccessLatest(t *testing.T) {
     "confidence":0.72,
     "schema":{
       "name":"io.mb3r.bering.model",
-      "version":"1.2.0",
-      "uri":"https://mb3r-lab.github.io/Bering/schema/model/v1.2.0/model.schema.json",
-      "digest":"sha256:4fa1a34e64703524cfe2289341fcea79986265db08c0220d6c89e38c0ff76bf8"
+      "version":"1.3.0",
+      "uri":"https://mb3r-lab.github.io/Bering/schema/model/v1.3.0/model.schema.json",
+      "digest":"sha256:2aa8a3550a25dc626ba6d2f5833569efca2f382b9e5c9c3405be93695d7d48ae"
     }
   }
 }`)
 
 	if err := ValidateJSON(raw); err != nil {
 		t.Fatalf("ValidateJSON returned error: %v", err)
+	}
+}
+
+func TestValidateJSON_LatestRejectsZeroReplicas(t *testing.T) {
+	t.Parallel()
+
+	cases := map[string]string{
+		"service": `{
+  "services": [{"id":"frontend","name":"frontend","replicas":0}],
+  "edges": [],
+  "endpoints": [{"id":"frontend:GET /health","entry_service":"frontend","success_predicate_ref":"frontend:GET /health","method":"GET","path":"/health","metadata":{"semantics":{"predicate_mode":"immediate_response","mandatory_targets":["frontend"],"dependency_modes":["sync"],"source":"fixture","confidence":0.9}}}],
+  "metadata": {
+    "source_type":"bering",
+    "source_ref":"bering://discover?input=examples%2Ftraces",
+    "discovered_at":"2026-03-03T00:00:00Z",
+    "confidence":0.72,
+    "schema":{
+      "name":"io.mb3r.bering.model",
+      "version":"1.3.0",
+      "uri":"https://mb3r-lab.github.io/Bering/schema/model/v1.3.0/model.schema.json",
+      "digest":"sha256:2aa8a3550a25dc626ba6d2f5833569efca2f382b9e5c9c3405be93695d7d48ae"
+    }
+  }
+}`,
+		"placement": `{
+  "services": [{"id":"frontend","name":"frontend","replicas":1,"metadata":{"placements":[{"replicas":0,"labels":{"zone":"a"}}]}}],
+  "edges": [],
+  "endpoints": [{"id":"frontend:GET /health","entry_service":"frontend","success_predicate_ref":"frontend:GET /health","method":"GET","path":"/health","metadata":{"semantics":{"predicate_mode":"immediate_response","mandatory_targets":["frontend"],"dependency_modes":["sync"],"source":"fixture","confidence":0.9}}}],
+  "metadata": {
+    "source_type":"bering",
+    "source_ref":"bering://discover?input=examples%2Ftraces",
+    "discovered_at":"2026-03-03T00:00:00Z",
+    "confidence":0.72,
+    "schema":{
+      "name":"io.mb3r.bering.model",
+      "version":"1.3.0",
+      "uri":"https://mb3r-lab.github.io/Bering/schema/model/v1.3.0/model.schema.json",
+      "digest":"sha256:2aa8a3550a25dc626ba6d2f5833569efca2f382b9e5c9c3405be93695d7d48ae"
+    }
+  }
+}`,
+	}
+
+	for name, raw := range cases {
+		name, raw := name, raw
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			if err := ValidateJSON([]byte(raw)); err == nil {
+				t.Fatal("expected zero replicas to fail latest schema validation")
+			}
+		})
 	}
 }
 
@@ -68,8 +120,8 @@ func TestValidateJSON_StrictDigestFail(t *testing.T) {
     "confidence":0.72,
     "schema":{
       "name":"io.mb3r.bering.model",
-      "version":"1.2.0",
-      "uri":"https://mb3r-lab.github.io/Bering/schema/model/v1.2.0/model.schema.json",
+      "version":"1.3.0",
+      "uri":"https://mb3r-lab.github.io/Bering/schema/model/v1.3.0/model.schema.json",
       "digest":"sha256:deadbeef"
     }
   }
@@ -109,9 +161,9 @@ func TestValidateSnapshotJSON_SuccessLatest(t *testing.T) {
       "confidence":0.72,
       "schema":{
         "name":"io.mb3r.bering.model",
-        "version":"1.2.0",
-        "uri":"https://mb3r-lab.github.io/Bering/schema/model/v1.2.0/model.schema.json",
-        "digest":"sha256:4fa1a34e64703524cfe2289341fcea79986265db08c0220d6c89e38c0ff76bf8"
+        "version":"1.3.0",
+        "uri":"https://mb3r-lab.github.io/Bering/schema/model/v1.3.0/model.schema.json",
+        "digest":"sha256:2aa8a3550a25dc626ba6d2f5833569efca2f382b9e5c9c3405be93695d7d48ae"
       }
     }
   },
@@ -122,9 +174,9 @@ func TestValidateSnapshotJSON_SuccessLatest(t *testing.T) {
     "confidence":0.72,
     "schema":{
       "name":"io.mb3r.bering.snapshot",
-      "version":"1.2.0",
-      "uri":"https://mb3r-lab.github.io/Bering/schema/snapshot/v1.2.0/snapshot.schema.json",
-      "digest":"sha256:cb737b0a4038e0bf30a397ca7ba7ff017d684fe3b25e7d8e3ae74ac59b45210b"
+      "version":"1.3.0",
+      "uri":"https://mb3r-lab.github.io/Bering/schema/snapshot/v1.3.0/snapshot.schema.json",
+      "digest":"sha256:cb778e5b0866d9ce5cfe7f23b8d98a339603593a0247cccd9cddaf05c7ae4bb1"
     }
   }
 }`)

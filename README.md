@@ -35,16 +35,16 @@ Do not treat the product release tag as the schema contract version.
 - Current product release for this repository: `Bering v1.0.0`
 - Current product git tag / GitHub Release: `v1.0.0`
 - Default emitted schema contracts now are:
-  - `io.mb3r.bering.model@1.2.0`
-  - `io.mb3r.bering.snapshot@1.2.0`
+  - `io.mb3r.bering.model@1.3.0`
+  - `io.mb3r.bering.snapshot@1.3.0`
 - Previously published contracts remain valid and immutable:
   - `io.mb3r.bering.model@1.0.0`
   - `io.mb3r.bering.snapshot@1.0.0`
   - `io.mb3r.bering.model@1.1.0`
   - `io.mb3r.bering.snapshot@1.1.0`
-- Schema publishing tag remains separate: `schema-v1.2.0`
+- Schema publishing tag remains separate: `schema-v1.3.0`
 
-`bering validate` accepts preserved `1.0.0` and `1.1.0` artifacts plus the current `1.2.0` artifacts.
+`bering validate` accepts preserved `1.0.0`, `1.1.0`, and `1.2.0` artifacts plus the current `1.3.0` artifacts.
 
 ## Installation
 
@@ -91,7 +91,7 @@ go run ./cmd/bering discover \
   --discovered-at 2026-03-03T00:00:00Z
 ```
 
-Expected result: a deterministic `io.mb3r.bering.model@1.2.0` artifact.
+Expected result: a deterministic `io.mb3r.bering.model@1.3.0` artifact.
 
 `discover` also writes `out/bering-model.signal-quality.json` next to the model.
 
@@ -115,7 +115,7 @@ go run ./cmd/bering discover \
   --discovered-at 2026-03-03T00:00:00Z
 ```
 
-Expected result: a model artifact plus an `io.mb3r.bering.snapshot@1.2.0` envelope.
+Expected result: a model artifact plus an `io.mb3r.bering.snapshot@1.3.0` envelope.
 
 The snapshot gets its own `out/bering-snapshot.signal-quality.json` sidecar.
 
@@ -152,15 +152,15 @@ go run ./cmd/sheaft run \
   --seed 42
 ```
 
-For Sheaft `v1.0.0` stochastic-connectivity compatibility, use the canonical fixture checkpoint in [examples/compatibility/sheaft-v1](examples/compatibility/sheaft-v1/README.md). It pins Bering `v1.0.0` / schema line `1.2.0` and includes model and snapshot artifacts with reliability evidence, observed edge metadata, and immediate/eventual endpoint semantic hints.
+For Sheaft `v1.0.0` stochastic-connectivity compatibility, use the canonical fixture checkpoint in [examples/compatibility/sheaft-v1](examples/compatibility/sheaft-v1/README.md). It pins Bering `v1.0.0` / schema line `1.3.0` and includes model and snapshot artifacts with reliability evidence, observed edge metadata, and immediate/eventual endpoint semantic hints.
 
 ## Published Artifacts
 
 ### Core model
 
 - `name`: `io.mb3r.bering.model`
-- `version`: `1.2.0`
-- `uri`: `https://mb3r-lab.github.io/Bering/schema/model/v1.2.0/model.schema.json`
+- `version`: `1.3.0`
+- `uri`: `https://mb3r-lab.github.io/Bering/schema/model/v1.3.0/model.schema.json`
 - `digest`: `sha256:4fa1a34e64703524cfe2289341fcea79986265db08c0220d6c89e38c0ff76bf8`
 
 This is the stable topology artifact intended for file-based consumers and tools such as Sheaft. It now carries first-class operation-aware edge ids, typed service placement and shared-fate metadata, optional service/placement/edge reliability evidence, typed edge resilience policy, optional observed edge timing summaries, policy scope metadata, richer endpoint fidelity, and endpoint semantic hints.
@@ -168,8 +168,8 @@ This is the stable topology artifact intended for file-based consumers and tools
 ### Snapshot envelope
 
 - `name`: `io.mb3r.bering.snapshot`
-- `version`: `1.2.0`
-- `uri`: `https://mb3r-lab.github.io/Bering/schema/snapshot/v1.2.0/snapshot.schema.json`
+- `version`: `1.3.0`
+- `uri`: `https://mb3r-lab.github.io/Bering/schema/snapshot/v1.3.0/snapshot.schema.json`
 - `digest`: `sha256:cb737b0a4038e0bf30a397ca7ba7ff017d684fe3b25e7d8e3ae74ac59b45210b`
 
 This wraps the model with runtime window metadata, ingest counts, coverage, provenance, topology diffs, and discovery-side copies of the same typed placement, reliability, resilience, observed edge, and endpoint metadata.
@@ -188,7 +188,7 @@ Runtime mode also keeps a conservative reconciliation layer for sparse traffic a
 - a machine-readable reconciliation report for operators
 - an operator-facing reconciliation summary in Markdown
 
-These runtime views do not change the public `io.mb3r.bering.model@1.2.0` or `io.mb3r.bering.snapshot@1.2.0` contracts.
+These runtime views do not change the public `io.mb3r.bering.model@1.3.0` or `io.mb3r.bering.snapshot@1.3.0` contracts.
 
 ### Population Today
 

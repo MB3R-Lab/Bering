@@ -12,17 +12,18 @@ const (
 	ContractVersionV1_0_0 = "1.0.0"
 	ContractVersionV1_1_0 = "1.1.0"
 	ContractVersionV1_2_0 = "1.2.0"
-	LatestContractVersion = ContractVersionV1_2_0
+	ContractVersionV1_3_0 = "1.3.0"
+	LatestContractVersion = ContractVersionV1_3_0
 
 	ExpectedSchemaName    = ModelContractName
 	ExpectedSchemaVersion = LatestContractVersion
-	ExpectedSchemaURI     = "https://mb3r-lab.github.io/Bering/schema/model/v1.2.0/model.schema.json"
-	ExpectedSchemaDigest  = "sha256:4fa1a34e64703524cfe2289341fcea79986265db08c0220d6c89e38c0ff76bf8"
+	ExpectedSchemaURI     = "https://mb3r-lab.github.io/Bering/schema/model/v1.3.0/model.schema.json"
+	ExpectedSchemaDigest  = "sha256:2aa8a3550a25dc626ba6d2f5833569efca2f382b9e5c9c3405be93695d7d48ae"
 
 	ExpectedSnapshotSchemaName    = SnapshotContractName
 	ExpectedSnapshotSchemaVersion = LatestContractVersion
-	ExpectedSnapshotSchemaURI     = "https://mb3r-lab.github.io/Bering/schema/snapshot/v1.2.0/snapshot.schema.json"
-	ExpectedSnapshotSchemaDigest  = "sha256:cb737b0a4038e0bf30a397ca7ba7ff017d684fe3b25e7d8e3ae74ac59b45210b"
+	ExpectedSnapshotSchemaURI     = "https://mb3r-lab.github.io/Bering/schema/snapshot/v1.3.0/snapshot.schema.json"
+	ExpectedSnapshotSchemaDigest  = "sha256:cb778e5b0866d9ce5cfe7f23b8d98a339603593a0247cccd9cddaf05c7ae4bb1"
 )
 
 type SchemaRef struct {
@@ -88,8 +89,8 @@ var publishedContracts = []PublishedContract{
 		Ref: SchemaRef{
 			Name:    ModelContractName,
 			Version: ContractVersionV1_2_0,
-			URI:     ExpectedSchemaURI,
-			Digest:  ExpectedSchemaDigest,
+			URI:     "https://mb3r-lab.github.io/Bering/schema/model/v1.2.0/model.schema.json",
+			Digest:  "sha256:4fa1a34e64703524cfe2289341fcea79986265db08c0220d6c89e38c0ff76bf8",
 		},
 		Artifact:     "model",
 		APIPath:      "api/schema/model/v1.2.0/model.schema.json",
@@ -99,12 +100,34 @@ var publishedContracts = []PublishedContract{
 		Ref: SchemaRef{
 			Name:    SnapshotContractName,
 			Version: ContractVersionV1_2_0,
-			URI:     ExpectedSnapshotSchemaURI,
-			Digest:  ExpectedSnapshotSchemaDigest,
+			URI:     "https://mb3r-lab.github.io/Bering/schema/snapshot/v1.2.0/snapshot.schema.json",
+			Digest:  "sha256:cb737b0a4038e0bf30a397ca7ba7ff017d684fe3b25e7d8e3ae74ac59b45210b",
 		},
 		Artifact:     "snapshot",
 		APIPath:      "api/schema/snapshot/v1.2.0/snapshot.schema.json",
 		EmbeddedPath: "schema/snapshot/v1.2.0/snapshot.schema.json",
+	},
+	{
+		Ref: SchemaRef{
+			Name:    ModelContractName,
+			Version: ContractVersionV1_3_0,
+			URI:     ExpectedSchemaURI,
+			Digest:  ExpectedSchemaDigest,
+		},
+		Artifact:     "model",
+		APIPath:      "api/schema/model/v1.3.0/model.schema.json",
+		EmbeddedPath: "schema/model/v1.3.0/model.schema.json",
+	},
+	{
+		Ref: SchemaRef{
+			Name:    SnapshotContractName,
+			Version: ContractVersionV1_3_0,
+			URI:     ExpectedSnapshotSchemaURI,
+			Digest:  ExpectedSnapshotSchemaDigest,
+		},
+		Artifact:     "snapshot",
+		APIPath:      "api/schema/snapshot/v1.3.0/snapshot.schema.json",
+		EmbeddedPath: "schema/snapshot/v1.3.0/snapshot.schema.json",
 	},
 }
 
@@ -119,7 +142,7 @@ func ExpectedSnapshotRef() SchemaRef {
 }
 
 func SupportedContractVersions() []string {
-	versions := []string{ContractVersionV1_0_0, ContractVersionV1_1_0, ContractVersionV1_2_0}
+	versions := []string{ContractVersionV1_0_0, ContractVersionV1_1_0, ContractVersionV1_2_0, ContractVersionV1_3_0}
 	sort.Strings(versions)
 	return versions
 }
