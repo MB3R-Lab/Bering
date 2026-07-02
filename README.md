@@ -1,12 +1,8 @@
 # Bering
 
-[![Release](https://img.shields.io/github/v/release/MB3R-Lab/Bering)](https://github.com/MB3R-Lab/Bering/releases)
-[![release-dry-run](https://img.shields.io/github/actions/workflow/status/MB3R-Lab/Bering/release-dry-run.yml?branch=main&label=release-dry-run)](https://github.com/MB3R-Lab/Bering/actions/workflows/release-dry-run.yml)
-[![ci](https://img.shields.io/github/actions/workflow/status/MB3R-Lab/Bering/ci.yml?branch=main&label=ci)](https://github.com/MB3R-Lab/Bering/actions/workflows/ci.yml)
-[![publish-schema](https://img.shields.io/github/actions/workflow/status/MB3R-Lab/Bering/publish-schema.yml?branch=main&label=publish-schema)](https://github.com/MB3R-Lab/Bering/actions/workflows/publish-schema.yml)
-[![Go version](https://img.shields.io/github/go-mod/go-version/MB3R-Lab/Bering)](https://github.com/MB3R-Lab/Bering/blob/main/go.mod)
-[![Current release](https://img.shields.io/badge/current-v1.0.0-blue)](https://github.com/MB3R-Lab/Bering/releases/tag/v1.0.0)
-[![Public schema](https://img.shields.io/badge/public_schema-1.3-blue)](https://github.com/MB3R-Lab/Bering/blob/main/VERSIONING.md)
+[![release](https://img.shields.io/github/v/release/MB3R-Lab/Bering?label=release)](https://github.com/MB3R-Lab/Bering/releases)
+[![checks](https://img.shields.io/github/actions/workflow/status/MB3R-Lab/Bering/ci.yml?branch=main&label=checks)](https://github.com/MB3R-Lab/Bering/actions/workflows/ci.yml)
+[![schema](https://img.shields.io/badge/schema-1.3.0-blue)](https://github.com/MB3R-Lab/Bering/blob/main/VERSIONING.md)
 
 ## Related MB3R repositories
 
@@ -16,7 +12,13 @@ Bering publishes topology and snapshot artifacts for downstream consumers. For e
 
 Bering turns trace input or explicit topology input into stable JSON artifacts, and it can also run as a long-lived runtime service that emits rolling discovery snapshots plus conservative reconciliation views for trace gaps.
 
-The trace-discovered topology model and its downstream adequacy boundary are described in the preprint [When Is a Trace-Discovered Topological Model Enough?](https://www.alphaxiv.org/abs/2607.00740).
+The trace-discovered topology model and its downstream adequacy boundary follow the stochastic-connectivity research line.
+
+## Research and Evidence
+
+- Formal model: [Stochastic Connectivity as the Foundation of a Runtime Model for Microservice Availability Analysis](https://www.alphaxiv.org/abs/2607.00740)
+- DeathStarBench empirical anchor: [Model Discovery and Graph Simulation: A Lightweight Gateway to Chaos Engineering](https://www.alphaxiv.org/abs/2506.11176)
+- OpenTelemetry Demo async-semantics case study: [Evaluating Asynchronous Semantics in Trace-Discovered Resilience Models: A Case Study on the OpenTelemetry Demo](https://www.alphaxiv.org/abs/2512.12314v1)
 
 ## What Bering Does
 
