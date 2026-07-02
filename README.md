@@ -1,6 +1,6 @@
 # Bering
 
-[![release](https://img.shields.io/github/v/release/MB3R-Lab/Bering?label=release)](https://github.com/MB3R-Lab/Bering/releases)
+[![release](https://img.shields.io/badge/release-v1.0.0-blue)](https://github.com/MB3R-Lab/Bering/releases/tag/v1.0.0)
 [![checks](https://img.shields.io/github/actions/workflow/status/MB3R-Lab/Bering/ci.yml?branch=main&label=checks)](https://github.com/MB3R-Lab/Bering/actions/workflows/ci.yml)
 [![schema](https://img.shields.io/badge/schema-1.3.0-blue)](https://github.com/MB3R-Lab/Bering/blob/main/VERSIONING.md)
 
