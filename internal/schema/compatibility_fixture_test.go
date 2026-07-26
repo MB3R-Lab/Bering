@@ -19,6 +19,10 @@ type compatibilityManifest struct {
 		AppVersion string `json:"app_version"`
 		SchemaLine string `json:"schema_line"`
 	} `json:"producer"`
+	Consumer struct {
+		Product   string `json:"product"`
+		Milestone string `json:"milestone"`
+	} `json:"consumer"`
 	Contracts []struct {
 		Name    string `json:"name"`
 		Version string `json:"version"`
@@ -45,6 +49,9 @@ func TestSheaftV1CompatibilityFixtures(t *testing.T) {
 	if manifest.Producer.Product != "bering" || manifest.Producer.AppVersion != "v1.0.0" || manifest.Producer.SchemaLine != "1.3.0" {
 		t.Fatalf("unexpected producer checkpoint: %+v", manifest.Producer)
 	}
+	if manifest.Consumer.Product != "sheaft" || manifest.Consumer.Milestone != "v1.2.0" {
+		t.Fatalf("unexpected consumer checkpoint: %+v", manifest.Consumer)
+	}
 	if len(manifest.Contracts) != 2 {
 		t.Fatalf("expected model and snapshot contract pins, got %d", len(manifest.Contracts))
 	}
@@ -58,6 +65,9 @@ func TestSheaftV1CompatibilityFixtures(t *testing.T) {
 		if !ok {
 			t.Fatalf("coverage %s must stay true", key)
 		}
+	}
+	if !manifest.Coverage["failure_tolerance_sweep_inputs"] {
+		t.Fatal("fixture manifest must declare failure-tolerance sweep input coverage")
 	}
 
 	modelRaw := readFile(t, filepath.Join(fixtureDir, "bering-model.v1.sample.json"))

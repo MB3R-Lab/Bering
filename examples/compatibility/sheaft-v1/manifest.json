@@ -1,7 +1,7 @@
 {
   "schema_version": "1.0",
   "name": "bering-sheaft-v1-compatibility",
-  "description": "Canonical Bering v1 contract fixtures for Sheaft stochastic-connectivity compatibility checks.",
+  "description": "Canonical Bering v1 contract fixtures for Sheaft stochastic-connectivity and failure-tolerance compatibility checks.",
   "producer": {
     "product": "bering",
     "app_version": "v1.0.0",
@@ -9,7 +9,7 @@
   },
   "consumer": {
     "product": "sheaft",
-    "milestone": "v1.0.0"
+    "milestone": "v1.2.0"
   },
   "contracts": [
     {
@@ -46,6 +46,7 @@
     "observed_edge_metadata": true,
     "endpoint_predicate_refs": true,
     "immediate_response_semantics": true,
-    "eventual_completion_semantics": true
+    "eventual_completion_semantics": true,
+    "failure_tolerance_sweep_inputs": true
   }
 }

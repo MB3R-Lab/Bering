@@ -151,7 +151,7 @@ go run ./cmd/sheaft run \
   --seed 42
 ```
 
-For Sheaft `v1.0.0` stochastic-connectivity compatibility, use the canonical fixture checkpoint in [examples/compatibility/sheaft-v1](examples/compatibility/sheaft-v1/README.md). It pins Bering `v1.0.0` / schema line `1.3.0` and includes model and snapshot artifacts with reliability evidence, observed edge metadata, and immediate/eventual endpoint semantic hints.
+For Sheaft `v1.2.0` stochastic-connectivity and failure-tolerance compatibility, use the canonical fixture checkpoint in [examples/compatibility/sheaft-v1](examples/compatibility/sheaft-v1/README.md). It pins Bering `v1.0.0` / schema line `1.3.0` and includes model and snapshot artifacts with replica, placement, reliability, observed-edge, and immediate/eventual endpoint metadata. Fail-stop sweeps require no Bering contract change; capacity-aware overload modelling remains a future contract concern.
 
 ## Published Artifacts
 
