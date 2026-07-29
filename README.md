@@ -6,6 +6,8 @@
 
 ## Related MB3R repositories
 
+[Procrustes](https://github.com/MB3R-Lab/Procrustes) runs before trace collection and checks whether static deployment, instrumentation, propagation, entrypoint, scenario, and replica evidence is sufficient for Bering discovery. It hands Bering a collection plan and an overlay containing only confirmed static facts; Bering remains responsible for runtime topology and trace-evidence validation.
+
 Bering publishes topology and snapshot artifacts for downstream consumers. For example, [Sheaft](https://github.com/MB3R-Lab/Sheaft) can consume Bering artifacts for resilience analysis and CI/CD gating. [mb3r-stack](https://github.com/MB3R-Lab/mb3r-stack) packages compatible Bering and Sheaft releases with integration assets.
 
 `Bering v1.0.0` is the current product release of Bering: a discovery and publishing layer for service topology and endpoint contracts.
