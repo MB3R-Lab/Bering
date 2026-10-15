@@ -1,6 +1,8 @@
 # Sheaft v1 Compatibility Fixtures
 
-This directory is Bering's canonical fixture checkpoint for Sheaft `v1.2.0` stochastic-connectivity and failure-tolerance compatibility.
+This directory preserves Bering's canonical fixture checkpoint originally recorded for Sheaft `v1.2.0` stochastic-connectivity and failure-tolerance compatibility. Its consumer milestone and fixture hashes are historical, not a claim that 1.2.0 is the latest Sheaft.
+
+The current downstream release is [Sheaft v1.3.1](https://github.com/MB3R-Lab/Sheaft/releases/tag/v1.3.1). It retains the Bering 1.3.0 handoff and supports component importance plus external predicate contract 1.1 required calls. These legacy fixtures do not exercise required calls: use [Sheaft's dedicated example](https://github.com/MB3R-Lab/Sheaft/blob/v1.3.1/docs/required-calls.md). Operation-specific execution validation and references live in [the reproduction repository](https://github.com/MB3R-Lab/mb3r-software-complex-repro).
 
 Files:
 
