@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/MB3R-Lab/Bering/internal/atomicfile"
+	"github.com/MB3R-Lab/Bering/internal/evidence"
 	"github.com/MB3R-Lab/Bering/internal/jsoncanon"
 	"github.com/MB3R-Lab/Bering/internal/model"
 	"github.com/MB3R-Lab/Bering/internal/snapshot"
@@ -26,14 +27,21 @@ type ArtifactRef struct {
 }
 
 type Report struct {
-	SchemaVersion string                   `json:"schema_version"`
-	GeneratedAt   string                   `json:"generated_at"`
-	Artifact      ArtifactRef              `json:"artifact"`
-	Counts        snapshot.Counts          `json:"counts"`
-	Coverage      snapshot.CoverageSummary `json:"coverage"`
-	SourceMix     SourceMix                `json:"source_mix"`
-	Dimensions    []Dimension              `json:"dimensions"`
-	Warnings      []string                 `json:"warnings,omitempty"`
+	SchemaVersion       string                   `json:"schema_version"`
+	GeneratedAt         string                   `json:"generated_at"`
+	Artifact            ArtifactRef              `json:"artifact"`
+	Counts              snapshot.Counts          `json:"counts"`
+	Coverage            snapshot.CoverageSummary `json:"coverage"`
+	SourceMix           SourceMix                `json:"source_mix"`
+	Dimensions          []Dimension              `json:"dimensions"`
+	ObservationEvidence []EvidenceItem           `json:"observation_evidence,omitempty"`
+	Warnings            []string                 `json:"warnings,omitempty"`
+}
+
+type EvidenceItem struct {
+	EntityType string          `json:"entity_type"`
+	EntityID   string          `json:"entity_id"`
+	Evidence   evidence.Record `json:"evidence"`
 }
 
 type SourceMix struct {
@@ -88,16 +96,63 @@ func Build(mdl model.ResilienceModel, details snapshot.DiscoveryDetails, sources
 	dimensions := buildDimensions(mdl, details)
 	sourceMix := buildSourceMix(details, sources)
 	warnings := buildWarnings(dimensions, sourceMix)
+	observationEvidence, evidenceWarnings := extractObservationEvidence(details)
+	warnings = append(warnings, evidenceWarnings...)
+	sort.Strings(warnings)
 	return Report{
-		SchemaVersion: SchemaVersion,
-		GeneratedAt:   generatedAt,
-		Artifact:      artifact,
-		Counts:        counts,
-		Coverage:      coverage,
-		SourceMix:     sourceMix,
-		Dimensions:    dimensions,
-		Warnings:      warnings,
+		SchemaVersion:       SchemaVersion,
+		GeneratedAt:         generatedAt,
+		Artifact:            artifact,
+		Counts:              counts,
+		Coverage:            coverage,
+		SourceMix:           sourceMix,
+		Dimensions:          dimensions,
+		ObservationEvidence: observationEvidence,
+		Warnings:            warnings,
 	}
+}
+
+func extractObservationEvidence(details snapshot.DiscoveryDetails) ([]EvidenceItem, []string) {
+	items := make([]EvidenceItem, 0)
+	warnings := make([]string, 0)
+	add := func(entityType, entityID string, attributes map[string]string) {
+		encoded, ok := attributes[evidence.AttributeKey]
+		if !ok {
+			return
+		}
+		record, err := evidence.Decode(encoded)
+		if err != nil {
+			warnings = append(warnings, fmt.Sprintf(
+				"invalid observation evidence for %s %q at metadata.attributes[%q]: %v",
+				entityType, entityID, evidence.AttributeKey, err,
+			))
+			return
+		}
+		items = append(items, EvidenceItem{EntityType: entityType, EntityID: entityID, Evidence: record})
+	}
+	for _, item := range details.Services {
+		if item.Metadata != nil {
+			add("service", item.ID, item.Metadata.Attributes)
+		}
+	}
+	for _, item := range details.Edges {
+		if item.Metadata != nil {
+			add("edge", item.ID, item.Metadata.Attributes)
+		}
+	}
+	for _, item := range details.Endpoints {
+		if item.Metadata != nil {
+			add("endpoint", item.ID, item.Metadata.Attributes)
+		}
+	}
+	sort.Slice(items, func(i, j int) bool {
+		if items[i].EntityType != items[j].EntityType {
+			return items[i].EntityType < items[j].EntityType
+		}
+		return items[i].EntityID < items[j].EntityID
+	})
+	sort.Strings(warnings)
+	return items, warnings
 }
 
 func WriteFile(path string, report Report) error {

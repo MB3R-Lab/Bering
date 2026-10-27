@@ -68,7 +68,7 @@ func Discover(spans []traces.Span, opts Options) (Result, error) {
 	}
 	allOverlays = append(allOverlays, opts.Overlays...)
 
-	spanByKey := map[string]traces.Span{}
+	spanByKey, ambiguousSpans := unambiguousSpanIndex(spans)
 	serviceSet := map[string]int{}
 	serviceStats := map[string]*serviceAccumulator{}
 	traceSet := map[string]struct{}{}
@@ -81,9 +81,6 @@ func Discover(spans []traces.Span, opts Options) (Result, error) {
 		if _, exists := serviceSet[service]; !exists {
 			serviceSet[service] = 1
 		}
-		if span.TraceID != "" && span.SpanID != "" {
-			spanByKey[traceSpanKey(span.TraceID, span.SpanID)] = span
-		}
 		if span.TraceID != "" {
 			traceSet[span.TraceID] = struct{}{}
 		}
@@ -92,10 +89,6 @@ func Discover(spans []traces.Span, opts Options) (Result, error) {
 
 	if len(serviceSet) == 0 {
 		return Result{}, fmt.Errorf("discovery produced no services")
-	}
-
-	if err := applyReplicaOverlays(serviceSet, allOverlays); err != nil {
-		return Result{}, err
 	}
 
 	edgeStats := map[string]*edgeAccumulator{}
@@ -108,7 +101,8 @@ func Discover(spans []traces.Span, opts Options) (Result, error) {
 		}
 
 		parent, hasParent := parentSpan(span, spanByKey)
-		if hasParent && strings.TrimSpace(parent.Service) != "" && parent.Service != span.Service {
+		_, hasChild := spanByKey[traceSpanKey(span.TraceID, span.SpanID)]
+		if hasParent && hasChild && strings.TrimSpace(parent.Service) != "" && parent.Service != span.Service {
 			kind, evidence := edgeKind(parent, span)
 			blocking := kind == model.EdgeKindSync
 			identity := edgeIdentity(parent, span)
@@ -213,6 +207,11 @@ func Discover(spans []traces.Span, opts Options) (Result, error) {
 			},
 		},
 	}
+	details := snapshot.DiscoveryDetails{Services: serviceRecords, Edges: edgeRecords, Endpoints: endpointRecords}
+	if err := enrichObservations(&mdl, &details, spans, spanByKey, ambiguousSpans, opts, sourceRef); err != nil {
+		return Result{}, err
+	}
+	serviceRecords, edgeRecords, endpointRecords = details.Services, details.Edges, details.Endpoints
 	if err := mdl.ValidateSemantic(); err != nil {
 		return Result{}, err
 	}
@@ -227,6 +226,9 @@ func Discover(spans []traces.Span, opts Options) (Result, error) {
 		return Result{}, fmt.Errorf("model validation after overlays failed: %w", err)
 	}
 	serviceRecords = rebuildServiceRecords(serviceRecords, mdl.Services)
+	if err := reconcileReplicaEvidence(serviceRecords, allOverlays); err != nil {
+		return Result{}, err
+	}
 
 	coverage := snapshot.CoverageSummary{
 		Confidence:         confidence,
@@ -744,6 +746,9 @@ func applyOverlays(mdl *model.ResilienceModel, services []snapshot.ServiceRecord
 	}
 	applications := make([]snapshot.OverlayApplication, 0, len(overlays))
 	for i, file := range overlays {
+		if err := validateObservationOverlay(file); err != nil {
+			return nil, err
+		}
 		precedence := i + 1
 		applications = append(applications, snapshot.OverlayApplication{Name: file.Name, Ref: file.Ref, Precedence: precedence})
 		prov := snapshot.Provenance{Type: "overlay", Name: file.Name, Ref: file.Ref, Precedence: precedence}
