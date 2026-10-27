@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+### Added
+
+- Trace-derived instance, process-generation and host evidence with source attribution, kept separate from configured replica counts and executable placement inventories.
+- Database client dependency discovery, scoped shared logical endpoints, observed receiver reuse and explicit unresolved aliases.
+- Versioned observation evidence in existing snapshot attributes and typed quality sidecars, preserving the model and snapshot 1.3.0 contracts.
+
+### Fixed
+
+- Consistent OTLP resource identity, instrumentation scope, typed attribute and context normalization across batch and runtime ingestion.
+- Conflicting span identities and duplicate OTLP attributes no longer select arbitrary causal links or database identities.
+
 ### Breaking
 
 - Retired the pre-v1 preview Bering contract lines `io.mb3r.bering.model@1.0.0`, `io.mb3r.bering.snapshot@1.0.0`, `io.mb3r.bering.model@1.1.0`, `io.mb3r.bering.snapshot@1.1.0`, `io.mb3r.bering.model@1.2.0`, and `io.mb3r.bering.snapshot@1.2.0`. Bering v1 validates and publishes only the strict `1.3.0` model and snapshot contracts; regenerate old artifacts before using them with Bering v1 or Sheaft v1.

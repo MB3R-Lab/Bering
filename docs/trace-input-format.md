@@ -9,6 +9,7 @@ For explicit non-trace topology input, see [topology-input-format.md](topology-i
 - `bering discover` and `bering serve` emit `io.mb3r.bering.model@1.3.0` and `io.mb3r.bering.snapshot@1.3.0` by default.
 - `bering validate` accepts only current strict `1.3.0` artifacts.
 - Trace inputs can now populate operation-aware edge identity and observed edge latency summaries when span timing exists.
+- Trace observations may also carry typed instance, database, and relation evidence in snapshot discovery metadata and signal-quality sidecars. See [observation-evidence.md](observation-evidence.md).
 
 ## 1) Normalized spans JSON
 
@@ -22,6 +23,14 @@ Top-level shape:
       "span_id": "span-1",
       "parent_span_id": "",
       "service": "frontend",
+      "source_ref": "optional-origin-hint",
+      "scope_name": "http.instrumentation",
+      "scope_version": "1.2.3",
+      "resource_attributes": {
+        "service.name": "frontend",
+        "service.instance.id": "frontend-1",
+        "host.id": "node-1"
+      },
       "kind": "server",
       "name": "GET /checkout",
       "start_time": "2026-03-11T12:00:00Z",
@@ -44,6 +53,8 @@ Accepted aliases:
 - `startTime` for `start_time`
 - `endTime` for `end_time`
 
+`source_ref`, `scope_name`, `scope_version`, and `resource_attributes` are optional. For batch `--input`, Bering records the actual containing file path as the source reference; an embedded `source_ref` does not replace that attribution. Resource attributes remain distinct from span attributes in normalized spans. The compatibility `attributes` view merges them with span keys taking precedence. Resource `service.name` determines service identity when present; otherwise Bering falls back to span or top-level service fields.
+
 Timestamp values may be RFC3339 strings.
 
 ## 2) Raw OTLP JSON payload
@@ -53,6 +64,7 @@ Expected hierarchy:
 - `resourceSpans[]`
 - `resourceSpans[].resource.attributes[]`
 - `resourceSpans[].scopeSpans[]` or `instrumentationLibrarySpans[]`
+- `scopeSpans[].scope.name` and `.version` (or legacy `instrumentationLibrary`)
 - `...scopeSpans[].spans[]`
 
 Supported OTLP fields:
@@ -60,8 +72,10 @@ Supported OTLP fields:
 - `traceId`, `spanId`, `parentSpanId`, `name`, `kind`
 - `startTimeUnixNano`, `endTimeUnixNano`
 - resource and span attributes in key/value form
+- standard OTLP JSON hex IDs (16 bytes for `traceId`, 8 bytes for `spanId` and `parentSpanId`); protojson base64 bytes remain accepted for compatibility. Malformed, wrong-length, and all-zero OTLP IDs are treated as absent. Opaque identifiers remain supported only in the normalized spans format.
 
 `service.name` is resolved from resource attributes first, then span attributes.
+Resource and scope metadata are preserved for observation evidence. `SPAN_KIND_*` enum names and numeric kinds map to canonical span kinds.
 
 ## 3) Runtime OTLP/HTTP ingest
 
@@ -136,10 +150,17 @@ Generic trace ingestion does not currently infer:
 - retry budgets or retry policies
 - circuit-breaker limits
 - placement groups
-- shared resource references
+- executable shared resource references or physical database instances
 - endpoint `metadata.semantics`
 
 Populate those fields through `topology_api` input or discovery overlays instead.
+Observed host, container, process, pod, and instance identifiers remain evidence; they do not populate executable `placements`, a configured replica count, or a concurrent replica census. A database client span can add a logical endpoint node and dependency edge when its endpoint identity is sufficiently scoped, but it does not prove a server receipt or physical database identity.
+
+### Database client observations
+
+Client spans with `db.system.name` or `db.system` may identify a database dependency. Endpoint hints are `server.address` (falling back to `net.peer.name`, `network.peer.address`, `net.peer.ip`) and `server.port` (falling back to `network.peer.port`, `net.peer.port`). A valid port is 1–65535. `db.namespace` or `db.name` is retained as a namespace hint; `db.operation.name` or `db.operation` can label the edge operation. Bering does not read, store, or infer SQL statements from these observations.
+
+For a non-loopback endpoint, an explicit resource `bering.network.scope` can establish a shared logical endpoint across callers. A suitable Kubernetes cluster scope or global public IP can also scope an endpoint. A private hostname or address without a supported scope, a malformed address, or a missing or invalid port yields a caller-scoped unresolved alias. Loopback endpoints require a resource `container.id` to establish namespace scope. Endpoint identity is logical even when shared; no physical database instance is inferred. See [observation-evidence.md](observation-evidence.md) for warning and relation semantics.
 
 ## Discovery-relevant attributes
 

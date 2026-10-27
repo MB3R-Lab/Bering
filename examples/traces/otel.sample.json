@@ -15,8 +15,8 @@
         {
           "spans": [
             {
-              "traceId": "trace-1",
-              "spanId": "span-frontend-1",
+              "traceId": "00000000000000000000000000000001",
+              "spanId": "0000000000000001",
               "name": "GET /checkout",
               "kind": 2,
               "startTimeUnixNano": 1772496000000000000,
@@ -37,8 +37,8 @@
               ]
             },
             {
-              "traceId": "trace-2",
-              "spanId": "span-frontend-2",
+              "traceId": "00000000000000000000000000000002",
+              "spanId": "0000000000000002",
               "name": "GET /health",
               "kind": 2,
               "startTimeUnixNano": 1772496060000000000,
@@ -77,9 +77,9 @@
         {
           "spans": [
             {
-              "traceId": "trace-1",
-              "spanId": "span-checkout-1",
-              "parentSpanId": "span-frontend-1",
+              "traceId": "00000000000000000000000000000001",
+              "spanId": "0000000000000003",
+              "parentSpanId": "0000000000000001",
               "name": "POST /process",
               "kind": 2,
               "startTimeUnixNano": 1772496000010000000,
@@ -118,9 +118,9 @@
         {
           "spans": [
             {
-              "traceId": "trace-1",
-              "spanId": "span-payment-1",
-              "parentSpanId": "span-checkout-1",
+              "traceId": "00000000000000000000000000000001",
+              "spanId": "0000000000000004",
+              "parentSpanId": "0000000000000003",
               "name": "publish payment-events",
               "kind": 4,
               "startTimeUnixNano": 1772496000071000000,
@@ -159,9 +159,9 @@
         {
           "spans": [
             {
-              "traceId": "trace-1",
-              "spanId": "span-inventory-1",
-              "parentSpanId": "span-checkout-1",
+              "traceId": "00000000000000000000000000000001",
+              "spanId": "0000000000000005",
+              "parentSpanId": "0000000000000003",
               "name": "reserve inventory",
               "kind": 3,
               "startTimeUnixNano": 1772496000072000000,

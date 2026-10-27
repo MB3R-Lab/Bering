@@ -2,11 +2,14 @@ package traces
 
 import (
 	"bytes"
+	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
+	"reflect"
 	"sort"
 	"strconv"
 	"strings"
@@ -16,15 +19,20 @@ import (
 )
 
 type Span struct {
-	TraceID      string
-	SpanID       string
-	ParentSpanID string
-	Service      string
-	Name         string
-	Kind         string
-	StartTime    time.Time
-	EndTime      time.Time
-	Attributes   map[string]any
+	TraceID            string
+	SpanID             string
+	ParentSpanID       string
+	SourceRef          string
+	Service            string
+	Name               string
+	Kind               string
+	ScopeName          string
+	ScopeVersion       string
+	StartTime          time.Time
+	EndTime            time.Time
+	Attributes         map[string]any
+	ResourceAttributes map[string]any
+	AttributeConflicts []string
 }
 
 func (s Span) EventTime(fallback time.Time) time.Time {
@@ -55,6 +63,9 @@ func Load(inputPath string) ([]Span, error) {
 		spans, err := parseTracePayload(raw)
 		if err != nil {
 			return nil, fmt.Errorf("parse trace input %q: %w", path, err)
+		}
+		for i := range spans {
+			spans[i].SourceRef = path
 		}
 		out = append(out, spans...)
 	}
@@ -146,9 +157,13 @@ func parseNormalized(doc any) ([]Span, bool) {
 			continue
 		}
 
-		attrs := map[string]any{}
+		resourceAttrs := toMap(obj["resource_attributes"])
+		conflicts := normalizedConflictKeys(obj["attribute_conflicts"])
+		attrs := copyAttributes(resourceAttrs)
 		if rawAttrs, ok := obj["attributes"]; ok {
-			attrs = toMap(rawAttrs)
+			for key, value := range toMap(rawAttrs) {
+				attrs[key] = value
+			}
 		}
 		mergeNonEmpty(attrs, "http.request.method", firstNonEmptyString(obj["http.request.method"], obj["http.method"], obj["method"]))
 		mergeNonEmpty(attrs, "http.route", firstNonEmptyString(obj["http.route"], obj["route"]))
@@ -161,15 +176,20 @@ func parseNormalized(doc any) ([]Span, bool) {
 		mergeNonEmpty(attrs, "rpc.method", firstNonEmptyString(obj["rpc.method"]))
 
 		out = append(out, Span{
-			TraceID:      firstNonEmptyString(obj["trace_id"], obj["traceId"]),
-			SpanID:       firstNonEmptyString(obj["span_id"], obj["spanId"]),
-			ParentSpanID: firstNonEmptyString(obj["parent_span_id"], obj["parentSpanId"]),
-			Service:      firstNonEmptyString(obj["service"], obj["service_name"], obj["service.name"]),
-			Name:         firstNonEmptyString(obj["name"]),
-			Kind:         strings.ToLower(strings.TrimSpace(firstNonEmptyString(obj["kind"]))),
-			StartTime:    parseTimeValue(obj["start_time"], obj["startTime"]),
-			EndTime:      parseTimeValue(obj["end_time"], obj["endTime"]),
-			Attributes:   attrs,
+			TraceID:            firstNonEmptyString(obj["trace_id"], obj["traceId"]),
+			SpanID:             firstNonEmptyString(obj["span_id"], obj["spanId"]),
+			ParentSpanID:       firstNonEmptyString(obj["parent_span_id"], obj["parentSpanId"]),
+			SourceRef:          firstNonEmptyString(obj["source_ref"]),
+			Service:            firstNonEmptyString(resourceAttrs["service.name"], obj["service"], obj["service_name"], obj["service.name"], attrs["service.name"]),
+			Name:               firstNonEmptyString(obj["name"]),
+			Kind:               strings.ToLower(strings.TrimSpace(firstNonEmptyString(obj["kind"]))),
+			ScopeName:          firstNonEmptyString(obj["scope_name"]),
+			ScopeVersion:       firstNonEmptyString(obj["scope_version"]),
+			StartTime:          parseTimeValue(obj["start_time"], obj["startTime"]),
+			EndTime:            parseTimeValue(obj["end_time"], obj["endTime"]),
+			Attributes:         attrs,
+			ResourceAttributes: copyAttributes(resourceAttrs),
+			AttributeConflicts: conflicts,
 		})
 	}
 	return out, true
@@ -193,9 +213,9 @@ func parseOTLP(doc any) ([]Span, bool) {
 			continue
 		}
 
-		resourceAttrs := attributeMap(nil)
+		resourceAttrs, resourceConflicts := attributeMap(nil)
 		if resourceObj, ok := resourceSpan["resource"].(map[string]any); ok {
-			resourceAttrs = attributeMap(resourceObj["attributes"])
+			resourceAttrs, resourceConflicts = attributeMap(resourceObj["attributes"])
 		}
 
 		rawScopeSpans := firstNonNil(resourceSpan["scopeSpans"], resourceSpan["instrumentationLibrarySpans"])
@@ -209,6 +229,9 @@ func parseOTLP(doc any) ([]Span, bool) {
 			if !ok {
 				continue
 			}
+			scopeObj, _ := firstNonNil(scopeSpan["scope"], scopeSpan["instrumentationLibrary"]).(map[string]any)
+			scopeName := firstNonEmptyString(scopeObj["name"])
+			scopeVersion := firstNonEmptyString(scopeObj["version"])
 			rawSpans, ok := scopeSpan["spans"].([]any)
 			if !ok {
 				continue
@@ -219,7 +242,7 @@ func parseOTLP(doc any) ([]Span, bool) {
 				if !ok {
 					continue
 				}
-				attrs := attributeMap(spanObj["attributes"])
+				attrs, spanConflicts := attributeMap(spanObj["attributes"])
 
 				mergedAttrs := map[string]any{}
 				for k, v := range resourceAttrs {
@@ -230,21 +253,26 @@ func parseOTLP(doc any) ([]Span, bool) {
 				}
 
 				service := strings.TrimSpace(firstNonEmptyString(
-					mergedAttrs["service.name"],
+					resourceAttrs["service.name"],
+					attrs["service.name"],
 					spanObj["service"],
 				))
 				kind := mapSpanKind(firstNonEmptyString(spanObj["kind"]))
 
 				out = append(out, Span{
-					TraceID:      firstNonEmptyString(spanObj["traceId"], spanObj["trace_id"]),
-					SpanID:       firstNonEmptyString(spanObj["spanId"], spanObj["span_id"]),
-					ParentSpanID: firstNonEmptyString(spanObj["parentSpanId"], spanObj["parent_span_id"]),
-					Service:      service,
-					Name:         firstNonEmptyString(spanObj["name"]),
-					Kind:         kind,
-					StartTime:    parseTimeValue(spanObj["startTimeUnixNano"], spanObj["start_time_unix_nano"]),
-					EndTime:      parseTimeValue(spanObj["endTimeUnixNano"], spanObj["end_time_unix_nano"]),
-					Attributes:   mergedAttrs,
+					TraceID:            normalizeOTLPID(firstNonEmptyString(spanObj["traceId"], spanObj["trace_id"]), 16),
+					SpanID:             normalizeOTLPID(firstNonEmptyString(spanObj["spanId"], spanObj["span_id"]), 8),
+					ParentSpanID:       normalizeOTLPID(firstNonEmptyString(spanObj["parentSpanId"], spanObj["parent_span_id"]), 8),
+					Service:            service,
+					Name:               firstNonEmptyString(spanObj["name"]),
+					Kind:               kind,
+					ScopeName:          scopeName,
+					ScopeVersion:       scopeVersion,
+					StartTime:          parseTimeValue(spanObj["startTimeUnixNano"], spanObj["start_time_unix_nano"]),
+					EndTime:            parseTimeValue(spanObj["endTimeUnixNano"], spanObj["end_time_unix_nano"]),
+					Attributes:         mergedAttrs,
+					ResourceAttributes: copyAttributes(resourceAttrs),
+					AttributeConflicts: append(prefixedConflicts("resource:", resourceConflicts), prefixedConflicts("span:", spanConflicts)...),
 				})
 			}
 		}
@@ -307,12 +335,13 @@ func decodeAnyJSON(raw []byte) (any, error) {
 	return out, nil
 }
 
-func attributeMap(raw any) map[string]any {
+func attributeMap(raw any) (map[string]any, []string) {
 	switch typed := raw.(type) {
 	case map[string]any:
-		return typed
+		return typed, nil
 	case []any:
 		out := map[string]any{}
+		conflicted := map[string]bool{}
 		for _, entry := range typed {
 			obj, ok := entry.(map[string]any)
 			if !ok {
@@ -322,31 +351,138 @@ func attributeMap(raw any) map[string]any {
 			if key == "" {
 				continue
 			}
-			if value, ok := obj["value"]; ok {
-				out[key] = otelValue(value)
+			if conflicted[key] {
+				continue
 			}
+			decoded, nestedConflict := otelValue(obj["value"])
+			if nestedConflict {
+				delete(out, key)
+				conflicted[key] = true
+				continue
+			}
+			if previous, exists := out[key]; exists && !reflect.DeepEqual(previous, decoded) {
+				delete(out, key)
+				conflicted[key] = true
+				continue
+			}
+			out[key] = decoded
 		}
-		return out
+		return out, sortedConflictKeys(conflicted)
 	default:
-		return map[string]any{}
+		return map[string]any{}, nil
 	}
 }
 
-func otelValue(v any) any {
+func otelValue(v any) (any, bool) {
 	obj, ok := v.(map[string]any)
 	if !ok {
-		return v
+		return v, false
 	}
-	for _, key := range []string{"stringValue", "intValue", "doubleValue", "boolValue", "value"} {
-		if value, exists := obj[key]; exists {
-			return otelValue(value)
+	if value, exists := obj["stringValue"]; exists {
+		return value, false
+	}
+	if value, exists := obj["boolValue"]; exists {
+		return value, false
+	}
+	if value, exists := obj["intValue"]; exists {
+		n, err := strconv.ParseInt(firstNonEmptyString(value), 10, 64)
+		if err == nil {
+			return n, false
+		}
+		return nil, true
+	}
+	if value, exists := obj["doubleValue"]; exists {
+		n, err := strconv.ParseFloat(firstNonEmptyString(value), 64)
+		if err == nil {
+			return n, false
+		}
+		return nil, true
+	}
+	if value, exists := obj["arrayValue"]; exists {
+		array, _ := value.(map[string]any)
+		values, _ := array["values"].([]any)
+		out := make([]any, 0, len(values))
+		for _, item := range values {
+			decoded, conflict := otelValue(item)
+			if conflict {
+				return nil, true
+			}
+			out = append(out, decoded)
+		}
+		return out, false
+	}
+	if value, exists := obj["kvlistValue"]; exists {
+		list, _ := value.(map[string]any)
+		values, _ := list["values"].([]any)
+		out := map[string]any{}
+		for _, item := range values {
+			entry, ok := item.(map[string]any)
+			if !ok {
+				continue
+			}
+			key := firstNonEmptyString(entry["key"])
+			if key == "" {
+				continue
+			}
+			decoded, conflict := otelValue(entry["value"])
+			if conflict {
+				return nil, true
+			}
+			if previous, exists := out[key]; exists && !reflect.DeepEqual(previous, decoded) {
+				return nil, true
+			}
+			out[key] = decoded
+		}
+		return out, false
+	}
+	if value, exists := obj["bytesValue"]; exists {
+		encoded, _ := value.(string)
+		decoded, err := base64.StdEncoding.DecodeString(encoded)
+		if err == nil {
+			return decoded, false
+		}
+		return nil, true
+	}
+	if value, exists := obj["value"]; exists {
+		return otelValue(value)
+	}
+	return v, false
+}
+
+func sortedConflictKeys(values map[string]bool) []string {
+	if len(values) == 0 {
+		return nil
+	}
+	out := make([]string, 0, len(values))
+	for key := range values {
+		out = append(out, key)
+	}
+	sort.Strings(out)
+	return out
+}
+
+func prefixedConflicts(prefix string, keys []string) []string {
+	out := make([]string, 0, len(keys))
+	for _, key := range keys {
+		out = append(out, prefix+key)
+	}
+	return out
+}
+
+func normalizedConflictKeys(raw any) []string {
+	values, _ := raw.([]any)
+	seen := map[string]bool{}
+	for _, value := range values {
+		if key, ok := value.(string); ok && strings.TrimSpace(key) != "" {
+			seen[strings.TrimSpace(key)] = true
 		}
 	}
-	return v
+	return sortedConflictKeys(seen)
 }
 
 func mapSpanKind(rawKind string) string {
 	rawKind = strings.TrimSpace(strings.ToLower(rawKind))
+	rawKind = strings.TrimPrefix(rawKind, "span_kind_")
 	switch rawKind {
 	case "2", "server":
 		return "server"
@@ -356,7 +492,7 @@ func mapSpanKind(rawKind string) string {
 		return "producer"
 	case "5", "consumer":
 		return "consumer"
-	case "1", "internal", "":
+	case "0", "1", "unspecified", "internal", "":
 		return "internal"
 	default:
 		// Preserve textual kind values if they are already meaningful.
@@ -367,6 +503,35 @@ func mapSpanKind(rawKind string) string {
 	}
 }
 
+func normalizeOTLPID(raw string, size int) string {
+	raw = strings.TrimSpace(raw)
+	if len(raw) == size*2 {
+		if decoded, err := hex.DecodeString(raw); err == nil {
+			if allZeroOTLPID(decoded) {
+				return ""
+			}
+			return strings.ToLower(raw)
+		}
+	}
+	decoded, err := base64.StdEncoding.DecodeString(raw)
+	if err == nil && len(decoded) == size && base64.StdEncoding.EncodeToString(decoded) == raw {
+		if allZeroOTLPID(decoded) {
+			return ""
+		}
+		return hex.EncodeToString(decoded)
+	}
+	return ""
+}
+
+func allZeroOTLPID(raw []byte) bool {
+	for _, b := range raw {
+		if b != 0 {
+			return false
+		}
+	}
+	return true
+}
+
 func toMap(v any) map[string]any {
 	switch typed := v.(type) {
 	case map[string]any:
@@ -374,6 +539,14 @@ func toMap(v any) map[string]any {
 	default:
 		return map[string]any{}
 	}
+}
+
+func copyAttributes(src map[string]any) map[string]any {
+	dst := make(map[string]any, len(src))
+	for key, value := range src {
+		dst[key] = value
+	}
+	return dst
 }
 
 func mergeNonEmpty(dst map[string]any, key, value string) {

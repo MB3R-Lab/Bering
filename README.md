@@ -179,6 +179,8 @@ This wraps the model with runtime window metadata, ingest counts, coverage, prov
 
 Every batch model, batch snapshot, and runtime snapshot gets a separate `*.signal-quality.json` sidecar. The sidecar reports source mix, provenance, field coverage for typed enrichment fields, and warnings for low-coverage dimensions without changing the public model or snapshot schemas.
 
+Trace inputs, including eBPF-derived OTLP, also retain observed instance and host identities, source attribution, and database endpoint evidence. Client-only database spans can add graph dependencies; exact receiver context avoids creating a second node for an already observed receiver. Ambiguous aliases and configured replica counts remain explicit unknowns. See [observation evidence](docs/observation-evidence.md) for the field mappings and limits.
+
 ### Runtime reconciliation views
 
 Runtime mode also keeps a conservative reconciliation layer for sparse traffic and telemetry gaps:
@@ -239,6 +241,7 @@ Release outputs include:
 - [docs/release-assets.md](docs/release-assets.md)
 - [docs/schema-publishing.md](docs/schema-publishing.md)
 - [docs/trace-input-format.md](docs/trace-input-format.md)
+- [docs/observation-evidence.md](docs/observation-evidence.md)
 - [docs/topology-input-format.md](docs/topology-input-format.md)
 - [docs/enrichment-onboarding.md](docs/enrichment-onboarding.md)
 - [docs/mvp-scope-and-limits.md](docs/mvp-scope-and-limits.md)

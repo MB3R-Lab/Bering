@@ -2,8 +2,10 @@ package quality
 
 import (
 	"path/filepath"
+	"strings"
 	"testing"
 
+	"github.com/MB3R-Lab/Bering/internal/evidence"
 	"github.com/MB3R-Lab/Bering/internal/model"
 	"github.com/MB3R-Lab/Bering/internal/snapshot"
 )
@@ -93,6 +95,63 @@ func TestSidecarPath(t *testing.T) {
 	want := filepath.Join("out", "bering-model.signal-quality.json")
 	if got != want {
 		t.Fatalf("sidecar path mismatch: got=%s want=%s", got, want)
+	}
+}
+
+func TestBuildExtractsObservationEvidenceAndWarnsOnMalformedPayload(t *testing.T) {
+	t.Parallel()
+
+	encoded, err := evidence.Encode(evidence.Record{
+		Instances: []evidence.Instance{{
+			ID: "worker-b", IdentityStatus: "observed",
+			Sources: []evidence.Source{{Ref: "collector-b", ScopeName: "generic"}},
+		}},
+		Warnings: []string{"identity is observation-scoped"},
+	})
+	if err != nil {
+		t.Fatalf("encode fixture evidence: %v", err)
+	}
+	details := snapshot.DiscoveryDetails{
+		Services: []snapshot.ServiceRecord{{
+			ID: "worker",
+			Metadata: &snapshot.ServiceMetadata{Attributes: map[string]string{
+				evidence.AttributeKey: encoded,
+			}},
+		}},
+		Edges: []snapshot.EdgeRecord{{
+			ID: "gateway|worker|sync|true",
+			Metadata: &snapshot.EdgeMetadata{Attributes: map[string]string{
+				evidence.AttributeKey: `{"schema_version":`,
+			}},
+		}},
+		Endpoints: []snapshot.EndpointRecord{{
+			ID: "gateway:GET /items",
+			Metadata: &snapshot.EndpointMetadata{Attributes: map[string]string{
+				evidence.AttributeKey: encoded,
+			}},
+		}},
+	}
+
+	report := Build(model.ResilienceModel{}, details, nil, snapshot.CoverageSummary{}, snapshot.Counts{}, ArtifactRef{}, "2026-01-01T00:00:00Z")
+	if len(report.ObservationEvidence) != 2 {
+		t.Fatalf("expected two decoded evidence items, got %+v", report.ObservationEvidence)
+	}
+	if got := report.ObservationEvidence[0]; got.EntityType != "endpoint" || got.EntityID != "gateway:GET /items" {
+		t.Fatalf("evidence items are not canonically ordered: %+v", report.ObservationEvidence)
+	}
+	item := report.ObservationEvidence[1]
+	if item.EntityType != "service" || item.EntityID != "worker" || len(item.Evidence.Instances) != 1 || item.Evidence.Instances[0].ID != "worker-b" {
+		t.Fatalf("unexpected evidence item: %+v", item)
+	}
+	foundWarning := false
+	for _, warning := range report.Warnings {
+		if strings.Contains(warning, `invalid observation evidence for edge "gateway|worker|sync|true"`) &&
+			strings.Contains(warning, evidence.AttributeKey) {
+			foundWarning = true
+		}
+	}
+	if !foundWarning {
+		t.Fatalf("malformed evidence warning missing: %+v", report.Warnings)
 	}
 }
 
