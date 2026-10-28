@@ -515,6 +515,9 @@ func mergeWindowSourceSummary(current *windowState, source snapshot.SourceSummar
 	merged := current.sources[key]
 	if merged.Type == "" {
 		merged = source
+		// The supplied summary describes this export; the window accumulates
+		// its actual observations below, including on the first export.
+		merged.Observations = 0
 	}
 	merged.Observations += observations
 	current.sources[key] = merged

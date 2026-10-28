@@ -81,6 +81,10 @@ def main() -> None:
     require_expected("replay", replay)
     require_obi_source("live", live_sources)
     require_obi_source("replay", replay_sources)
+    live_counts = {Path(item["ref"]).name: item["observations"] for item in live_sources}
+    replay_counts = {Path(item["ref"]).name: item["observations"] for item in replay_sources}
+    if live_counts != replay_counts:
+        raise SystemExit(f"live/replay source count mismatch: {live_counts} != {replay_counts}")
     require_execution_link("live", live_snapshot)
     require_execution_link("replay", replay_snapshot)
     if live != replay:

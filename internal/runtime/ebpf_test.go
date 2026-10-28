@@ -74,6 +74,9 @@ func TestEBPFSourceCapturesWireInputAndBuildsModel(t *testing.T) {
 	if len(artifact.Sources) != 1 || artifact.Sources[0].Type != "ebpf" {
 		t.Fatalf("sources=%+v", artifact.Sources)
 	}
+	if artifact.Sources[0].Observations != len(loaded.Spans) {
+		t.Fatalf("live source count %d differs from raw replay %d", artifact.Sources[0].Observations, len(loaded.Spans))
+	}
 }
 
 func TestInvalidEBPFSourceConfigurationRejected(t *testing.T) {
