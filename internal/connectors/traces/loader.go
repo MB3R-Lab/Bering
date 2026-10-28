@@ -23,6 +23,8 @@ type Span struct {
 	SpanID             string
 	ParentSpanID       string
 	SourceRef          string
+	SourceKind         string
+	SourceDomain       string
 	Service            string
 	Name               string
 	Kind               string

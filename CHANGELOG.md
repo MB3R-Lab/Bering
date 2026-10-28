@@ -1,25 +1,34 @@
 # Changelog
 
-## Unreleased
+## v1.1.0
 
 ### Added
 
+- Declared OBI eBPF sources for source-scoped OTLP/HTTP runtime ingest, raw
+  capture and deterministic batch replay, with collection-domain provenance
+  and explicit structural-versus-context evidence.
+- A product-neutral Linux acceptance example and Helm values for connecting an
+  external privileged OBI deployment while Bering remains unprivileged.
 - Trace-derived instance, process-generation and host evidence with source attribution, kept separate from configured replica counts and executable placement inventories.
 - Database client dependency discovery, scoped shared logical endpoints, observed receiver reuse and explicit unresolved aliases.
 - Versioned observation evidence in existing snapshot attributes and typed quality sidecars, preserving the model and snapshot 1.3.0 contracts.
 
 ### Fixed
 
+- Source-domain identity keys, scoped peer aliases, and evidence attribution prevent false cross-source links. eBPF runtime ingest uses receipt time for window admission and retains collector timestamps as evidence.
+
 - Consistent OTLP resource identity, instrumentation scope, typed attribute and context normalization across batch and runtime ingestion.
 - Conflicting span identities and duplicate OTLP attributes no longer select arbitrary causal links or database identities.
-
-### Breaking
-
-- Retired the pre-v1 preview Bering contract lines `io.mb3r.bering.model@1.0.0`, `io.mb3r.bering.snapshot@1.0.0`, `io.mb3r.bering.model@1.1.0`, `io.mb3r.bering.snapshot@1.1.0`, `io.mb3r.bering.model@1.2.0`, and `io.mb3r.bering.snapshot@1.2.0`. Bering v1 validates and publishes only the strict `1.3.0` model and snapshot contracts; regenerate old artifacts before using them with Bering v1 or Sheaft v1.
 
 ### Compatibility
 
 - Advanced the canonical downstream fixture checkpoint to Sheaft `v1.2.0`; existing Bering `1.3.0` replica, placement, reliability, edge, and endpoint metadata is sufficient for confidence-certified fail-stop sweeps without changing the published contract.
+
+## v1.0.0
+
+### Breaking
+
+- Retired the pre-v1 preview Bering contract lines `io.mb3r.bering.model@1.0.0`, `io.mb3r.bering.snapshot@1.0.0`, `io.mb3r.bering.model@1.1.0`, `io.mb3r.bering.snapshot@1.1.0`, `io.mb3r.bering.model@1.2.0`, and `io.mb3r.bering.snapshot@1.2.0`. Bering v1 validates and publishes only the strict `1.3.0` model and snapshot contracts; regenerate old artifacts before using them with Bering v1 or Sheaft v1.
 
 ## v0.3.4
 

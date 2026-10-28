@@ -9,7 +9,7 @@ Product releases and schema publishing are separate operations:
 - product release tags: `vX.Y.Z`
 - schema publishing tags: `schema-vA.B.C`
 
-Product releases advance independently from the public schema contracts. As of the current release line, use `v0.3.4` for the product release while the default emitted public schema contracts are `1.1.0` and the preserved `1.0.0` contracts remain available for validation and pinned consumers.
+Product releases advance independently from the public schema contracts. Bering `v1.1.0` emits and validates the strict `1.3.0` model and snapshot contracts. Retired pre-v1 schema lines are not part of the current product. The eBPF source does not change those contracts.
 
 ## Prerequisites
 
@@ -28,7 +28,7 @@ Dry-run without publishing:
 
 ```bash
 make release-dry-run \
-  VERSION=0.3.4 \
+  VERSION=1.1.0 \
   GIT_SHA="$(git rev-parse HEAD)" \
   BUILD_DATE="$(git show -s --format=%cI HEAD)"
 ```
@@ -37,7 +37,7 @@ Full local release payload with OCI publish:
 
 ```bash
 make release-local \
-  VERSION=0.3.4 \
+  VERSION=1.1.0 \
   GIT_SHA="$(git rev-parse HEAD)" \
   BUILD_DATE="$(git show -s --format=%cI HEAD)" \
   IMAGE_REPOSITORY=ghcr.io/mb3r-lab/bering \
@@ -49,14 +49,14 @@ If the chart version must intentionally differ from the app version:
 
 ```bash
 make chart-package \
-  VERSION=0.3.4 \
-  CHART_VERSION=0.3.4-chart.1 \
+  VERSION=1.1.0 \
+  CHART_VERSION=1.1.0-chart.1 \
   ALLOW_CHART_VERSION_MISMATCH=1
 ```
 
 ## Release Flow
 
-1. Run `make release-dry-run`.
+1. Run `make run-checks`, the real OBI source smoke workflow, and `make release-dry-run`. For the OBI source, retain the raw collector capture and require linked live/replay graphs from SDK-free services.
 2. Create and push a SemVer product tag: `vX.Y.Z`.
 3. CI runs tests and produces the same `dist/` payload via `make release-local`.
 4. CI publishes:
@@ -80,7 +80,7 @@ These variables control the release payload:
 - `CHART_VERSION`: optional explicit chart version
 - `ALLOW_CHART_VERSION_MISMATCH=1`: required when `CHART_VERSION != VERSION`
 
-For `v0.3.4`, `VERSION=0.3.4` while the default emitted public schema contracts are `1.1.0`.
+For `v1.1.0`, `VERSION=1.1.0` while the public model and snapshot schema contracts remain `1.3.0`.
 
 ## Expected Output
 

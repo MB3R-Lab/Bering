@@ -1,6 +1,6 @@
 # Bering
 
-[![release](https://img.shields.io/badge/release-v1.0.0-blue)](https://github.com/MB3R-Lab/Bering/releases/tag/v1.0.0)
+[![release](https://img.shields.io/badge/release-v1.1.0-blue)](https://github.com/MB3R-Lab/Bering/releases/tag/v1.1.0)
 [![checks](https://img.shields.io/github/actions/workflow/status/MB3R-Lab/Bering/ci.yml?branch=main&label=checks)](https://github.com/MB3R-Lab/Bering/actions/workflows/ci.yml)
 [![schema](https://img.shields.io/badge/schema-1.3.0-blue)](https://github.com/MB3R-Lab/Bering/blob/main/VERSIONING.md)
 
@@ -10,7 +10,7 @@
 
 Bering publishes topology and snapshot artifacts for downstream consumers. [Sheaft v1.3.1](https://github.com/MB3R-Lab/Sheaft/releases/tag/v1.3.1) consumes Bering artifacts for resilience analysis and CI/CD gating. [mb3r-stack](https://github.com/MB3R-Lab/mb3r-stack) integrates pinned Procrustes preflight, Bering discovery, and Sheaft analysis. The [separate reproduction repository](https://github.com/MB3R-Lab/mb3r-software-complex-repro) owns the executable demonstration and paper results.
 
-`Bering v1.0.0` is the current product release of Bering: a discovery and publishing layer for service topology and endpoint contracts.
+`Bering v1.1.0` is the current product release of Bering: a discovery and publishing layer for service topology and endpoint contracts.
 
 Bering turns trace input or explicit topology input into stable JSON artifacts, and it can also run as a long-lived runtime service that emits rolling discovery snapshots plus conservative reconciliation views for trace gaps.
 
@@ -27,6 +27,7 @@ The trace-discovered topology model and its downstream adequacy boundary follow 
 - deterministic batch discovery from trace files, trace directories, or explicit `topology_api` inputs
 - validation of Bering JSON artifacts against pinned public schemas
 - runtime OTLP ingest over HTTP, with optional OTLP/gRPC ingest
+- declared OBI eBPF sources with source-scoped OTLP/HTTP ingest and raw replay
 - publishing of stable topology and snapshot artifacts for downstream tooling
 - discovery-side enrichment through additive overlays
 
@@ -38,8 +39,8 @@ Bering owns discovery and discovery-side public contracts. It does not own simul
 
 Do not treat the product release tag as the schema contract version.
 
-- Current product release for this repository: `Bering v1.0.0`
-- Current product git tag / GitHub Release: `v1.0.0`
+- Current product release for this repository: `Bering v1.1.0`
+- Current product git tag / GitHub Release: `v1.1.0`
 - Default emitted schema contracts now are:
   - `io.mb3r.bering.model@1.3.0`
   - `io.mb3r.bering.snapshot@1.3.0`
@@ -67,7 +68,7 @@ Also packaged today:
 Example:
 
 ```bash
-tar -xzf bering_1.0.0_linux_amd64.tar.gz
+tar -xzf bering_1.1.0_linux_amd64.tar.gz
 ./bering help
 ```
 
@@ -134,6 +135,7 @@ The sample runtime config listens on:
 Useful endpoints:
 
 - `POST /v1/traces`
+- `POST /sources/<source-id>/v1/traces` for a declared OBI eBPF source
 - `GET /healthz`
 - `GET /readyz`
 - `GET /metrics`
@@ -230,6 +232,7 @@ Release outputs include:
 - Enrichment onboarding: [examples/enrichment](examples/enrichment/README.md)
 - Non-trace adapter: [examples/adapters/service-catalog](examples/adapters/service-catalog/README.md)
 - Collector sidecar: [examples/collector/otelcol.sidecar.yaml](examples/collector/otelcol.sidecar.yaml)
+- OBI eBPF source smoke: [examples/ebpf-obi](examples/ebpf-obi/README.md)
 - Prometheus scrape config: [examples/prometheus/bering.prometheus.yml](examples/prometheus/bering.prometheus.yml)
 - Grafana dashboard: [examples/grafana/bering-runtime-dashboard.json](examples/grafana/bering-runtime-dashboard.json)
 
@@ -242,6 +245,7 @@ Release outputs include:
 - [docs/schema-publishing.md](docs/schema-publishing.md)
 - [docs/trace-input-format.md](docs/trace-input-format.md)
 - [docs/observation-evidence.md](docs/observation-evidence.md)
+- [docs/ebpf-source.md](docs/ebpf-source.md)
 - [docs/topology-input-format.md](docs/topology-input-format.md)
 - [docs/enrichment-onboarding.md](docs/enrichment-onboarding.md)
 - [docs/mvp-scope-and-limits.md](docs/mvp-scope-and-limits.md)

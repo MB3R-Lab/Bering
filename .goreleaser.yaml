@@ -43,6 +43,13 @@ archives:
     files:
       - LICENSE
       - README.md
+      - docs/ebpf-source.md
+      - examples/ebpf-obi/README.md
+      - examples/ebpf-obi/serve.yaml
+      - examples/ebpf-obi/run-smoke.sh
+      - examples/ebpf-obi/verify.py
+      - examples/ebpf-obi/edge-api/main.go
+      - examples/ebpf-obi/lookup-api/main.go
 
 checksum:
   name_template: "{{ .ProjectName }}_{{ .Version }}_checksums.txt"

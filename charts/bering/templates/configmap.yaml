@@ -41,6 +41,12 @@ data:
       latest_path: {{ .Values.config.sink.latestPath | quote }}
     logging:
       structured: {{ .Values.config.logging.structured }}
+{{- if .Values.config.sources }}
+    sources:
+{{ toYaml .Values.config.sources | nindent 6 }}
+{{- else }}
+    sources: []
+{{- end }}
 {{- if .Values.config.overlays }}
     overlays:
 {{ toYaml .Values.config.overlays | nindent 6 }}

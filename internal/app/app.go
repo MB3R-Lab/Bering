@@ -14,6 +14,7 @@ import (
 
 	"github.com/MB3R-Lab/Bering/internal/atomicfile"
 	"github.com/MB3R-Lab/Bering/internal/config"
+	"github.com/MB3R-Lab/Bering/internal/connectors/ebpf"
 	"github.com/MB3R-Lab/Bering/internal/connectors/topology"
 	"github.com/MB3R-Lab/Bering/internal/connectors/traces"
 	"github.com/MB3R-Lab/Bering/internal/discovery"
@@ -72,6 +73,8 @@ func (r Runner) runDiscover(args []string) int {
 	fs.SetOutput(io.Discard)
 
 	input := fs.String("input", "", "Path to discovery input file or directory")
+	inputType := fs.String("input-type", "auto", "Input connector: auto or ebpf-obi")
+	sourceDomain := fs.String("source-domain", "default", "Collection deployment domain for ebpf-obi")
 	out := fs.String("out", "bering-model.json", "Path to output model JSON")
 	snapshotOut := fs.String("snapshot-out", "", "Optional path to output snapshot envelope JSON")
 	qualityOut := fs.String("quality-out", "", "Optional path to output model signal quality JSON; defaults next to --out")
@@ -114,7 +117,22 @@ func (r Runner) runDiscover(args []string) int {
 		}
 	}
 
-	result, err := loadDiscoveryResult(*input, discoveredAtValue, override, loadedOverlays)
+	var result discovery.Result
+	switch strings.TrimSpace(*inputType) {
+	case "auto":
+		result, err = loadDiscoveryResult(*input, discoveredAtValue, override, loadedOverlays)
+	case "ebpf-obi":
+		var observations ebpf.Result
+		observations, err = ebpf.Load(*input, ebpf.Options{Collector: "obi", Domain: *sourceDomain})
+		if err == nil {
+			result, err = discovery.Discover(observations.Spans, discovery.Options{
+				SourceRef: discovery.BuildSourceRef(*input), DiscoveredAt: discoveredAtValue,
+				ReplicasOverride: override, Overlays: loadedOverlays, Sources: observations.Sources,
+			})
+		}
+	default:
+		err = fmt.Errorf("unsupported input-type %q", *inputType)
+	}
 	if err != nil {
 		r.printfErr("discover model: %v\n", err)
 		return ExitError
@@ -352,6 +370,7 @@ func (r Runner) printUsage() {
 	fmt.Fprintln(r.stdout, "Bering CLI")
 	fmt.Fprintln(r.stdout)
 	fmt.Fprintln(r.stdout, "Usage:")
+	fmt.Fprintln(r.stdout, "  bering discover --input-type ebpf-obi --source-domain <deployment> --input <OTLP JSON|JSONL|protobuf|dir> --out model.json [--snapshot-out snapshot.json]")
 	fmt.Fprintln(r.stdout, "  bering discover --input <trace-file|topology-file|dir> [--out bering-model.json] [--snapshot-out bering-snapshot.json] [--quality-out bering-model.signal-quality.json] [--snapshot-quality-out bering-snapshot.signal-quality.json] [--replicas replicas.yaml|json] [--overlay overlay.yaml] [--discovered-at RFC3339]")
 	fmt.Fprintln(r.stdout, "  bering validate --input <bering-model.json|bering-snapshot.json>")
 	fmt.Fprintln(r.stdout, "  bering serve --config configs/serve.sample.yaml [--listen :4318] [--grpc-listen :4317] [--window-size 30s] [--flush-interval 5s] [--reconciliation-summary-path out/reconciliation-summary.md] [--signal-quality-path out/latest-signal-quality.json]")

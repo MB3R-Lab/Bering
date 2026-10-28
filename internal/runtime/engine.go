@@ -118,13 +118,23 @@ func (e *Engine) IngestWithSource(ctx context.Context, spans []traces.Span, rece
 
 	e.mu.Lock()
 	defer e.mu.Unlock()
-	mergeWindowSourceSummary(&e.current, defaultSourceSummary(source, e.cfg.Sources), len(spans))
+	source = defaultSourceSummary(source, e.cfg.Sources)
+	mergeWindowSourceSummary(&e.current, source, len(spans))
 
 	dropped := 0
 	lateDropped := 0
 	lateAccepted := 0
 	for _, span := range spans {
+		if span.SourceRef == "" {
+			span.SourceRef = source.Ref
+		}
 		eventTime := span.EventTime(receivedAt)
+		// Agent clocks are descriptive evidence, not an admission test. Keep
+		// original timestamps on the observation while assigning eBPF exports
+		// to the receiver's active window.
+		if span.SourceKind == "ebpf" {
+			eventTime = receivedAt.UTC()
+		}
 		if eventTime.Before(e.current.start) {
 			e.current.late++
 			if strings.EqualFold(e.cfg.LateSpanPolicy, "drop") {
@@ -142,7 +152,7 @@ func (e *Engine) IngestWithSource(ctx context.Context, spans []traces.Span, rece
 		}
 		e.current.spans = append(e.current.spans, span)
 		if span.TraceID != "" {
-			e.current.traces[span.TraceID] = struct{}{}
+			e.current.traces[fmt.Sprintf("%d:%s%s", len(span.SourceDomain), span.SourceDomain, span.TraceID)] = struct{}{}
 		}
 	}
 	if dropped > 0 {
@@ -509,6 +519,9 @@ func mergeWindowSourceSummary(current *windowState, source snapshot.SourceSummar
 	merged := current.sources[key]
 	if merged.Type == "" {
 		merged = source
+		// The supplied summary describes this export; the window accumulates
+		// its actual observations below, including on the first export.
+		merged.Observations = 0
 	}
 	merged.Observations += observations
 	current.sources[key] = merged

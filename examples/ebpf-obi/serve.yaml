@@ -1,0 +1,23 @@
+server:
+  listen_address: "127.0.0.1:4318"
+  grpc_listen_address: ""
+  max_request_bytes: 5242880
+sources:
+  - id: obi-main
+    type: ebpf-obi
+    domain: smoke
+    capture_directory: out/ebpf-obi/obi-capture
+runtime:
+  flush_interval: 1s
+  window_size: 1h
+  max_in_memory_spans: 10000
+  late_span_policy: current_window
+  reconciliation:
+    enabled: false
+sink:
+  directory: out/ebpf-obi/snapshots
+  latest_path: out/ebpf-obi/latest-snapshot.json
+  signal_quality_path: out/ebpf-obi/latest-signal-quality.json
+logging:
+  structured: true
+overlays: []

@@ -101,6 +101,13 @@ config:
     latestPath: ""
   logging:
     structured: true
+  # Declared collector boundaries. Bering itself remains unprivileged; deploy
+  # OBI separately with the Linux capabilities it requires.
+  sources: []
+  # - id: obi-main
+  #   type: ebpf-obi
+  #   domain: production
+  #   capture_directory: /var/lib/bering/obi-capture
   overlays: []
 
 serviceMonitor:

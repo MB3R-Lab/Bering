@@ -18,9 +18,20 @@ const (
 )
 
 type Source struct {
+	Kind         string `json:"kind,omitempty"`
+	Domain       string `json:"domain,omitempty"`
 	Ref          string `json:"ref,omitempty"`
 	ScopeName    string `json:"scope_name,omitempty"`
 	ScopeVersion string `json:"scope_version,omitempty"`
+}
+
+type Peer struct {
+	Service      string   `json:"service,omitempty"`
+	Address      string   `json:"address,omitempty"`
+	Port         *int     `json:"port,omitempty"`
+	NetworkScope string   `json:"network_scope,omitempty"`
+	IdentityKind string   `json:"identity_kind"`
+	Sources      []Source `json:"sources,omitempty"`
 }
 
 type Instance struct {
@@ -62,6 +73,7 @@ type Record struct {
 	Instances       []Instance    `json:"instances,omitempty"`
 	Database        *Database     `json:"database,omitempty"`
 	DatabaseAliases []Database    `json:"database_aliases,omitempty"`
+	Peer            *Peer         `json:"peer,omitempty"`
 	Relation        *Relation     `json:"relation,omitempty"`
 	Warnings        []string      `json:"warnings,omitempty"`
 }
@@ -175,6 +187,13 @@ func Normalize(record Record) Record {
 	record.SchemaVersion = strings.TrimSpace(record.SchemaVersion)
 	if record.Replicas != nil {
 		record.Replicas.Basis = strings.TrimSpace(record.Replicas.Basis)
+	}
+	if record.Peer != nil {
+		record.Peer.Service = strings.TrimSpace(record.Peer.Service)
+		record.Peer.Address = strings.TrimSpace(record.Peer.Address)
+		record.Peer.NetworkScope = strings.TrimSpace(record.Peer.NetworkScope)
+		record.Peer.IdentityKind = strings.TrimSpace(record.Peer.IdentityKind)
+		record.Peer.Sources = normalizeSources(record.Peer.Sources)
 	}
 	for index := range record.Instances {
 		item := &record.Instances[index]
@@ -296,6 +315,8 @@ func normalizeSources(values []Source) []Source {
 	seen := map[Source]struct{}{}
 	out := make([]Source, 0, len(values))
 	for _, value := range values {
+		value.Kind = strings.TrimSpace(value.Kind)
+		value.Domain = strings.TrimSpace(value.Domain)
 		value.Ref = strings.TrimSpace(value.Ref)
 		value.ScopeName = strings.TrimSpace(value.ScopeName)
 		value.ScopeVersion = strings.TrimSpace(value.ScopeVersion)
@@ -310,6 +331,12 @@ func normalizeSources(values []Source) []Source {
 	}
 	sort.Slice(out, func(i, j int) bool {
 		left, right := out[i], out[j]
+		if left.Kind != right.Kind {
+			return left.Kind < right.Kind
+		}
+		if left.Domain != right.Domain {
+			return left.Domain < right.Domain
+		}
 		if left.Ref != right.Ref {
 			return left.Ref < right.Ref
 		}
