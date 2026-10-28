@@ -17,7 +17,10 @@ edge-api -> lookup-api -> OBI -> /sources/obi-main/v1/traces -> Bering
 Bering saves every received OTLP request under `out/ebpf-obi/obi-capture`.
 After live ingestion, the smoke replays that independent raw capture with
 `--input-type ebpf-obi` and requires the live and replay projections to have
-the same services, caller-to-callee edge, and HTTP endpoints. Addresses and
+the same services, complete caller-to-callee edge IDs, and HTTP endpoints.
+Live publication uses the default enabled reconciliation layer; its raw
+window, state and report are retained alongside the published snapshot.
+Addresses and
 timestamps are retained as evidence but are never used as a fallback for a
 missing trace parent.
 

@@ -353,7 +353,10 @@ type observationIndex struct {
 }
 
 func edgeIdentity(edge model.Edge) string {
-	return fmt.Sprintf("%s|%s|%s|%t", edge.From, edge.To, edge.Kind, edge.Blocking)
+	if strings.TrimSpace(edge.ID) != "" {
+		return edge.ID
+	}
+	return model.EdgeIDWithIdentity(edge.From, edge.To, edge.Kind, edge.Blocking, edge.Identity)
 }
 
 func cloneModelService(item *model.Service) *model.Service {

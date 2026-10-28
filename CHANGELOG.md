@@ -1,5 +1,17 @@
 # Changelog
 
+## v1.1.1
+
+### Fixed
+
+- Runtime reconciliation now indexes edges by their complete discovered IDs,
+  retaining distinct protocol, operation and route identities. Previously, the
+  default published view could omit typed edges present in the raw discovery
+  graph. The fix applies to native trace and OBI eBPF sources.
+- The real OBI acceptance example now checks the default reconciliation path
+  against replay of the captured exports. Model and snapshot schemas remain
+  unchanged at `1.3.0`.
+
 ## v1.1.0
 
 ### Added
