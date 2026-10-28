@@ -42,7 +42,7 @@ Recommended migration path for downstream consumers:
 3. add optional snapshot-envelope parsing only when runtime observability features are needed
 4. treat overlay-derived metadata as published discovery context, not execution policy
 
-For the current [Sheaft v1.3.1](https://github.com/MB3R-Lab/Sheaft/releases/tag/v1.3.1), the model/snapshot handoff remains Bering schema 1.3.0. The [canonical fixtures](../examples/compatibility/sheaft-v1/README.md) retain their historical v1.2.0 consumer checkpoint and are also included in the contracts pack under `fixtures/sheaft-v1/`. Their hashes and original coverage have not been rewritten. External required-call predicates are a separate Sheaft contract, not a Bering schema migration.
+For the current [Sheaft v1.3.2](https://github.com/MB3R-Lab/Sheaft/releases/tag/v1.3.2), the model/snapshot handoff remains Bering schema 1.3.0. The [canonical fixtures](../examples/compatibility/sheaft-v1/README.md) retain their historical v1.2.0 consumer checkpoint and are also included in the contracts pack under `fixtures/sheaft-v1/`. Their hashes and original coverage have not been rewritten. External required-call predicates are a separate Sheaft contract, not a Bering schema migration.
 
 Edge IDs remain backward-compatible when an edge has no logical identity metadata. When Bering has protocol, operation, route, topic, or span-kind evidence, the ID adds stable discriminator segments. Existing overlays that use the old base ID still work only when the base ID maps to one edge; if multiple operation-aware edges share the same service pair and kind, update the overlay to use the full ID or an explicit `identity`.
 

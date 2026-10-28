@@ -8,7 +8,7 @@
 
 [Procrustes](https://github.com/MB3R-Lab/Procrustes) runs before trace collection and checks whether static deployment, instrumentation, propagation, entrypoint, scenario, and replica evidence is sufficient for Bering discovery. It hands Bering a collection plan and an overlay containing only confirmed static facts; Bering remains responsible for runtime topology and trace-evidence validation.
 
-Bering publishes topology and snapshot artifacts for downstream consumers. [Sheaft v1.3.1](https://github.com/MB3R-Lab/Sheaft/releases/tag/v1.3.1) consumes Bering artifacts for resilience analysis and CI/CD gating. [mb3r-stack](https://github.com/MB3R-Lab/mb3r-stack) integrates pinned Procrustes preflight, Bering discovery, and Sheaft analysis. The [separate reproduction repository](https://github.com/MB3R-Lab/mb3r-software-complex-repro) owns the executable demonstration and paper results.
+Bering publishes topology and snapshot artifacts for downstream consumers. [Sheaft v1.3.2](https://github.com/MB3R-Lab/Sheaft/releases/tag/v1.3.2) consumes Bering artifacts for resilience analysis and CI/CD gating. [mb3r-stack](https://github.com/MB3R-Lab/mb3r-stack) integrates pinned Procrustes preflight, Bering discovery, and Sheaft analysis. The [separate reproduction repository](https://github.com/MB3R-Lab/mb3r-software-complex-repro) owns the executable demonstration and paper results.
 
 `Bering v1.1.0` is the current product release of Bering: a discovery and publishing layer for service topology and endpoint contracts.
 
@@ -155,7 +155,7 @@ go run ./cmd/sheaft run \
   --seed 42
 ```
 
-The current downstream release is [Sheaft v1.3.1](https://github.com/MB3R-Lab/Sheaft/releases/tag/v1.3.1), still consuming Bering `v1.0.0` / schema line `1.3.0`. The canonical [compatibility fixtures](examples/compatibility/sheaft-v1/README.md) retain their original `v1.2.0` consumer milestone and unchanged model/snapshot hashes. Sheaft 1.3.1 adds Birnbaum importance and explicit required-call predicates without a Bering schema migration. Required calls belong in the [external predicate contract](https://github.com/MB3R-Lab/Sheaft/blob/v1.3.1/docs/required-calls.md), not in inferred reachability; set the endpoint's predicate mode to `external_predicate` explicitly. Capacity-aware overload modelling remains outside this handoff.
+The current downstream release is [Sheaft v1.3.2](https://github.com/MB3R-Lab/Sheaft/releases/tag/v1.3.2), with verified Bering `v1.1.0` app compatibility and unchanged schema line `1.3.0`. The canonical [compatibility fixtures](examples/compatibility/sheaft-v1/README.md) retain their original `v1.2.0` consumer milestone and unchanged model/snapshot hashes. Sheaft 1.3.1 introduced Birnbaum importance and explicit required-call predicates without a Bering schema migration. Required calls belong in the [external predicate contract](https://github.com/MB3R-Lab/Sheaft/blob/v1.3.2/docs/required-calls.md), not in inferred reachability; set the endpoint's predicate mode to `external_predicate` explicitly. Capacity-aware overload modelling remains outside this handoff.
 
 ## Published Artifacts
 
