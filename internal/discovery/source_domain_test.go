@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/MB3R-Lab/Bering/internal/connectors/traces"
+	"github.com/MB3R-Lab/Bering/internal/snapshot"
 )
 
 func TestCollectionDomainSeparatesAncestryButNotAgents(t *testing.T) {
@@ -76,7 +77,10 @@ func TestEndpointProvenanceIsNotServiceWide(t *testing.T) {
 		{Service: "api", Kind: "server", SourceKind: "ebpf", SourceDomain: "ebpf:one", SourceRef: "agent", Attributes: map[string]any{"http.request.method": "GET", "http.route": "/a"}},
 		{Service: "api", Kind: "server", SourceRef: "native", Attributes: map[string]any{"http.request.method": "GET", "http.route": "/b"}},
 	}
-	result, err := Discover(spans, Options{DiscoveredAt: "2026-01-01T00:00:00Z"})
+	result, err := Discover(spans, Options{DiscoveredAt: "2026-01-01T00:00:00Z", Sources: []snapshot.SourceSummary{
+		{Type: "ebpf", Connector: "obi", Ref: "agent"},
+		{Type: "traces", Connector: "otlp_http", Ref: "native"},
+	}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -87,7 +91,7 @@ func TestEndpointProvenanceIsNotServiceWide(t *testing.T) {
 		if endpoint.Path == "/a" && endpoint.Provenance[0].Type != "ebpf" {
 			t.Fatalf("missing agent provenance %+v", endpoint)
 		}
-		if endpoint.Path == "/b" && endpoint.Provenance[0].Ref != "native" {
+		if endpoint.Path == "/b" && (endpoint.Provenance[0].Ref != "native" || endpoint.Provenance[0].Connector != "otlp_http") {
 			t.Fatalf("wrong native provenance %+v", endpoint)
 		}
 	}

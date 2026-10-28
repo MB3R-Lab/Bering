@@ -118,12 +118,16 @@ func (e *Engine) IngestWithSource(ctx context.Context, spans []traces.Span, rece
 
 	e.mu.Lock()
 	defer e.mu.Unlock()
-	mergeWindowSourceSummary(&e.current, defaultSourceSummary(source, e.cfg.Sources), len(spans))
+	source = defaultSourceSummary(source, e.cfg.Sources)
+	mergeWindowSourceSummary(&e.current, source, len(spans))
 
 	dropped := 0
 	lateDropped := 0
 	lateAccepted := 0
 	for _, span := range spans {
+		if span.SourceRef == "" {
+			span.SourceRef = source.Ref
+		}
 		eventTime := span.EventTime(receivedAt)
 		// Agent clocks are descriptive evidence, not an admission test. Keep
 		// original timestamps on the observation while assigning eBPF exports
