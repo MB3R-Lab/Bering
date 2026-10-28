@@ -21,8 +21,10 @@ the same services, caller-to-callee edge, and HTTP endpoints. Addresses and
 timestamps are retained as evidence but are never used as a fallback for a
 missing trace parent.
 
-Run this only on a disposable Linux host with Docker; OBI requires privileged
-eBPF access:
+Run this from a source checkout or an extracted Linux release archive on a
+disposable Linux host with Docker, Go, Python 3, and curl; OBI requires
+privileged eBPF access. The archive path uses the bundled Bering binary and
+builds only the two small standard-library applications:
 
 ```bash
 bash ./examples/ebpf-obi/run-smoke.sh

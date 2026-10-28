@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## v1.1.0
 
 ### Added
 
@@ -15,16 +15,20 @@
 
 ### Fixed
 
+- Source-domain identity keys, scoped peer aliases, and evidence attribution prevent false cross-source links. eBPF runtime ingest uses receipt time for window admission and retains collector timestamps as evidence.
+
 - Consistent OTLP resource identity, instrumentation scope, typed attribute and context normalization across batch and runtime ingestion.
 - Conflicting span identities and duplicate OTLP attributes no longer select arbitrary causal links or database identities.
-
-### Breaking
-
-- Retired the pre-v1 preview Bering contract lines `io.mb3r.bering.model@1.0.0`, `io.mb3r.bering.snapshot@1.0.0`, `io.mb3r.bering.model@1.1.0`, `io.mb3r.bering.snapshot@1.1.0`, `io.mb3r.bering.model@1.2.0`, and `io.mb3r.bering.snapshot@1.2.0`. Bering v1 validates and publishes only the strict `1.3.0` model and snapshot contracts; regenerate old artifacts before using them with Bering v1 or Sheaft v1.
 
 ### Compatibility
 
 - Advanced the canonical downstream fixture checkpoint to Sheaft `v1.2.0`; existing Bering `1.3.0` replica, placement, reliability, edge, and endpoint metadata is sufficient for confidence-certified fail-stop sweeps without changing the published contract.
+
+## v1.0.0
+
+### Breaking
+
+- Retired the pre-v1 preview Bering contract lines `io.mb3r.bering.model@1.0.0`, `io.mb3r.bering.snapshot@1.0.0`, `io.mb3r.bering.model@1.1.0`, `io.mb3r.bering.snapshot@1.1.0`, `io.mb3r.bering.model@1.2.0`, and `io.mb3r.bering.snapshot@1.2.0`. Bering v1 validates and publishes only the strict `1.3.0` model and snapshot contracts; regenerate old artifacts before using them with Bering v1 or Sheaft v1.
 
 ## v0.3.4
 
