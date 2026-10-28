@@ -1,6 +1,6 @@
 # Bering
 
-[![release](https://img.shields.io/badge/release-v1.1.0-blue)](https://github.com/MB3R-Lab/Bering/releases/tag/v1.1.0)
+[![release](https://img.shields.io/badge/release-v1.1.1-blue)](https://github.com/MB3R-Lab/Bering/releases/tag/v1.1.1)
 [![checks](https://img.shields.io/github/actions/workflow/status/MB3R-Lab/Bering/ci.yml?branch=main&label=checks)](https://github.com/MB3R-Lab/Bering/actions/workflows/ci.yml)
 [![schema](https://img.shields.io/badge/schema-1.3.0-blue)](https://github.com/MB3R-Lab/Bering/blob/main/VERSIONING.md)
 
@@ -10,7 +10,7 @@
 
 Bering publishes topology and snapshot artifacts for downstream consumers. [Sheaft v1.3.2](https://github.com/MB3R-Lab/Sheaft/releases/tag/v1.3.2) consumes Bering artifacts for resilience analysis and CI/CD gating. [mb3r-stack](https://github.com/MB3R-Lab/mb3r-stack) integrates pinned Procrustes preflight, Bering discovery, and Sheaft analysis. The [separate reproduction repository](https://github.com/MB3R-Lab/mb3r-software-complex-repro) owns the executable demonstration and paper results.
 
-`Bering v1.1.0` is the current product release of Bering: a discovery and publishing layer for service topology and endpoint contracts.
+`Bering v1.1.1` is the current product release of Bering: a discovery and publishing layer for service topology and endpoint contracts.
 
 Bering turns trace input or explicit topology input into stable JSON artifacts, and it can also run as a long-lived runtime service that emits rolling discovery snapshots plus conservative reconciliation views for trace gaps.
 
@@ -39,8 +39,8 @@ Bering owns discovery and discovery-side public contracts. It does not own simul
 
 Do not treat the product release tag as the schema contract version.
 
-- Current product release for this repository: `Bering v1.1.0`
-- Current product git tag / GitHub Release: `v1.1.0`
+- Current product release for this repository: `Bering v1.1.1`
+- Current product git tag / GitHub Release: `v1.1.1`
 - Default emitted schema contracts now are:
   - `io.mb3r.bering.model@1.3.0`
   - `io.mb3r.bering.snapshot@1.3.0`
@@ -68,7 +68,7 @@ Also packaged today:
 Example:
 
 ```bash
-tar -xzf bering_1.1.0_linux_amd64.tar.gz
+tar -xzf bering_1.1.1_linux_amd64.tar.gz
 ./bering help
 ```
 

@@ -13,7 +13,11 @@ runtime:
   max_in_memory_spans: 10000
   late_span_policy: current_window
   reconciliation:
-    enabled: false
+    enabled: true
+    state_path: out/ebpf-obi/reconciliation-state.json
+    report_path: out/ebpf-obi/reconciliation-report.json
+    raw_window_path: out/ebpf-obi/raw-window.json
+    stable_core_path: out/ebpf-obi/stable-core.json
 sink:
   directory: out/ebpf-obi/snapshots
   latest_path: out/ebpf-obi/latest-snapshot.json

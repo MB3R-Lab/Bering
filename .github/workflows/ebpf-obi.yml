@@ -11,6 +11,7 @@ on:
       - 'internal/evidence/**'
       - 'charts/bering/**'
       - 'internal/runtime/**'
+      - 'internal/reconciliation/**'
       - 'internal/config/**'
       - 'internal/app/**'
       - '.github/workflows/ebpf-obi.yml'

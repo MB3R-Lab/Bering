@@ -28,6 +28,7 @@ def projection(model: dict) -> dict[str, set[tuple[str, ...]] | set[str]]:
     return {
         "services": {item["id"] for item in model.get("services", [])},
         "edges": {(item["from"], item["to"]) for item in model.get("edges", [])},
+        "edge_ids": {item["id"] for item in model.get("edges", [])},
         "endpoints": {
             (item["entry_service"], item["method"], item["path"])
             for item in model.get("endpoints", [])
