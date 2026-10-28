@@ -1,6 +1,7 @@
 package discovery
 
 import (
+	"encoding/json"
 	"fmt"
 	"math"
 	"net/url"
@@ -82,7 +83,7 @@ func Discover(spans []traces.Span, opts Options) (Result, error) {
 			serviceSet[service] = 1
 		}
 		if span.TraceID != "" {
-			traceSet[span.TraceID] = struct{}{}
+			traceSet[traceSpanKey(span.TraceID, "", span.SourceDomain)] = struct{}{}
 		}
 		serviceStats[service] = updateServiceAccumulator(serviceStats[service], span, opts.RuntimeMode)
 	}
@@ -101,7 +102,7 @@ func Discover(spans []traces.Span, opts Options) (Result, error) {
 		}
 
 		parent, hasParent := parentSpan(span, spanByKey)
-		_, hasChild := spanByKey[traceSpanKey(span.TraceID, span.SpanID)]
+		_, hasChild := spanByKey[traceSpanKey(span.TraceID, span.SpanID, span.SourceDomain)]
 		if hasParent && hasChild && strings.TrimSpace(parent.Service) != "" && parent.Service != span.Service {
 			kind, evidence := edgeKind(parent, span)
 			blocking := kind == model.EdgeKindSync
@@ -211,6 +212,10 @@ func Discover(spans []traces.Span, opts Options) (Result, error) {
 	if err := enrichObservations(&mdl, &details, spans, spanByKey, ambiguousSpans, opts, sourceRef); err != nil {
 		return Result{}, err
 	}
+	if err := enrichEBPFPeers(&mdl, &details, spans, spanByKey, ambiguousSpans, opts, sourceRef); err != nil {
+		return Result{}, err
+	}
+	applySourceProvenance(&details, spans, spanByKey, opts, sourceRef)
 	serviceRecords, edgeRecords, endpointRecords = details.Services, details.Edges, details.Endpoints
 	if err := mdl.ValidateSemantic(); err != nil {
 		return Result{}, err
@@ -273,12 +278,17 @@ func parentSpan(child traces.Span, index map[string]traces.Span) (traces.Span, b
 	if strings.TrimSpace(child.TraceID) == "" || strings.TrimSpace(child.ParentSpanID) == "" {
 		return traces.Span{}, false
 	}
-	parent, ok := index[traceSpanKey(child.TraceID, child.ParentSpanID)]
+	parent, ok := index[traceSpanKey(child.TraceID, child.ParentSpanID, child.SourceDomain)]
 	return parent, ok
 }
 
-func traceSpanKey(traceID, spanID string) string {
-	return strings.TrimSpace(traceID) + "|" + strings.TrimSpace(spanID)
+func traceSpanKey(traceID, spanID string, domain ...string) string {
+	scope := ""
+	if len(domain) > 0 {
+		scope = domain[0]
+	}
+	raw, _ := json.Marshal([3]string{scope, strings.TrimSpace(traceID), strings.TrimSpace(spanID)})
+	return string(raw)
 }
 
 func edgeKind(parent, child traces.Span) (model.EdgeKind, []string) {
@@ -412,6 +422,22 @@ func inferEndpoint(span, parent traces.Span, hasParent bool) (model.Endpoint, bo
 func inferEndpointDetails(span, parent traces.Span, hasParent bool) (string, string, bool) {
 	if strings.TrimSpace(span.Service) == "" {
 		return "", "", false
+	}
+	if span.SourceKind == "ebpf" {
+		if !strings.EqualFold(span.Kind, "server") {
+			return "", "", false
+		}
+		if strings.EqualFold(firstAttr(span.Attributes, "rpc.system"), "grpc") {
+			method := firstAttr(span.Attributes, "rpc.method")
+			service := firstAttr(span.Attributes, "rpc.service")
+			if method != "" {
+				path := method
+				if !strings.Contains(method, "/") && service != "" {
+					path = service + "/" + method
+				}
+				return "GRPC", normalizePath("/" + strings.Trim(path, "/")), true
+			}
+		}
 	}
 
 	method := strings.ToUpper(strings.TrimSpace(firstAttr(
@@ -557,7 +583,7 @@ func updateServiceAccumulator(acc *serviceAccumulator, span traces.Span, runtime
 	}
 	acc.observations++
 	if span.TraceID != "" {
-		acc.traceIDs[span.TraceID] = struct{}{}
+		acc.traceIDs[traceSpanKey(span.TraceID, "", span.SourceDomain)] = struct{}{}
 	}
 	acc.observeTime(span.EventTime(time.Time{}), runtimeMode)
 	return acc
@@ -601,7 +627,7 @@ func updateEdgeAccumulator(acc *edgeAccumulator, id string, parent, child traces
 	}
 	acc.observations++
 	if child.TraceID != "" {
-		acc.traceIDs[child.TraceID] = struct{}{}
+		acc.traceIDs[traceSpanKey(child.TraceID, "", child.SourceDomain)] = struct{}{}
 	}
 	for _, item := range evidence {
 		if strings.TrimSpace(item) != "" {
@@ -666,7 +692,7 @@ func updateEndpointAccumulator(acc *endpointAccumulator, endpoint model.Endpoint
 	}
 	acc.observations++
 	if span.TraceID != "" {
-		acc.traceIDs[span.TraceID] = struct{}{}
+		acc.traceIDs[traceSpanKey(span.TraceID, "", span.SourceDomain)] = struct{}{}
 	}
 	acc.observeTime(span.EventTime(time.Time{}), runtimeMode)
 	return acc

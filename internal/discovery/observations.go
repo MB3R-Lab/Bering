@@ -27,7 +27,7 @@ func unambiguousSpanIndex(spans []traces.Span) (map[string]traces.Span, map[stri
 		if strings.TrimSpace(span.TraceID) == "" || strings.TrimSpace(span.SpanID) == "" {
 			continue
 		}
-		key := traceSpanKey(span.TraceID, span.SpanID)
+		key := traceSpanKey(span.TraceID, span.SpanID, span.SourceDomain)
 		if ambiguous[key] {
 			continue
 		}
@@ -82,7 +82,8 @@ func observationSource(span traces.Span, fallback string) evidence.Source {
 	if ref == "" {
 		ref = fallback
 	}
-	return evidence.Source{Ref: ref, ScopeName: span.ScopeName, ScopeVersion: span.ScopeVersion}
+	return evidence.Source{Ref: ref, ScopeName: span.ScopeName, ScopeVersion: span.ScopeVersion,
+		Kind: span.SourceKind, Domain: span.SourceDomain}
 }
 
 var instanceAttributeKeys = []string{
@@ -112,6 +113,9 @@ func observedInstance(span traces.Span, fallback string) (evidence.Instance, []s
 		}
 	}
 	identity := map[string]string{"service": span.Service}
+	if span.SourceDomain != "" {
+		identity["collection_domain"] = span.SourceDomain
+	}
 	status := "partial"
 	if id := attrs["service.instance.id"]; id != "" {
 		identity["service.instance.id"] = id
@@ -188,6 +192,9 @@ func databaseFromClient(span traces.Span, fallback string) (databaseObservation,
 		// Unresolved aliases are caller-scoped; they never establish a shared
 		// physical resource merely because an address or protocol is missing.
 		caller := map[string]string{"service": span.Service, "network_scope": scope}
+		if span.SourceDomain != "" {
+			caller["collection_domain"] = span.SourceDomain
+		}
 		for _, key := range instanceAttributeKeys {
 			if value := resourceAttr(span, key); value != "" {
 				caller[key] = value
@@ -256,7 +263,11 @@ func databaseNetworkScope(span traces.Span, address string) (string, bool) {
 	if address == "localhost" || (ip != nil && (ip.IsLoopback() || ip.IsLinkLocalUnicast())) {
 		// Loopback belongs to a network namespace, not to the entire input.
 		if container := resourceAttr(span, "container.id"); container != "" {
-			return "container:" + stableObservationID("scope", []string{resourceAttr(span, "host.id"), resourceAttr(span, "host.name"), resourceAttr(span, "k8s.pod.uid"), container}), true
+			fields := []string{resourceAttr(span, "host.id"), resourceAttr(span, "host.name"), resourceAttr(span, "k8s.pod.uid"), container}
+			if span.SourceDomain != "" {
+				fields = append(fields, span.SourceDomain)
+			}
+			return "container:" + stableObservationID("scope", fields), true
 		}
 		return "host:" + resourceAttr(span, "host.id"), false
 	}
@@ -328,12 +339,12 @@ func enrichObservations(mdl *model.ResilienceModel, details *snapshot.DiscoveryD
 				record.Instances = append(record.Instances, instance)
 			}
 		}
-		key := traceSpanKey(span.TraceID, span.SpanID)
+		key := traceSpanKey(span.TraceID, span.SpanID, span.SourceDomain)
 		if ambiguous[key] {
 			record.Warnings = appendUniqueStrings(record.Warnings, "conflicting_span_identity")
 			continue
 		}
-		if ambiguous[traceSpanKey(span.TraceID, span.ParentSpanID)] {
+		if ambiguous[traceSpanKey(span.TraceID, span.ParentSpanID, span.SourceDomain)] {
 			record.Warnings = appendUniqueStrings(record.Warnings, "conflicting_parent_identity")
 		}
 		_, hasChild := index[key]
@@ -503,7 +514,7 @@ func databaseReceivers(index map[string]traces.Span, sourceRef string) (map[stri
 		if !ok {
 			continue
 		}
-		key := traceSpanKey(parent.TraceID, parent.SpanID)
+		key := traceSpanKey(parent.TraceID, parent.SpanID, parent.SourceDomain)
 		paired[key] = append(paired[key], child)
 		if db.evidence.IdentityKind == "logical_endpoint" {
 			endpoints[db.id] = appendUniqueStrings(endpoints[db.id], child.Service)

@@ -20,6 +20,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"github.com/MB3R-Lab/Bering/internal/config"
+	"github.com/MB3R-Lab/Bering/internal/connectors/ebpf"
 	"github.com/MB3R-Lab/Bering/internal/connectors/otlp"
 	"github.com/MB3R-Lab/Bering/internal/discovery"
 	"github.com/MB3R-Lab/Bering/internal/overlay"
@@ -75,6 +76,20 @@ func NewService(cfg config.ServeConfig, overlays []overlay.File, logger *slog.Lo
 	service := &Service{cfg: cfg, logger: logger, metrics: metrics, engine: engine}
 	mux := http.NewServeMux()
 	mux.HandleFunc("/v1/traces", service.handleOTLP)
+	seenSources := map[string]bool{}
+	for _, source := range cfg.Sources {
+		if !validSourceID(source.ID) || seenSources[source.ID] {
+			return nil, fmt.Errorf("invalid or duplicate source id %q", source.ID)
+		}
+		if source.Type != "ebpf-obi" {
+			return nil, fmt.Errorf("unsupported source type %q", source.Type)
+		}
+		if _, err := ebpf.Normalize(nil, ebpf.Options{Domain: source.Domain}, "configuration:"+source.ID); err != nil {
+			return nil, err
+		}
+		seenSources[source.ID] = true
+		mux.HandleFunc("/sources/"+source.ID+"/v1/traces", service.handleEBPF(source))
+	}
 	mux.HandleFunc("/healthz", service.handleHealth)
 	mux.HandleFunc("/readyz", service.handleReady)
 	mux.HandleFunc("/reconciliation/report", service.handleReconciliationReport)

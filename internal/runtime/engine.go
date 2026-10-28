@@ -125,6 +125,12 @@ func (e *Engine) IngestWithSource(ctx context.Context, spans []traces.Span, rece
 	lateAccepted := 0
 	for _, span := range spans {
 		eventTime := span.EventTime(receivedAt)
+		// Agent clocks are descriptive evidence, not an admission test. Keep
+		// original timestamps on the observation while assigning eBPF exports
+		// to the receiver's active window.
+		if span.SourceKind == "ebpf" {
+			eventTime = receivedAt.UTC()
+		}
 		if eventTime.Before(e.current.start) {
 			e.current.late++
 			if strings.EqualFold(e.cfg.LateSpanPolicy, "drop") {
@@ -142,7 +148,7 @@ func (e *Engine) IngestWithSource(ctx context.Context, spans []traces.Span, rece
 		}
 		e.current.spans = append(e.current.spans, span)
 		if span.TraceID != "" {
-			e.current.traces[span.TraceID] = struct{}{}
+			e.current.traces[fmt.Sprintf("%d:%s%s", len(span.SourceDomain), span.SourceDomain, span.TraceID)] = struct{}{}
 		}
 	}
 	if dropped > 0 {

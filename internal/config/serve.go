@@ -59,11 +59,21 @@ func (d Duration) Duration() time.Duration {
 }
 
 type ServeConfig struct {
-	Server   ServerConfig  `json:"server" yaml:"server"`
-	Runtime  RuntimeConfig `json:"runtime" yaml:"runtime"`
-	Sink     SinkConfig    `json:"sink" yaml:"sink"`
-	Logging  LoggingConfig `json:"logging" yaml:"logging"`
-	Overlays []string      `json:"overlays" yaml:"overlays"`
+	Server   ServerConfig   `json:"server" yaml:"server"`
+	Runtime  RuntimeConfig  `json:"runtime" yaml:"runtime"`
+	Sink     SinkConfig     `json:"sink" yaml:"sink"`
+	Logging  LoggingConfig  `json:"logging" yaml:"logging"`
+	Overlays []string       `json:"overlays" yaml:"overlays"`
+	Sources  []SourceConfig `json:"sources,omitempty" yaml:"sources,omitempty"`
+}
+
+// SourceConfig declares a collector boundary. Domain is shared by every agent
+// in one collection deployment; it is not a host or collector-instance ID.
+type SourceConfig struct {
+	ID               string `json:"id" yaml:"id"`
+	Type             string `json:"type" yaml:"type"`
+	Domain           string `json:"domain" yaml:"domain"`
+	CaptureDirectory string `json:"capture_directory,omitempty" yaml:"capture_directory,omitempty"`
 }
 
 type ServerConfig struct {

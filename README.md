@@ -27,6 +27,7 @@ The trace-discovered topology model and its downstream adequacy boundary follow 
 - deterministic batch discovery from trace files, trace directories, or explicit `topology_api` inputs
 - validation of Bering JSON artifacts against pinned public schemas
 - runtime OTLP ingest over HTTP, with optional OTLP/gRPC ingest
+- declared OBI eBPF sources with source-scoped OTLP/HTTP ingest and raw replay
 - publishing of stable topology and snapshot artifacts for downstream tooling
 - discovery-side enrichment through additive overlays
 
@@ -134,6 +135,7 @@ The sample runtime config listens on:
 Useful endpoints:
 
 - `POST /v1/traces`
+- `POST /sources/<source-id>/v1/traces` for a declared OBI eBPF source
 - `GET /healthz`
 - `GET /readyz`
 - `GET /metrics`
@@ -230,6 +232,7 @@ Release outputs include:
 - Enrichment onboarding: [examples/enrichment](examples/enrichment/README.md)
 - Non-trace adapter: [examples/adapters/service-catalog](examples/adapters/service-catalog/README.md)
 - Collector sidecar: [examples/collector/otelcol.sidecar.yaml](examples/collector/otelcol.sidecar.yaml)
+- OBI eBPF source smoke: [examples/ebpf-obi](examples/ebpf-obi/README.md)
 - Prometheus scrape config: [examples/prometheus/bering.prometheus.yml](examples/prometheus/bering.prometheus.yml)
 - Grafana dashboard: [examples/grafana/bering-runtime-dashboard.json](examples/grafana/bering-runtime-dashboard.json)
 
@@ -242,6 +245,7 @@ Release outputs include:
 - [docs/schema-publishing.md](docs/schema-publishing.md)
 - [docs/trace-input-format.md](docs/trace-input-format.md)
 - [docs/observation-evidence.md](docs/observation-evidence.md)
+- [docs/ebpf-source.md](docs/ebpf-source.md)
 - [docs/topology-input-format.md](docs/topology-input-format.md)
 - [docs/enrichment-onboarding.md](docs/enrichment-onboarding.md)
 - [docs/mvp-scope-and-limits.md](docs/mvp-scope-and-limits.md)

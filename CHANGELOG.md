@@ -4,6 +4,11 @@
 
 ### Added
 
+- Declared OBI eBPF sources for source-scoped OTLP/HTTP runtime ingest, raw
+  capture and deterministic batch replay, with collection-domain provenance
+  and explicit structural-versus-context evidence.
+- A product-neutral Linux acceptance example and Helm values for connecting an
+  external privileged OBI deployment while Bering remains unprivileged.
 - Trace-derived instance, process-generation and host evidence with source attribution, kept separate from configured replica counts and executable placement inventories.
 - Database client dependency discovery, scoped shared logical endpoints, observed receiver reuse and explicit unresolved aliases.
 - Versioned observation evidence in existing snapshot attributes and typed quality sidecars, preserving the model and snapshot 1.3.0 contracts.

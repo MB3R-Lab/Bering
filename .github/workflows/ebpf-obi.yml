@@ -1,0 +1,44 @@
+name: OBI eBPF source smoke
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'examples/ebpf-obi/**'
+      - 'internal/connectors/ebpf/**'
+      - 'internal/connectors/otlp/**'
+      - 'internal/discovery/**'
+      - 'internal/evidence/**'
+      - 'charts/bering/**'
+      - 'internal/runtime/**'
+      - 'internal/config/**'
+      - 'internal/app/**'
+      - '.github/workflows/ebpf-obi.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Run real OBI source smoke
+        run: bash ./examples/ebpf-obi/run-smoke.sh
+
+      - name: Preserve acceptance evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ebpf-obi-smoke-${{ github.run_id }}
+          path: out/ebpf-obi
+          if-no-files-found: warn
+          retention-days: 14
