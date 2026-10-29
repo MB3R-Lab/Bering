@@ -24,6 +24,7 @@ type Span struct {
 	ParentSpanID       string
 	SourceRef          string
 	SourceKind         string
+	SourceConnector    string
 	SourceDomain       string
 	Service            string
 	Name               string

@@ -18,6 +18,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"github.com/MB3R-Lab/Bering/internal/connectors/traces"
+	"github.com/MB3R-Lab/Bering/internal/discovery"
 )
 
 const validTrace = "00112233445566778899aabbccddeeff"
@@ -71,7 +72,7 @@ func gzipBytes(t *testing.T, body []byte) []byte {
 
 func TestLoadBareJSONPreservesOTLPEvidence(t *testing.T) {
 	path := writeFile(t, "export.json", exportJSON(validTrace, validSpan))
-	result, err := Load(path, Options{Collector: "obi", Domain: "cluster-a"})
+	result, err := Load(path, Options{Type: "ebpf-obi", Domain: "cluster-a"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -228,12 +229,92 @@ func TestNormalizeValidatesDeclarationWithoutChangingObservations(t *testing.T) 
 	if in[0].SourceKind != "" || result.Spans[0].SourceKind != "ebpf" || result.Spans[0].TraceID != "opaque" || result.Spans[0].ResourceAttributes["host.id"] != "actual" {
 		t.Fatalf("input was mutated or observation altered: in=%+v out=%+v", in[0], result.Spans[0])
 	}
-	for _, opts := range []Options{{Collector: "jaeger"}, {Collector: "obi", Domain: "bad domain"}, {Collector: "obi", Domain: "scope/other"}} {
+	for _, opts := range []Options{{Type: "other"}, {Type: "ebpf-otlp", SourceID: "bad source"},
+		{Type: "ebpf-otlp", SourceID: "../source"}, {Type: "ebpf-obi", Domain: "bad domain"},
+		{Type: "ebpf-otlp", SourceID: "source", Domain: "scope/other"}} {
 		if _, err := Normalize(in, opts, "endpoint"); err == nil {
 			t.Fatalf("invalid declaration accepted: %+v", opts)
 		}
 	}
 	if _, err := Normalize(in, Options{}, " "); err == nil {
 		t.Fatal("missing source reference accepted")
+	}
+}
+
+func TestNormalizeGenericLogicalSourcePreservesIDsAndIsolatesDomain(t *testing.T) {
+	in := []traces.Span{{TraceID: "shared-trace", SpanID: "shared-span", ParentSpanID: "shared-parent", Service: "worker"}}
+	result, err := Normalize(in, Options{Type: "ebpf-otlp", SourceID: "source-b", Domain: "shared"}, "receiver-b")
+	if err != nil {
+		t.Fatal(err)
+	}
+	span := result.Spans[0]
+	if span.TraceID != in[0].TraceID || span.SpanID != in[0].SpanID || span.ParentSpanID != in[0].ParentSpanID {
+		t.Fatalf("OTLP identity was rewritten: in=%+v out=%+v", in[0], span)
+	}
+	if span.SourceConnector != "ebpf-otlp" || span.SourceDomain != "ebpf-otlp:8:source-b:shared" {
+		t.Fatalf("generic source provenance mismatch: %+v", span)
+	}
+	if got := result.Sources[0]; got.Type != "ebpf" || got.Connector != "ebpf-otlp" || got.Ref != "receiver-b" {
+		t.Fatalf("source summary mismatch: %+v", got)
+	}
+	legacy, err := Normalize(in, Options{Type: "ebpf-obi", Domain: "shared"}, "receiver-a")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if legacy.Spans[0].SourceDomain != "ebpf:shared" || legacy.Sources[0].Connector != "obi" {
+		t.Fatalf("legacy OBI provenance changed: %+v %+v", legacy.Spans[0], legacy.Sources)
+	}
+	collision, err := Normalize(in, Options{Type: "ebpf-obi", Domain: "otlp:8:source-b:shared"}, "receiver-c")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if collision.Spans[0].SourceDomain == span.SourceDomain {
+		t.Fatalf("legacy OBI and generic source domains collide: legacy=%q generic=%q", collision.Spans[0].SourceDomain, span.SourceDomain)
+	}
+	otherRef, err := Normalize(in, Options{Type: "ebpf-otlp", SourceID: "source-b", Domain: "shared"}, "receiver-on-second-guest")
+	if err != nil || otherRef.Spans[0].SourceDomain != span.SourceDomain {
+		t.Fatalf("one logical multi-agent source split by receiver ref: %+v err=%v", otherRef, err)
+	}
+	otherSource, err := Normalize(in, Options{Type: "ebpf-otlp", SourceID: "source-c", Domain: "shared"}, "receiver-c")
+	if err != nil || otherSource.Spans[0].SourceDomain == span.SourceDomain {
+		t.Fatalf("distinct logical sources share a namespace: %+v err=%v", otherSource, err)
+	}
+}
+
+func TestGenericSourceBlankIDsStillBuildObservedHTTPStructures(t *testing.T) {
+	raw := []byte(`{"resourceSpans":[
+		{"resource":{"attributes":[{"key":"service.name","value":{"stringValue":"gateway"}}]},"scopeSpans":[{"spans":[{
+			"traceId":"","spanId":"","kind":2,"name":"GET /entry","attributes":[
+			{"key":"http.request.method","value":{"stringValue":"GET"}},
+			{"key":"url.path","value":{"stringValue":"/entry"}}]}]}]},
+		{"resource":{"attributes":[{"key":"service.name","value":{"stringValue":"reader"}}]},"scopeSpans":[{"spans":[{
+			"traceId":"","spanId":"","kind":3,"name":"GET /items","attributes":[
+			{"key":"http.request.method","value":{"stringValue":"GET"}},
+			{"key":"url.path","value":{"stringValue":"/items"}},
+			{"key":"peer.service","value":{"stringValue":"catalog"}}]}]}]}
+	]}`)
+	path := writeFile(t, "blank-ids.json", raw)
+	loaded, err := Load(path, Options{Type: "ebpf-otlp", SourceID: "default", Domain: "shared"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(loaded.Spans) != 2 || loaded.Spans[0].TraceID != "" || loaded.Spans[0].SpanID != "" || loaded.Spans[1].TraceID != "" || loaded.Spans[1].SpanID != "" {
+		t.Fatalf("blank OTLP identities were rewritten or records lost: %+v", loaded.Spans)
+	}
+	result, err := discovery.Discover(loaded.Spans, discovery.Options{Sources: loaded.Sources})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result.Model.Endpoints) != 1 || result.Model.Endpoints[0].EntryService != "gateway" || result.Model.Endpoints[0].Method != "GET" || result.Model.Endpoints[0].Path != "/entry" {
+		t.Fatalf("blank-ID server endpoint missing: %+v", result.Model.Endpoints)
+	}
+	peerEdges := 0
+	for _, edge := range result.Model.Edges {
+		if edge.Metadata != nil && edge.Metadata.Labels["bering.relation.kind"] == "client_dependency" && edge.From == "reader" && edge.Identity != nil && edge.Identity.Protocol == "http" {
+			peerEdges++
+		}
+	}
+	if peerEdges != 1 {
+		t.Fatalf("blank-ID client peer dependency missing: %+v", result.Model.Edges)
 	}
 }

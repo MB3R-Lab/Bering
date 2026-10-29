@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.3.0
+
+### Added
+
+- Producer-neutral `ebpf-otlp` sources use only a logical source ID and domain in runtime configuration and batch input; no producer name is required.
+- Generic logical sources use an injective namespace disjoint from the unchanged `ebpf-obi` namespace, preventing trace identifiers from joining across declared source boundaries while allowing multiple agents to share one source.
+- Model and snapshot schemas remain `1.3.0`.
+
 ## Unreleased
 
 ### Added

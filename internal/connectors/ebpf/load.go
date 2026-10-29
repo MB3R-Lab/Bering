@@ -1,5 +1,4 @@
-// Package ebpf loads OpenTelemetry spans exported by an explicitly declared OBI
-// collector. The declaration is provenance, not proof of how spans were made.
+// Package ebpf loads OpenTelemetry spans from a declared eBPF OTLP source.
 package ebpf
 
 import (
@@ -24,11 +23,15 @@ const (
 	maxDocumentBytes    = 256 << 20
 )
 
-var domainPattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$`)
+var (
+	domainPattern   = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$`)
+	sourceIDPattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$`)
+)
 
 type Options struct {
-	Collector string
-	Domain    string
+	Type     string
+	SourceID string
+	Domain   string
 }
 
 type Result struct {
@@ -36,13 +39,22 @@ type Result struct {
 	Sources []snapshot.SourceSummary
 }
 
-func normalizedOptions(opts Options) (Options, error) {
-	opts.Collector = strings.ToLower(strings.TrimSpace(opts.Collector))
-	if opts.Collector == "" {
-		opts.Collector = "obi"
+func NormalizedOptions(opts Options) (Options, error) {
+	opts.Type = strings.TrimSpace(opts.Type)
+	if opts.Type == "" {
+		opts.Type = "ebpf-obi"
 	}
-	if opts.Collector != "obi" {
-		return Options{}, fmt.Errorf("unsupported eBPF collector %q: expected obi", opts.Collector)
+	if opts.Type != "ebpf-obi" && opts.Type != "ebpf-otlp" {
+		return Options{}, fmt.Errorf("invalid eBPF source type %q", opts.Type)
+	}
+	opts.SourceID = strings.TrimSpace(opts.SourceID)
+	if opts.Type == "ebpf-otlp" {
+		if opts.SourceID == "" {
+			opts.SourceID = "default"
+		}
+		if !sourceIDPattern.MatchString(opts.SourceID) {
+			return Options{}, fmt.Errorf("invalid eBPF source id %q", opts.SourceID)
+		}
 	}
 	opts.Domain = strings.TrimSpace(opts.Domain)
 	if opts.Domain == "" {
@@ -54,10 +66,19 @@ func normalizedOptions(opts Options) (Options, error) {
 	return opts, nil
 }
 
+func sourceDomain(opts Options) string {
+	if opts.Type == "ebpf-obi" {
+		return "ebpf:" + opts.Domain
+	}
+	// Length-prefix the logical source ID so IDs and domains containing the same
+	// delimiter remain injective. The prefix is disjoint from legacy ebpf-obi.
+	return fmt.Sprintf("ebpf-otlp:%d:%s:%s", len(opts.SourceID), opts.SourceID, opts.Domain)
+}
+
 // Normalize annotates only declared source provenance. It does not modify IDs,
 // scope, resource attributes, service identity, host or process attributes.
 func Normalize(spans []traces.Span, opts Options, sourceRef string) (Result, error) {
-	opts, err := normalizedOptions(opts)
+	opts, err := NormalizedOptions(opts)
 	if err != nil {
 		return Result{}, err
 	}
@@ -67,15 +88,20 @@ func Normalize(spans []traces.Span, opts Options, sourceRef string) (Result, err
 	}
 	out := make([]traces.Span, len(spans))
 	copy(out, spans)
+	connector := "obi"
+	if opts.Type == "ebpf-otlp" {
+		connector = "ebpf-otlp"
+	}
 	for i := range out {
 		out[i].SourceRef = sourceRef
 		out[i].SourceKind = "ebpf"
-		out[i].SourceDomain = "ebpf:" + opts.Domain
+		out[i].SourceConnector = connector
+		out[i].SourceDomain = sourceDomain(opts)
 	}
 	return Result{
 		Spans: out,
 		Sources: []snapshot.SourceSummary{{
-			Type: "ebpf", Connector: "obi", Ref: sourceRef,
+			Type: "ebpf", Connector: connector, Ref: sourceRef,
 			Observations: len(out),
 		}},
 	}, nil
@@ -84,7 +110,7 @@ func Normalize(spans []traces.Span, opts Options, sourceRef string) (Result, err
 // Load accepts bare OTLP JSON, newline-delimited OTLP export requests, and
 // binary OTLP protobuf. Directories are traversed in lexical path order.
 func Load(path string, opts Options) (Result, error) {
-	if _, err := normalizedOptions(opts); err != nil {
+	if _, err := NormalizedOptions(opts); err != nil {
 		return Result{}, err
 	}
 	paths, err := inputFiles(path)

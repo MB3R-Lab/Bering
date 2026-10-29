@@ -13,20 +13,22 @@ func applySourceProvenance(details *snapshot.DiscoveryDetails, spans []traces.Sp
 	services := map[string][]snapshot.Provenance{}
 	endpoints := map[string][]snapshot.Provenance{}
 	convert := func(source evidence.Source) snapshot.Provenance {
-		kind, connector := source.Kind, "trace_file"
+		kind, connector := source.Kind, source.Connector
 		if kind == "" {
 			kind = "traces"
 		}
-		for _, candidate := range opts.Sources {
-			if candidate.Type == kind {
-				connector = candidate.Connector
-				if candidate.Ref == source.Ref {
-					break
+		if connector == "" {
+			connector = "trace_file"
+		}
+		if source.Connector == "" {
+			for _, candidate := range opts.Sources {
+				if candidate.Type == kind {
+					connector = candidate.Connector
+					if candidate.Ref == source.Ref {
+						break
+					}
 				}
 			}
-		}
-		if kind == "ebpf" {
-			connector = "obi"
 		}
 		return snapshot.Provenance{Type: kind, Connector: connector, Ref: source.Ref}
 	}

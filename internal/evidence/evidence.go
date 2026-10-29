@@ -19,6 +19,7 @@ const (
 
 type Source struct {
 	Kind         string `json:"kind,omitempty"`
+	Connector    string `json:"connector,omitempty"`
 	Domain       string `json:"domain,omitempty"`
 	Ref          string `json:"ref,omitempty"`
 	ScopeName    string `json:"scope_name,omitempty"`
@@ -316,6 +317,7 @@ func normalizeSources(values []Source) []Source {
 	out := make([]Source, 0, len(values))
 	for _, value := range values {
 		value.Kind = strings.TrimSpace(value.Kind)
+		value.Connector = strings.TrimSpace(value.Connector)
 		value.Domain = strings.TrimSpace(value.Domain)
 		value.Ref = strings.TrimSpace(value.Ref)
 		value.ScopeName = strings.TrimSpace(value.ScopeName)
@@ -333,6 +335,9 @@ func normalizeSources(values []Source) []Source {
 		left, right := out[i], out[j]
 		if left.Kind != right.Kind {
 			return left.Kind < right.Kind
+		}
+		if left.Connector != right.Connector {
+			return left.Connector < right.Connector
 		}
 		if left.Domain != right.Domain {
 			return left.Domain < right.Domain

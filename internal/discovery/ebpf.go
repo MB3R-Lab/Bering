@@ -99,7 +99,7 @@ func enrichEBPFPeers(mdl *model.ResilienceModel, details *snapshot.DiscoveryDeta
 			details.Services = append(details.Services, snapshot.ServiceRecord{
 				ID: target, Name: name, Replicas: 1,
 				Metadata:   &snapshot.ServiceMetadata{ServiceMetadata: metadata},
-				Provenance: []snapshot.Provenance{{Type: "ebpf", Connector: "obi", Ref: sourceRef}},
+				Provenance: []snapshot.Provenance{ebpfProvenance(span, sourceRef)},
 			})
 			peerRecords[target] = &evidence.Record{
 				Peer:     &peer,
@@ -152,6 +152,10 @@ func enrichEBPFPeers(mdl *model.ResilienceModel, details *snapshot.DiscoveryDeta
 		}
 	}
 	for id, stat := range edgeStats {
+		provenance := snapshot.Provenance{Type: "ebpf", Connector: "obi", Ref: sourceRef}
+		if sources := relationRecords[id].Relation.Sources; len(sources) > 0 {
+			provenance = evidenceSourceProvenance(sources[0], sourceRef)
+		}
 		stat.edge.Observed = stat.observedSummary()
 		stat.edge.Metadata = &model.EdgeMetadata{CommonMetadata: model.CommonMetadata{Labels: map[string]string{"bering.relation.kind": "client_dependency"}}}
 		mdl.Edges = append(mdl.Edges, stat.edge)
@@ -162,7 +166,7 @@ func enrichEBPFPeers(mdl *model.ResilienceModel, details *snapshot.DiscoveryDeta
 			Support: stat.supportSummary(), Observed: stat.edge.Observed,
 			FirstSeen:  formatOptionalTime(stat.firstSeen, opts.RuntimeMode),
 			LastSeen:   formatOptionalTime(stat.lastSeen, opts.RuntimeMode),
-			Provenance: []snapshot.Provenance{{Type: "ebpf", Connector: "obi", Ref: sourceRef}},
+			Provenance: []snapshot.Provenance{provenance},
 		}
 		if err := putEvidence(&record.Metadata.Attributes, *relationRecords[id]); err != nil {
 			return err
@@ -172,6 +176,21 @@ func enrichEBPFPeers(mdl *model.ResilienceModel, details *snapshot.DiscoveryDeta
 	sort.Slice(details.Services, func(i, j int) bool { return details.Services[i].ID < details.Services[j].ID })
 	sort.Slice(details.Edges, func(i, j int) bool { return details.Edges[i].ID < details.Edges[j].ID })
 	return nil
+}
+
+func ebpfProvenance(span traces.Span, fallback string) snapshot.Provenance {
+	return evidenceSourceProvenance(observationSource(span, fallback), fallback)
+}
+
+func evidenceSourceProvenance(source evidence.Source, fallback string) snapshot.Provenance {
+	connector := source.Connector
+	if connector == "" {
+		connector = "obi"
+	}
+	if source.Ref == "" {
+		source.Ref = fallback
+	}
+	return snapshot.Provenance{Type: "ebpf", Connector: connector, Ref: source.Ref}
 }
 
 func ebpfOperation(span traces.Span) (*model.EdgeIdentity, bool) {
