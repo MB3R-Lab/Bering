@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.3.0
+
+### Added
+
+- Named `ebpf-otlp` sources accept a required collector identity in runtime configuration and batch CLI input. Collector provenance is retained throughout the discovered model and evidence.
+- Named collectors use a separate source namespace to prevent trace identifiers from joining across collectors. The existing `ebpf-obi` input and its source namespace remain compatible; conflicting collector declarations are rejected.
+- Model and snapshot schemas remain `1.3.0`.
+
 ## Unreleased
 
 ### Added
