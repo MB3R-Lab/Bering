@@ -10,6 +10,7 @@ import (
 
 	"github.com/MB3R-Lab/Bering/internal/config"
 	"github.com/MB3R-Lab/Bering/internal/connectors/traces"
+	"github.com/MB3R-Lab/Bering/internal/evidence"
 	"github.com/MB3R-Lab/Bering/internal/overlay"
 	"github.com/MB3R-Lab/Bering/internal/snapshot"
 )
@@ -152,6 +153,103 @@ func TestOnShutdownUsesExistingOverlayAndOneWindowGraph(t *testing.T) {
 		!reflect.DeepEqual(baseSink.First().Model.Edges, windowSink.First().Model.Edges) ||
 		!reflect.DeepEqual(baseSink.First().Model.Endpoints, windowSink.First().Model.Endpoints) {
 		t.Fatal("one-window graph differs from existing discovery path")
+	}
+}
+
+func TestOnShutdownMixedDependencyGraphMatchesOneWindow(t *testing.T) {
+	clock := &fakeClock{now: time.Date(2026, 1, 1, 12, 10, 0, 0, time.UTC)}
+	start := clock.Now()
+	entry := testSpan("gateway", "trace-http", "entry", "server", start)
+	entry.ResourceAttributes = map[string]any{"service.instance.id": "gateway-1", "host.id": "host-a"}
+	call := testSpan("gateway", "trace-http", "call", "client", start.Add(2*time.Millisecond))
+	call.ParentSpanID = "entry"
+	call.Attributes["url.path"] = "/worker"
+	receiver := testSpan("worker", "trace-http", "receipt", "server", start.Add(4*time.Millisecond))
+	receiver.ParentSpanID = "call"
+	receiver.Attributes["url.path"] = "/worker"
+	receiver.ResourceAttributes = map[string]any{"service.instance.id": "worker-1", "host.id": "host-b"}
+	database := traces.Span{
+		TraceID: "trace-db", SpanID: "query", Service: "worker", Name: "query", Kind: "client",
+		SourceKind: "ebpf", SourceDomain: "ebpf:deployment-a", SourceRef: "collector-a",
+		StartTime: start.Add(6 * time.Millisecond), EndTime: start.Add(7 * time.Millisecond),
+		Attributes:         map[string]any{"db.system.name": "sql", "db.namespace": "inventory", "server.address": "db.internal", "server.port": "5432"},
+		ResourceAttributes: map[string]any{"service.instance.id": "worker-1", "host.id": "host-b", "bering.network.scope": "network-a"},
+	}
+	native := []traces.Span{entry, call, receiver}
+	obi := []traces.Span{database}
+	count := 2
+	supplied := overlay.File{Name: "replica-inventory", Services: []overlay.ServiceOverlay{{ID: "worker", Replicas: &count}}}
+	batchSink, windowSink := &sinkRecorder{}, &sinkRecorder{}
+	batch := testBatchEngine(t, clock, batchSink, 10, supplied)
+	window, err := NewEngine(EngineConfig{WindowSize: time.Hour, MaxInMemorySpans: 10, LateSpanPolicy: "drop", Sink: windowSink, Now: clock.Now, Overlays: []overlay.File{supplied}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, engine := range []*Engine{batch, window} {
+		if err := engine.IngestWithSource(context.Background(), native, start, snapshot.SourceSummary{Type: "traces", Connector: "otlp_http", Ref: "native-receiver"}); err != nil {
+			t.Fatal(err)
+		}
+		if err := engine.IngestWithSource(context.Background(), obi, start, snapshot.SourceSummary{Type: "ebpf", Connector: "obi", Ref: "collector-a"}); err != nil {
+			t.Fatal(err)
+		}
+		if err := engine.Close(context.Background()); err != nil {
+			t.Fatal(err)
+		}
+	}
+	got, want := batchSink.First(), windowSink.First()
+	counts := map[string]int{}
+	for _, source := range got.Sources {
+		counts[source.Type+"|"+source.Connector] += source.Observations
+	}
+	if got.Ingest.Spans != 4 || got.Ingest.DroppedSpans != 0 || counts["traces|otlp_http"] != 3 || counts["ebpf|obi"] != 1 {
+		t.Fatalf("mixed source counts changed: ingest=%+v sources=%+v", got.Ingest, got.Sources)
+	}
+	if len(got.Model.Edges) < 2 || len(got.Model.Endpoints) < 2 {
+		t.Fatalf("fixture did not exercise HTTP and database dependencies: edges=%+v endpoints=%+v", got.Model.Edges, got.Model.Endpoints)
+	}
+	httpEdge, databaseEdge, databaseNode := false, false, false
+	for _, edge := range got.Model.Edges {
+		if edge.From == "gateway" && edge.To == "worker" {
+			httpEdge = true
+		}
+		if edge.From == "worker" && edge.To != "gateway" && edge.To != "worker" {
+			databaseEdge = true
+		}
+	}
+	for _, service := range got.Model.Services {
+		if service.Metadata != nil && service.Metadata.Labels["bering.node.kind"] == "database" {
+			databaseNode = true
+		}
+	}
+	if !httpEdge || !databaseEdge || !databaseNode {
+		t.Fatalf("fixture lost HTTP or database topology: services=%+v edges=%+v", got.Model.Services, got.Model.Edges)
+	}
+	workerSources := map[string]bool{}
+	for _, service := range got.Discovery.Services {
+		if service.ID != "worker" || service.Metadata == nil {
+			continue
+		}
+		record, err := evidence.Decode(service.Metadata.Attributes[evidence.AttributeKey])
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(record.Instances) == 0 {
+			t.Fatal("observed instance evidence absent")
+		}
+		for _, instance := range record.Instances {
+			for _, source := range instance.Sources {
+				workerSources[source.Kind+"|"+source.Domain] = true
+			}
+		}
+	}
+	if !workerSources["|"] || !workerSources["ebpf|ebpf:deployment-a"] {
+		t.Fatalf("native and OBI instance attribution was not retained: %v", workerSources)
+	}
+	if !reflect.DeepEqual(got.Model.Services, want.Model.Services) ||
+		!reflect.DeepEqual(got.Model.Edges, want.Model.Edges) ||
+		!reflect.DeepEqual(got.Model.Endpoints, want.Model.Endpoints) ||
+		!reflect.DeepEqual(got.Sources, want.Sources) || got.Ingest != want.Ingest {
+		t.Fatalf("mixed graph/source accounting changed: batch=%+v window=%+v", got.Counts, want.Counts)
 	}
 }
 

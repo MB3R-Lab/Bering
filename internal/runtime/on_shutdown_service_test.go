@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/MB3R-Lab/Bering/internal/config"
+	"github.com/MB3R-Lab/Bering/internal/connectors/traces"
 	"github.com/MB3R-Lab/Bering/internal/schema"
 	"github.com/MB3R-Lab/Bering/internal/snapshot"
 )
@@ -124,5 +125,51 @@ func TestOnShutdownHTTPOverflowCannotPublishAcceptedPrefix(t *testing.T) {
 	}
 	if _, err := os.Stat(cfg.Sink.LatestPath); !os.IsNotExist(err) {
 		t.Fatalf("published accepted prefix: %v", err)
+	}
+}
+
+type closeContextSink struct {
+	calls       int
+	hadDeadline bool
+	canceled    bool
+}
+
+func (s *closeContextSink) Write(ctx context.Context, _ snapshot.Envelope) error {
+	s.calls++
+	_, s.hadDeadline = ctx.Deadline()
+	s.canceled = ctx.Err() != nil
+	return nil
+}
+
+func TestOnShutdownServiceFinalPublicationHasNoDeadline(t *testing.T) {
+	cfg := config.DefaultServeConfig()
+	cfg.Server.ListenAddress = "127.0.0.1:0"
+	cfg.Runtime.PublicationMode = config.PublicationModeOnShutdown
+	cfg.Runtime.Reconciliation.Enabled = false
+	service, err := NewService(cfg, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	sink := &closeContextSink{}
+	service.engine.cfg.Sink = sink
+	ctx, cancel := context.WithCancel(context.Background())
+	errCh := make(chan error, 1)
+	go func() { errCh <- service.Run(ctx) }()
+	_ = waitForAddr(t, service, 2*time.Second)
+	span := testSpan("frontend", "trace", "server", "server", time.Now().UTC())
+	if err := service.engine.Ingest(context.Background(), []traces.Span{span}, time.Now().UTC()); err != nil {
+		t.Fatal(err)
+	}
+	cancel()
+	select {
+	case err := <-errCh:
+		if err != nil {
+			t.Fatal(err)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("service did not finish shutdown")
+	}
+	if sink.calls != 1 || sink.hadDeadline || sink.canceled {
+		t.Fatalf("publication used a canceled or bounded context: %+v", sink)
 	}
 }
