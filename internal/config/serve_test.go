@@ -113,6 +113,27 @@ func TestServeConfigValidateRejectsInvalidLatePolicy(t *testing.T) {
 	}
 }
 
+func TestOnShutdownConfigRequiresNoWindowAndRejectsHistory(t *testing.T) {
+	cfg := DefaultServeConfig()
+	if cfg.Runtime.PublicationMode != PublicationModeWindowed {
+		t.Fatal("default publication mode changed")
+	}
+	cfg.Runtime.PublicationMode = PublicationModeOnShutdown
+	cfg.Runtime.WindowSize = 0
+	cfg.Runtime.FlushInterval = 0
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("on_shutdown accepted historical reconciliation")
+	}
+	cfg.Runtime.Reconciliation.Enabled = false
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("on_shutdown required an artificial window: %v", err)
+	}
+	cfg.Runtime.PublicationMode = "other"
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("unknown publication mode accepted")
+	}
+}
+
 func TestServeConfigValidateRejectsMatchingHTTPAndGRPCAddresses(t *testing.T) {
 	t.Parallel()
 

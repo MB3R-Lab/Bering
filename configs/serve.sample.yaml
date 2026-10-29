@@ -3,6 +3,7 @@ server:
   grpc_listen_address: ":4317"
   max_request_bytes: 5242880
 runtime:
+  publication_mode: windowed
   flush_interval: 5s
   window_size: 30s
   max_in_memory_spans: 10000
