@@ -6,6 +6,12 @@ Sample file: [configs/serve.sample.yaml](../configs/serve.sample.yaml)
 
 ## Fields
 
+### `runtime.publication_mode`
+
+`windowed` (the default) publishes scheduled tumbling-window snapshots. `on_shutdown` collects one batch and publishes its full graph only after the service has drained active requests on shutdown. The latter mode does not roll over on wall-clock boundaries and does not discard spans based on their event timestamps; original timestamps and native/OBI source attribution remain in the observations.
+
+For `on_shutdown`, set `runtime.reconciliation.enabled: false`. The reconciliation history requires multiple windows and is rejected in this mode. `runtime.window_size`, `runtime.flush_interval`, and `runtime.late_span_policy` do not control batch admission or publication. `runtime.max_in_memory_spans` remains a hard capacity: exceeding it invalidates the batch, and shutdown returns an error without publishing its accepted prefix. Each OTLP request still has the configured byte limit. Stop the service normally after sending all exports and check its exit status before accepting the snapshot.
+
 ### `server.listen_address`
 
 TCP listen address for the HTTP server.
@@ -49,6 +55,8 @@ Maximum number of spans retained in the active window before new spans are dropp
 Example: `10000`
 
 Tradeoff: higher values improve coverage but increase peak memory.
+
+In `on_shutdown` mode, this is an all-or-nothing limit. An overflow returns an ingest error, prevents further ingest, and prevents final publication.
 
 ### `runtime.late_span_policy`
 
@@ -128,6 +136,7 @@ overlays:
 - `--config`
 - `--listen`
 - `--grpc-listen`
+- `--publication-mode windowed|on_shutdown`
 - `--flush-interval`
 - `--window-size`
 - `--max-in-memory-spans`

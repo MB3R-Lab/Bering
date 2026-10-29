@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/MB3R-Lab/Bering/internal/config"
 	"github.com/MB3R-Lab/Bering/internal/connectors/traces"
 	"github.com/MB3R-Lab/Bering/internal/discovery"
 	"github.com/MB3R-Lab/Bering/internal/model"
@@ -19,6 +20,7 @@ import (
 )
 
 type EngineConfig struct {
+	PublicationMode           string
 	WindowSize                time.Duration
 	MaxInMemorySpans          int
 	LateSpanPolicy            string
@@ -46,6 +48,9 @@ type Engine struct {
 	previousStable *snapshot.Envelope
 	reconciler     *reconciliation.Reconciler
 	latestReport   reconciliation.Report
+	closed         bool
+	closeErr       error
+	terminalErr    error
 }
 
 type windowState struct {
@@ -59,8 +64,17 @@ type windowState struct {
 }
 
 func NewEngine(cfg EngineConfig) (*Engine, error) {
-	if cfg.WindowSize <= 0 {
+	if cfg.PublicationMode == "" {
+		cfg.PublicationMode = config.PublicationModeWindowed
+	}
+	if cfg.PublicationMode != config.PublicationModeWindowed && cfg.PublicationMode != config.PublicationModeOnShutdown {
+		return nil, fmt.Errorf("unsupported publication mode: %s", cfg.PublicationMode)
+	}
+	if cfg.PublicationMode == config.PublicationModeWindowed && cfg.WindowSize <= 0 {
 		return nil, fmt.Errorf("window size must be > 0")
+	}
+	if cfg.PublicationMode == config.PublicationModeOnShutdown && cfg.ReconciliationConfig.Enabled {
+		return nil, fmt.Errorf("reconciliation must be disabled in on_shutdown mode")
 	}
 	if cfg.MaxInMemorySpans <= 0 {
 		return nil, fmt.Errorf("max in-memory spans must be > 0")
@@ -90,7 +104,11 @@ func NewEngine(cfg EngineConfig) (*Engine, error) {
 			return nil, fmt.Errorf("create reconciler: %w", err)
 		}
 	}
-	start, end := alignWindow(cfg.Now().UTC(), cfg.WindowSize)
+	now := cfg.Now().UTC()
+	start, end := alignWindow(now, cfg.WindowSize)
+	if cfg.PublicationMode == config.PublicationModeOnShutdown {
+		start, end = now, now
+	}
 	return &Engine{
 		cfg:        cfg,
 		reconciler: reconcilerInstance,
@@ -108,6 +126,9 @@ func (e *Engine) Ingest(ctx context.Context, spans []traces.Span, receivedAt tim
 }
 
 func (e *Engine) IngestWithSource(ctx context.Context, spans []traces.Span, receivedAt time.Time, source snapshot.SourceSummary) error {
+	if e.cfg.PublicationMode == config.PublicationModeOnShutdown {
+		return e.ingestShutdownBatch(spans, source)
+	}
 	if receivedAt.IsZero() {
 		receivedAt = e.cfg.Now().UTC()
 	}
@@ -171,7 +192,41 @@ func (e *Engine) IngestWithSource(ctx context.Context, spans []traces.Span, rece
 	return nil
 }
 
+// ingestShutdownBatch accepts complete requests atomically. A capacity error
+// invalidates the entire batch, including previously acknowledged requests.
+func (e *Engine) ingestShutdownBatch(spans []traces.Span, source snapshot.SourceSummary) error {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	if e.closed {
+		return fmt.Errorf("on_shutdown batch is closed")
+	}
+	if e.terminalErr != nil {
+		return e.terminalErr
+	}
+	if len(spans) > e.cfg.MaxInMemorySpans-len(e.current.spans) {
+		e.terminalErr = fmt.Errorf("on_shutdown batch capacity exceeded: retained=%d incoming=%d maximum=%d",
+			len(e.current.spans), len(spans), e.cfg.MaxInMemorySpans)
+		return e.terminalErr
+	}
+	source = defaultSourceSummary(source, e.cfg.Sources)
+	mergeWindowSourceSummary(&e.current, source, len(spans))
+	for _, span := range spans {
+		if span.SourceRef == "" {
+			span.SourceRef = source.Ref
+		}
+		e.current.spans = append(e.current.spans, span)
+		if span.TraceID != "" {
+			e.current.traces[fmt.Sprintf("%d:%s%s", len(span.SourceDomain), span.SourceDomain, span.TraceID)] = struct{}{}
+		}
+	}
+	e.cfg.Metrics.AddIngested(len(spans))
+	return nil
+}
+
 func (e *Engine) FlushDue(ctx context.Context) error {
+	if e.cfg.PublicationMode == config.PublicationModeOnShutdown {
+		return nil
+	}
 	e.flushMu.Lock()
 	defer e.flushMu.Unlock()
 	return e.flushDueLocked(ctx, e.cfg.Now().UTC())
@@ -180,6 +235,30 @@ func (e *Engine) FlushDue(ctx context.Context) error {
 func (e *Engine) Close(ctx context.Context) error {
 	e.flushMu.Lock()
 	defer e.flushMu.Unlock()
+	if e.cfg.PublicationMode == config.PublicationModeOnShutdown {
+		e.mu.Lock()
+		if e.closed {
+			err := e.closeErr
+			e.mu.Unlock()
+			return err
+		}
+		e.closed = true
+		if e.terminalErr != nil {
+			e.closeErr = e.terminalErr
+			e.mu.Unlock()
+			return e.closeErr
+		}
+		end := e.cfg.Now().UTC()
+		if end.Before(e.current.start) {
+			e.closeErr = fmt.Errorf("on_shutdown batch close precedes its start")
+			e.mu.Unlock()
+			return e.closeErr
+		}
+		e.current.end = end
+		e.mu.Unlock()
+		e.closeErr = e.flushCurrent(ctx, end, true)
+		return e.closeErr
+	}
 	return e.flushCurrent(ctx, e.cfg.Now().UTC(), true)
 }
 

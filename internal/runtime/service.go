@@ -55,6 +55,7 @@ func NewService(cfg config.ServeConfig, overlays []overlay.File, logger *slog.Lo
 	_, reportPath, summaryPath, rawWindowPath, stableCorePath := resolveReconciliationPaths(cfg)
 	signalQualityPath := resolveSignalQualityPath(cfg)
 	engine, err := NewEngine(EngineConfig{
+		PublicationMode:           cfg.Runtime.PublicationMode,
 		WindowSize:                cfg.Runtime.WindowSize.Duration(),
 		MaxInMemorySpans:          cfg.Runtime.MaxInMemorySpans,
 		LateSpanPolicy:            cfg.Runtime.LateSpanPolicy,
@@ -95,7 +96,7 @@ func NewService(cfg config.ServeConfig, overlays []overlay.File, logger *slog.Lo
 	mux.HandleFunc("/reconciliation/report", service.handleReconciliationReport)
 	mux.HandleFunc("/reconciliation/summary", service.handleReconciliationSummary)
 	mux.Handle("/metrics", metrics.Handler())
-	service.httpServer = newHTTPServer(mux)
+	service.httpServer = newHTTPServerForMode(mux, cfg.Runtime.PublicationMode)
 	if strings.TrimSpace(cfg.Server.GRPCListenAddress) != "" {
 		service.grpcServer = grpc.NewServer(grpc.MaxRecvMsgSize(grpcMaxRecvMsgSize(cfg.Server.MaxRequestBytes)))
 		collecttracev1.RegisterTraceServiceServer(service.grpcServer, grpcTraceService{service: service})
@@ -104,11 +105,19 @@ func NewService(cfg config.ServeConfig, overlays []overlay.File, logger *slog.Lo
 }
 
 func newHTTPServer(handler http.Handler) *http.Server {
+	return newHTTPServerForMode(handler, config.PublicationModeWindowed)
+}
+
+func newHTTPServerForMode(handler http.Handler, mode string) *http.Server {
+	readTimeout, writeTimeout := serverReadTimeout, serverWriteTimeout
+	if mode == config.PublicationModeOnShutdown {
+		readTimeout, writeTimeout = 0, 0
+	}
 	return &http.Server{
 		Handler:           handler,
 		ReadHeaderTimeout: serverReadHeaderTimeout,
-		ReadTimeout:       serverReadTimeout,
-		WriteTimeout:      serverWriteTimeout,
+		ReadTimeout:       readTimeout,
+		WriteTimeout:      writeTimeout,
 		IdleTimeout:       serverIdleTimeout,
 	}
 }
@@ -145,23 +154,25 @@ func (s *Service) Run(ctx context.Context) error {
 
 	errCh := make(chan error, 1)
 	var workers sync.WaitGroup
-	workers.Add(1)
-	go func() {
-		defer workers.Done()
-		ticker := time.NewTicker(s.cfg.Runtime.FlushInterval.Duration())
-		defer ticker.Stop()
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case <-ticker.C:
-				if err := s.engine.FlushDue(context.Background()); err != nil {
-					errCh <- err
+	if s.cfg.Runtime.PublicationMode != config.PublicationModeOnShutdown {
+		workers.Add(1)
+		go func() {
+			defer workers.Done()
+			ticker := time.NewTicker(s.cfg.Runtime.FlushInterval.Duration())
+			defer ticker.Stop()
+			for {
+				select {
+				case <-ctx.Done():
 					return
+				case <-ticker.C:
+					if err := s.engine.FlushDue(context.Background()); err != nil {
+						errCh <- err
+						return
+					}
 				}
 			}
-		}
-	}()
+		}()
+	}
 	workers.Add(1)
 	go func() {
 		defer workers.Done()
@@ -187,6 +198,20 @@ func (s *Service) Run(ctx context.Context) error {
 	select {
 	case <-ctx.Done():
 		s.ready.Store(false)
+		if s.cfg.Runtime.PublicationMode == config.PublicationModeOnShutdown {
+			// A batch may be large. Complete active requests before its one publication.
+			if err := s.httpServer.Shutdown(context.Background()); err != nil {
+				return fmt.Errorf("http shutdown: %w", err)
+			}
+			if err := stopGRPCServer(context.Background(), s.grpcServer); err != nil {
+				return fmt.Errorf("grpc shutdown: %w", err)
+			}
+			workers.Wait()
+			if err := s.engine.Close(context.Background()); err != nil {
+				return fmt.Errorf("flush final snapshot: %w", err)
+			}
+			return nil
+		}
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 		if err := s.httpServer.Shutdown(shutdownCtx); err != nil {

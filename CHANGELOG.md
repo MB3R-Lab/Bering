@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- Opt-in `on_shutdown` runtime publication for one source-aware batch across wall-clock boundaries. Capacity overflow invalidates the batch instead of publishing a truncated graph. The default windowed runtime is unchanged; model and snapshot schemas remain `1.3.0`.
+
 ## v1.1.1
 
 ### Fixed

@@ -254,6 +254,7 @@ func (r Runner) runServe(args []string) int {
 	configPath := fs.String("config", "", "Path to serve config YAML/JSON")
 	listen := fs.String("listen", "", "Override config server listen address")
 	grpcListen := fs.String("grpc-listen", "", "Override config server OTLP/gRPC listen address")
+	publicationMode := fs.String("publication-mode", "", "Override config runtime publication mode (windowed|on_shutdown)")
 	flushInterval := fs.String("flush-interval", "", "Override config runtime flush interval (e.g. 5s)")
 	windowSize := fs.String("window-size", "", "Override config runtime window size (e.g. 30s)")
 	maxInMemory := fs.Int("max-in-memory-spans", -1, "Override config runtime max in-memory spans")
@@ -284,6 +285,9 @@ func (r Runner) runServe(args []string) int {
 	}
 	if strings.TrimSpace(*grpcListen) != "" {
 		cfg.Server.GRPCListenAddress = strings.TrimSpace(*grpcListen)
+	}
+	if strings.TrimSpace(*publicationMode) != "" {
+		cfg.Runtime.PublicationMode = strings.TrimSpace(*publicationMode)
 	}
 	if strings.TrimSpace(*flushInterval) != "" {
 		parsed, err := time.ParseDuration(strings.TrimSpace(*flushInterval))
@@ -373,7 +377,7 @@ func (r Runner) printUsage() {
 	fmt.Fprintln(r.stdout, "  bering discover --input-type ebpf-obi --source-domain <deployment> --input <OTLP JSON|JSONL|protobuf|dir> --out model.json [--snapshot-out snapshot.json]")
 	fmt.Fprintln(r.stdout, "  bering discover --input <trace-file|topology-file|dir> [--out bering-model.json] [--snapshot-out bering-snapshot.json] [--quality-out bering-model.signal-quality.json] [--snapshot-quality-out bering-snapshot.signal-quality.json] [--replicas replicas.yaml|json] [--overlay overlay.yaml] [--discovered-at RFC3339]")
 	fmt.Fprintln(r.stdout, "  bering validate --input <bering-model.json|bering-snapshot.json>")
-	fmt.Fprintln(r.stdout, "  bering serve --config configs/serve.sample.yaml [--listen :4318] [--grpc-listen :4317] [--window-size 30s] [--flush-interval 5s] [--reconciliation-summary-path out/reconciliation-summary.md] [--signal-quality-path out/latest-signal-quality.json]")
+	fmt.Fprintln(r.stdout, "  bering serve --config configs/serve.sample.yaml [--listen :4318] [--grpc-listen :4317] [--publication-mode windowed|on_shutdown] [--window-size 30s] [--flush-interval 5s] [--reconciliation-summary-path out/reconciliation-summary.md] [--signal-quality-path out/latest-signal-quality.json]")
 }
 
 func (r Runner) printf(format string, args ...any) {

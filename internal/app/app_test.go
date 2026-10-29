@@ -65,6 +65,17 @@ func TestDiscoverAndValidate_NormalizedFixture(t *testing.T) {
 	}
 }
 
+func TestServePublicationModeFlagRejectsInvalidValue(t *testing.T) {
+	var stdout, stderr bytes.Buffer
+	runner := NewRunner(&stdout, &stderr)
+	if code := runner.Run([]string{"serve", "--publication-mode", "unknown"}); code != ExitError {
+		t.Fatalf("invalid mode exit=%d stderr=%s", code, stderr.String())
+	}
+	if !bytes.Contains(stderr.Bytes(), []byte("runtime.publication_mode")) {
+		t.Fatalf("missing publication mode validation: %s", stderr.String())
+	}
+}
+
 func TestDiscoverAndValidate_OTLPFixture(t *testing.T) {
 	root := repoRoot(t)
 	prevWD, err := os.Getwd()

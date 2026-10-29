@@ -83,12 +83,18 @@ type ServerConfig struct {
 }
 
 type RuntimeConfig struct {
+	PublicationMode  string                      `json:"publication_mode" yaml:"publication_mode"`
 	FlushInterval    Duration                    `json:"flush_interval" yaml:"flush_interval"`
 	WindowSize       Duration                    `json:"window_size" yaml:"window_size"`
 	MaxInMemorySpans int                         `json:"max_in_memory_spans" yaml:"max_in_memory_spans"`
 	LateSpanPolicy   string                      `json:"late_span_policy" yaml:"late_span_policy"`
 	Reconciliation   RuntimeReconciliationConfig `json:"reconciliation" yaml:"reconciliation"`
 }
+
+const (
+	PublicationModeWindowed   = "windowed"
+	PublicationModeOnShutdown = "on_shutdown"
+)
 
 type RuntimeReconciliationConfig struct {
 	Enabled                        bool     `json:"enabled" yaml:"enabled"`
@@ -131,6 +137,7 @@ func DefaultServeConfig() ServeConfig {
 			MaxRequestBytes:   5 << 20,
 		},
 		Runtime: RuntimeConfig{
+			PublicationMode:  PublicationModeWindowed,
 			FlushInterval:    Duration(5 * time.Second),
 			WindowSize:       Duration(30 * time.Second),
 			MaxInMemorySpans: 10000,
@@ -199,11 +206,21 @@ func (c ServeConfig) Validate() error {
 	if c.Server.MaxRequestBytes <= 0 {
 		return fmt.Errorf("server.max_request_bytes must be > 0")
 	}
-	if c.Runtime.FlushInterval.Duration() <= 0 {
+	mode := c.Runtime.PublicationMode
+	if mode == "" {
+		mode = PublicationModeWindowed
+	}
+	if mode != PublicationModeWindowed && mode != PublicationModeOnShutdown {
+		return fmt.Errorf("runtime.publication_mode must be windowed or on_shutdown")
+	}
+	if mode == PublicationModeWindowed && c.Runtime.FlushInterval.Duration() <= 0 {
 		return fmt.Errorf("runtime.flush_interval must be > 0")
 	}
-	if c.Runtime.WindowSize.Duration() <= 0 {
+	if mode == PublicationModeWindowed && c.Runtime.WindowSize.Duration() <= 0 {
 		return fmt.Errorf("runtime.window_size must be > 0")
+	}
+	if mode == PublicationModeOnShutdown && c.Runtime.Reconciliation.Enabled {
+		return fmt.Errorf("runtime.reconciliation.enabled must be false in on_shutdown mode")
 	}
 	if c.Runtime.MaxInMemorySpans <= 0 {
 		return fmt.Errorf("runtime.max_in_memory_spans must be > 0")
