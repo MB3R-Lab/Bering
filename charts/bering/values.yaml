@@ -72,6 +72,7 @@ config:
     grpcListenAddress: ""
     maxRequestBytes: 5242880
   runtime:
+    publicationMode: windowed
     flushInterval: 5s
     windowSize: 30s
     maxInMemorySpans: 10000

@@ -12,6 +12,7 @@ data:
       grpc_listen_address: {{ include "bering.grpcListenAddress" . | quote }}
       max_request_bytes: {{ .Values.config.server.maxRequestBytes }}
     runtime:
+      publication_mode: {{ .Values.config.runtime.publicationMode | quote }}
       flush_interval: {{ .Values.config.runtime.flushInterval | quote }}
       window_size: {{ .Values.config.runtime.windowSize | quote }}
       max_in_memory_spans: {{ .Values.config.runtime.maxInMemorySpans }}
