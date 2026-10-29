@@ -76,6 +76,45 @@ func TestServePublicationModeFlagRejectsInvalidValue(t *testing.T) {
 	}
 }
 
+func TestDiscoverGenericEBPFRequiresAndRetainsCollector(t *testing.T) {
+	root := repoRoot(t)
+	input := filepath.Join(root, "examples", "traces", "otel.sample.json")
+	dir := t.TempDir()
+	var stdout, stderr bytes.Buffer
+	runner := NewRunner(&stdout, &stderr)
+
+	args := []string{
+		"discover", "--input", input, "--input-type", "ebpf-otlp",
+		"--source-domain", "deployment", "--out", filepath.Join(dir, "model.json"),
+		"--snapshot-out", filepath.Join(dir, "snapshot.json"),
+		"--discovered-at", "2026-03-03T00:00:00Z",
+	}
+	if code := runner.Run(args); code != ExitError || !bytes.Contains(stderr.Bytes(), []byte("--collector is required")) {
+		t.Fatalf("missing collector was not rejected: code=%d stderr=%s", code, stderr.String())
+	}
+	stderr.Reset()
+	args = append(args, "--collector", "collector-b")
+	if code := runner.Run(args); code != ExitOK {
+		t.Fatalf("generic eBPF discovery failed: code=%d stderr=%s", code, stderr.String())
+	}
+	raw, err := os.ReadFile(filepath.Join(dir, "snapshot.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	artifact, err := snapshot.ParseJSON(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(artifact.Sources) != 1 || artifact.Sources[0].Type != "ebpf" || artifact.Sources[0].Connector != "collector-b" {
+		t.Fatalf("collector source summary missing: %+v", artifact.Sources)
+	}
+	for _, service := range artifact.Discovery.Services {
+		if len(service.Provenance) == 0 || service.Provenance[0].Connector != "collector-b" {
+			t.Fatalf("collector service provenance missing: %+v", service)
+		}
+	}
+}
+
 func TestDiscoverAndValidate_OTLPFixture(t *testing.T) {
 	root := repoRoot(t)
 	prevWD, err := os.Getwd()

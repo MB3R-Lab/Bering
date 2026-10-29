@@ -27,7 +27,7 @@ The trace-discovered topology model and its downstream adequacy boundary follow 
 - deterministic batch discovery from trace files, trace directories, or explicit `topology_api` inputs
 - validation of Bering JSON artifacts against pinned public schemas
 - runtime OTLP ingest over HTTP, with optional OTLP/gRPC ingest
-- declared OBI eBPF sources with source-scoped OTLP/HTTP ingest and raw replay
+- declared eBPF OTLP sources with named collector provenance, source-scoped OTLP/HTTP ingest, raw replay, and backward-compatible OBI declarations
 - publishing of stable topology and snapshot artifacts for downstream tooling
 - discovery-side enrichment through additive overlays
 
@@ -135,7 +135,7 @@ The sample runtime config listens on:
 Useful endpoints:
 
 - `POST /v1/traces`
-- `POST /sources/<source-id>/v1/traces` for a declared OBI eBPF source
+- `POST /sources/<source-id>/v1/traces` for a declared eBPF OTLP source
 - `GET /healthz`
 - `GET /readyz`
 - `GET /metrics`

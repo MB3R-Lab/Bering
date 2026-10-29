@@ -82,12 +82,83 @@ func TestEBPFSourceCapturesWireInputAndBuildsModel(t *testing.T) {
 func TestInvalidEBPFSourceConfigurationRejected(t *testing.T) {
 	for _, source := range []config.SourceConfig{
 		{ID: "../source", Type: "ebpf-obi"}, {ID: "source", Type: "other"}, {ID: "source", Type: "ebpf-obi", Domain: "bad/domain"},
+		{ID: "source", Type: "ebpf-otlp"}, {ID: "source", Type: "ebpf-otlp", Collector: "bad collector"},
+		{ID: "source", Type: "ebpf-obi", Collector: "collector-b"},
 	} {
 		cfg := config.DefaultServeConfig()
 		cfg.Runtime.Reconciliation.Enabled = false
 		cfg.Sources = []config.SourceConfig{source}
 		if _, err := NewService(cfg, nil, nil); err == nil {
 			t.Fatalf("accepted %+v", source)
+		}
+	}
+}
+
+func TestMixedEBPFCollectorsKeepCollidingTraceIDsSourceIsolated(t *testing.T) {
+	dir := t.TempDir()
+	cfg := config.DefaultServeConfig()
+	cfg.Runtime.PublicationMode = config.PublicationModeOnShutdown
+	cfg.Runtime.WindowSize = 0
+	cfg.Runtime.FlushInterval = 0
+	cfg.Runtime.Reconciliation.Enabled = false
+	cfg.Sink.Directory = filepath.Join(dir, "snapshots")
+	cfg.Sink.LatestPath = filepath.Join(dir, "latest.json")
+	cfg.Sink.SignalQualityPath = filepath.Join(dir, "quality.json")
+	cfg.Sources = []config.SourceConfig{
+		{ID: "legacy", Type: "ebpf-obi", Domain: "shared"},
+		{ID: "generic", Type: "ebpf-otlp", Collector: "collector-b", Domain: "shared"},
+	}
+	service, err := NewService(cfg, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	post := func(path, serviceName, spanID, parentID string) {
+		t.Helper()
+		parent := ""
+		if parentID != "" {
+			parent = `,"parentSpanId":"` + parentID + `"`
+		}
+		body := []byte(`{"resourceSpans":[{"resource":{"attributes":[{"key":"service.name","value":{"stringValue":"` + serviceName + `"}}]},"scopeSpans":[{"spans":[{"traceId":"00000000000000000000000000000001","spanId":"` + spanID + `"` + parent + `,"kind":2,"name":"request","attributes":[{"key":"http.request.method","value":{"stringValue":"GET"}},{"key":"http.route","value":{"stringValue":"/generic"}}]}]}]}]}`)
+		req := httptest.NewRequest(http.MethodPost, path, bytes.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		recorder := httptest.NewRecorder()
+		service.httpServer.Handler.ServeHTTP(recorder, req)
+		if recorder.Code != http.StatusOK {
+			t.Fatalf("POST %s returned %d: %s", path, recorder.Code, recorder.Body.String())
+		}
+	}
+	post("/sources/legacy/v1/traces", "parent-service", "0000000000000001", "")
+	post("/sources/generic/v1/traces", "child-service", "0000000000000002", "0000000000000001")
+	if err := service.engine.Close(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	raw, err := os.ReadFile(cfg.Sink.LatestPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	artifact, err := snapshot.ParseJSON(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(artifact.Model.Edges) != 0 {
+		t.Fatalf("colliding cross-collector IDs created ancestry: %+v", artifact.Model.Edges)
+	}
+	connectors := map[string]bool{}
+	for _, source := range artifact.Sources {
+		connectors[source.Connector] = true
+	}
+	if !connectors["obi"] || !connectors["collector-b"] {
+		t.Fatalf("mixed source summaries lost collector provenance: %+v", artifact.Sources)
+	}
+	for _, record := range artifact.Discovery.Services {
+		if len(record.Provenance) != 1 {
+			t.Fatalf("service provenance missing: %+v", record)
+		}
+		if record.ID == "parent-service" && record.Provenance[0].Connector != "obi" {
+			t.Fatalf("legacy provenance changed: %+v", record)
+		}
+		if record.ID == "child-service" && record.Provenance[0].Connector != "collector-b" {
+			t.Fatalf("generic provenance lost: %+v", record)
 		}
 	}
 }

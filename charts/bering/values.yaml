@@ -109,6 +109,11 @@ config:
   #   type: ebpf-obi
   #   domain: production
   #   capture_directory: /var/lib/bering/obi-capture
+  # - id: collector-main
+  #   type: ebpf-otlp
+  #   collector: collector-name
+  #   domain: production
+  #   capture_directory: /var/lib/bering/collector-capture
   overlays: []
 
 serviceMonitor:

@@ -72,6 +72,7 @@ type ServeConfig struct {
 type SourceConfig struct {
 	ID               string `json:"id" yaml:"id"`
 	Type             string `json:"type" yaml:"type"`
+	Collector        string `json:"collector,omitempty" yaml:"collector,omitempty"`
 	Domain           string `json:"domain" yaml:"domain"`
 	CaptureDirectory string `json:"capture_directory,omitempty" yaml:"capture_directory,omitempty"`
 }

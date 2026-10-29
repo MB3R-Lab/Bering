@@ -83,7 +83,7 @@ func observationSource(span traces.Span, fallback string) evidence.Source {
 		ref = fallback
 	}
 	return evidence.Source{Ref: ref, ScopeName: span.ScopeName, ScopeVersion: span.ScopeVersion,
-		Kind: span.SourceKind, Domain: span.SourceDomain}
+		Kind: span.SourceKind, Connector: span.SourceConnector, Domain: span.SourceDomain}
 }
 
 var instanceAttributeKeys = []string{

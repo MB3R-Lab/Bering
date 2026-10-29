@@ -228,12 +228,37 @@ func TestNormalizeValidatesDeclarationWithoutChangingObservations(t *testing.T) 
 	if in[0].SourceKind != "" || result.Spans[0].SourceKind != "ebpf" || result.Spans[0].TraceID != "opaque" || result.Spans[0].ResourceAttributes["host.id"] != "actual" {
 		t.Fatalf("input was mutated or observation altered: in=%+v out=%+v", in[0], result.Spans[0])
 	}
-	for _, opts := range []Options{{Collector: "jaeger"}, {Collector: "obi", Domain: "bad domain"}, {Collector: "obi", Domain: "scope/other"}} {
+	for _, opts := range []Options{{Collector: "bad collector"}, {Collector: "../collector"}, {Collector: "obi", Domain: "bad domain"}, {Collector: "obi", Domain: "scope/other"}} {
 		if _, err := Normalize(in, opts, "endpoint"); err == nil {
 			t.Fatalf("invalid declaration accepted: %+v", opts)
 		}
 	}
 	if _, err := Normalize(in, Options{}, " "); err == nil {
 		t.Fatal("missing source reference accepted")
+	}
+}
+
+func TestNormalizeGenericCollectorPreservesIDsAndIsolatesDomain(t *testing.T) {
+	in := []traces.Span{{TraceID: "shared-trace", SpanID: "shared-span", ParentSpanID: "shared-parent", Service: "worker"}}
+	result, err := Normalize(in, Options{Collector: "collector-b", Domain: "shared"}, "receiver-b")
+	if err != nil {
+		t.Fatal(err)
+	}
+	span := result.Spans[0]
+	if span.TraceID != in[0].TraceID || span.SpanID != in[0].SpanID || span.ParentSpanID != in[0].ParentSpanID {
+		t.Fatalf("OTLP identity was rewritten: in=%+v out=%+v", in[0], span)
+	}
+	if span.SourceConnector != "collector-b" || span.SourceDomain != "ebpf:collector-b:shared" {
+		t.Fatalf("generic source provenance mismatch: %+v", span)
+	}
+	if got := result.Sources[0]; got.Type != "ebpf" || got.Connector != "collector-b" || got.Ref != "receiver-b" {
+		t.Fatalf("source summary mismatch: %+v", got)
+	}
+	legacy, err := Normalize(in, Options{Collector: "obi", Domain: "shared"}, "receiver-a")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if legacy.Spans[0].SourceDomain != "ebpf:shared" || legacy.Sources[0].Connector != "obi" {
+		t.Fatalf("legacy OBI provenance changed: %+v %+v", legacy.Spans[0], legacy.Sources)
 	}
 }

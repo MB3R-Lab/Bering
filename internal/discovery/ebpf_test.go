@@ -49,6 +49,40 @@ func TestEBPFClientOnlyNamedPeerHasStructuralEvidence(t *testing.T) {
 	}
 }
 
+func TestNamedCollectorProvenanceReachesPeerEdgeAndEvidence(t *testing.T) {
+	client := ebpfClient("trace", "client", "reader")
+	client.SourceConnector = "collector-b"
+	client.SourceDomain = "ebpf:collector-b:installation"
+	client.SourceRef = "receiver-b"
+	client.Attributes["peer.service"] = "catalog"
+	result := discoverObservations(t, []traces.Span{client}, Options{})
+	edges := peerEdges(result)
+	if len(edges) != 1 {
+		t.Fatalf("expected one structural edge: %+v", result.Model.Edges)
+	}
+	var edgeConnector, peerConnector string
+	for _, record := range result.Discovery.Edges {
+		if record.ID == edges[0].ID && len(record.Provenance) == 1 {
+			edgeConnector = record.Provenance[0].Connector
+		}
+	}
+	for _, record := range result.Discovery.Services {
+		if record.ID == edges[0].To && len(record.Provenance) == 1 {
+			peerConnector = record.Provenance[0].Connector
+		}
+	}
+	if edgeConnector != "collector-b" || peerConnector != "collector-b" {
+		t.Fatalf("named collector missing from graph provenance: edge=%q peer=%q", edgeConnector, peerConnector)
+	}
+	record := edgeEvidence(t, result, edges[0].ID)
+	if record.Relation == nil || len(record.Relation.Sources) != 1 || record.Relation.Sources[0].Connector != "collector-b" {
+		t.Fatalf("named collector missing from warning/evidence record: %+v", record)
+	}
+	if !containsString(record.Warnings, "server_receipt_unobserved") {
+		t.Fatalf("structural warning missing: %+v", record)
+	}
+}
+
 func TestEBPFHTTPFullURLProducesPathOnlyPeerEdge(t *testing.T) {
 	client := ebpfClient("trace", "client", "reader")
 	client.Name = "outbound request"

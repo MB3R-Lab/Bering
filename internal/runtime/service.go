@@ -82,12 +82,24 @@ func NewService(cfg config.ServeConfig, overlays []overlay.File, logger *slog.Lo
 		if !validSourceID(source.ID) || seenSources[source.ID] {
 			return nil, fmt.Errorf("invalid or duplicate source id %q", source.ID)
 		}
-		if source.Type != "ebpf-obi" {
+		collector := strings.TrimSpace(source.Collector)
+		switch source.Type {
+		case "ebpf-obi":
+			if collector != "" && !strings.EqualFold(collector, "obi") {
+				return nil, fmt.Errorf("source %q of type ebpf-obi only supports collector obi", source.ID)
+			}
+			collector = "obi"
+		case "ebpf-otlp":
+			if collector == "" {
+				return nil, fmt.Errorf("source %q of type ebpf-otlp requires collector", source.ID)
+			}
+		default:
 			return nil, fmt.Errorf("unsupported source type %q", source.Type)
 		}
-		if _, err := ebpf.Normalize(nil, ebpf.Options{Domain: source.Domain}, "configuration:"+source.ID); err != nil {
+		if _, err := ebpf.NormalizedOptions(ebpf.Options{Collector: collector, Domain: source.Domain}); err != nil {
 			return nil, err
 		}
+		source.Collector = strings.ToLower(collector)
 		seenSources[source.ID] = true
 		mux.HandleFunc("/sources/"+source.ID+"/v1/traces", service.handleEBPF(source))
 	}

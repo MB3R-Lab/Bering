@@ -1,5 +1,5 @@
-// Package ebpf loads OpenTelemetry spans exported by an explicitly declared OBI
-// collector. The declaration is provenance, not proof of how spans were made.
+// Package ebpf loads OpenTelemetry spans exported by an explicitly declared
+// eBPF collector. The declaration is provenance, not proof of how spans were made.
 package ebpf
 
 import (
@@ -24,7 +24,10 @@ const (
 	maxDocumentBytes    = 256 << 20
 )
 
-var domainPattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$`)
+var (
+	domainPattern    = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$`)
+	collectorPattern = regexp.MustCompile(`^[a-z0-9][a-z0-9._-]{0,63}$`)
+)
 
 type Options struct {
 	Collector string
@@ -36,13 +39,13 @@ type Result struct {
 	Sources []snapshot.SourceSummary
 }
 
-func normalizedOptions(opts Options) (Options, error) {
+func NormalizedOptions(opts Options) (Options, error) {
 	opts.Collector = strings.ToLower(strings.TrimSpace(opts.Collector))
 	if opts.Collector == "" {
 		opts.Collector = "obi"
 	}
-	if opts.Collector != "obi" {
-		return Options{}, fmt.Errorf("unsupported eBPF collector %q: expected obi", opts.Collector)
+	if !collectorPattern.MatchString(opts.Collector) {
+		return Options{}, fmt.Errorf("invalid eBPF collector %q", opts.Collector)
 	}
 	opts.Domain = strings.TrimSpace(opts.Domain)
 	if opts.Domain == "" {
@@ -54,10 +57,17 @@ func normalizedOptions(opts Options) (Options, error) {
 	return opts, nil
 }
 
+func sourceDomain(opts Options) string {
+	if opts.Collector == "obi" {
+		return "ebpf:" + opts.Domain
+	}
+	return "ebpf:" + opts.Collector + ":" + opts.Domain
+}
+
 // Normalize annotates only declared source provenance. It does not modify IDs,
 // scope, resource attributes, service identity, host or process attributes.
 func Normalize(spans []traces.Span, opts Options, sourceRef string) (Result, error) {
-	opts, err := normalizedOptions(opts)
+	opts, err := NormalizedOptions(opts)
 	if err != nil {
 		return Result{}, err
 	}
@@ -70,12 +80,13 @@ func Normalize(spans []traces.Span, opts Options, sourceRef string) (Result, err
 	for i := range out {
 		out[i].SourceRef = sourceRef
 		out[i].SourceKind = "ebpf"
-		out[i].SourceDomain = "ebpf:" + opts.Domain
+		out[i].SourceConnector = opts.Collector
+		out[i].SourceDomain = sourceDomain(opts)
 	}
 	return Result{
 		Spans: out,
 		Sources: []snapshot.SourceSummary{{
-			Type: "ebpf", Connector: "obi", Ref: sourceRef,
+			Type: "ebpf", Connector: opts.Collector, Ref: sourceRef,
 			Observations: len(out),
 		}},
 	}, nil
@@ -84,7 +95,7 @@ func Normalize(spans []traces.Span, opts Options, sourceRef string) (Result, err
 // Load accepts bare OTLP JSON, newline-delimited OTLP export requests, and
 // binary OTLP protobuf. Directories are traversed in lexical path order.
 func Load(path string, opts Options) (Result, error) {
-	if _, err := normalizedOptions(opts); err != nil {
+	if _, err := NormalizedOptions(opts); err != nil {
 		return Result{}, err
 	}
 	paths, err := inputFiles(path)
