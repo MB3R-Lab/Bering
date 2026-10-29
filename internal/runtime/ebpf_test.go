@@ -82,8 +82,7 @@ func TestEBPFSourceCapturesWireInputAndBuildsModel(t *testing.T) {
 func TestInvalidEBPFSourceConfigurationRejected(t *testing.T) {
 	for _, source := range []config.SourceConfig{
 		{ID: "../source", Type: "ebpf-obi"}, {ID: "source", Type: "other"}, {ID: "source", Type: "ebpf-obi", Domain: "bad/domain"},
-		{ID: "source", Type: "ebpf-otlp"}, {ID: "source", Type: "ebpf-otlp", Collector: "bad collector"},
-		{ID: "source", Type: "ebpf-obi", Collector: "collector-b"},
+		{ID: "source", Type: "ebpf-otlp", Domain: "bad/domain"},
 	} {
 		cfg := config.DefaultServeConfig()
 		cfg.Runtime.Reconciliation.Enabled = false
@@ -94,7 +93,7 @@ func TestInvalidEBPFSourceConfigurationRejected(t *testing.T) {
 	}
 }
 
-func TestMixedEBPFCollectorsKeepCollidingTraceIDsSourceIsolated(t *testing.T) {
+func TestLegacyAndGenericLogicalSourcesKeepCollidingTraceIDsIsolated(t *testing.T) {
 	dir := t.TempDir()
 	cfg := config.DefaultServeConfig()
 	cfg.Runtime.PublicationMode = config.PublicationModeOnShutdown
@@ -106,7 +105,7 @@ func TestMixedEBPFCollectorsKeepCollidingTraceIDsSourceIsolated(t *testing.T) {
 	cfg.Sink.SignalQualityPath = filepath.Join(dir, "quality.json")
 	cfg.Sources = []config.SourceConfig{
 		{ID: "legacy", Type: "ebpf-obi", Domain: "collector-b:shared"},
-		{ID: "generic", Type: "ebpf-otlp", Collector: "collector-b", Domain: "shared"},
+		{ID: "generic", Type: "ebpf-otlp", Domain: "shared"},
 	}
 	service, err := NewService(cfg, nil, nil)
 	if err != nil {
@@ -147,8 +146,8 @@ func TestMixedEBPFCollectorsKeepCollidingTraceIDsSourceIsolated(t *testing.T) {
 	for _, source := range artifact.Sources {
 		connectors[source.Connector] = true
 	}
-	if !connectors["obi"] || !connectors["collector-b"] {
-		t.Fatalf("mixed source summaries lost collector provenance: %+v", artifact.Sources)
+	if !connectors["obi"] || !connectors["ebpf-otlp"] {
+		t.Fatalf("mixed source summaries lost logical source type: %+v", artifact.Sources)
 	}
 	for _, record := range artifact.Discovery.Services {
 		if len(record.Provenance) != 1 {
@@ -157,7 +156,7 @@ func TestMixedEBPFCollectorsKeepCollidingTraceIDsSourceIsolated(t *testing.T) {
 		if record.ID == "parent-service" && record.Provenance[0].Connector != "obi" {
 			t.Fatalf("legacy provenance changed: %+v", record)
 		}
-		if record.ID == "child-service" && record.Provenance[0].Connector != "collector-b" {
+		if record.ID == "child-service" && record.Provenance[0].Connector != "ebpf-otlp" {
 			t.Fatalf("generic provenance lost: %+v", record)
 		}
 	}

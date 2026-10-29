@@ -75,7 +75,7 @@ func (r Runner) runDiscover(args []string) int {
 	input := fs.String("input", "", "Path to discovery input file or directory")
 	inputType := fs.String("input-type", "auto", "Input connector: auto, ebpf-obi, or ebpf-otlp")
 	sourceDomain := fs.String("source-domain", "default", "Collection deployment domain for eBPF OTLP")
-	collector := fs.String("collector", "", "Declared collector name; required for ebpf-otlp")
+	sourceID := fs.String("source-id", "default", "Logical source ID for ebpf-otlp")
 	out := fs.String("out", "bering-model.json", "Path to output model JSON")
 	snapshotOut := fs.String("snapshot-out", "", "Optional path to output snapshot envelope JSON")
 	qualityOut := fs.String("quality-out", "", "Optional path to output model signal quality JSON; defaults next to --out")
@@ -123,12 +123,8 @@ func (r Runner) runDiscover(args []string) int {
 	case "auto":
 		result, err = loadDiscoveryResult(*input, discoveredAtValue, override, loadedOverlays)
 	case "ebpf-obi":
-		if value := strings.TrimSpace(*collector); value != "" && !strings.EqualFold(value, "obi") {
-			err = fmt.Errorf("input-type ebpf-obi only supports collector obi")
-			break
-		}
 		var observations ebpf.Result
-		observations, err = ebpf.Load(*input, ebpf.Options{Collector: "obi", Domain: *sourceDomain})
+		observations, err = ebpf.Load(*input, ebpf.Options{Type: "ebpf-obi", Domain: *sourceDomain})
 		if err == nil {
 			result, err = discovery.Discover(observations.Spans, discovery.Options{
 				SourceRef: discovery.BuildSourceRef(*input), DiscoveredAt: discoveredAtValue,
@@ -136,12 +132,10 @@ func (r Runner) runDiscover(args []string) int {
 			})
 		}
 	case "ebpf-otlp":
-		if strings.TrimSpace(*collector) == "" {
-			err = fmt.Errorf("--collector is required for input-type ebpf-otlp")
-			break
-		}
 		var observations ebpf.Result
-		observations, err = ebpf.Load(*input, ebpf.Options{Collector: *collector, Domain: *sourceDomain})
+		observations, err = ebpf.Load(*input, ebpf.Options{
+			Type: "ebpf-otlp", SourceID: *sourceID, Domain: *sourceDomain,
+		})
 		if err == nil {
 			result, err = discovery.Discover(observations.Spans, discovery.Options{
 				SourceRef: discovery.BuildSourceRef(*input), DiscoveredAt: discoveredAtValue,
@@ -393,7 +387,7 @@ func (r Runner) printUsage() {
 	fmt.Fprintln(r.stdout)
 	fmt.Fprintln(r.stdout, "Usage:")
 	fmt.Fprintln(r.stdout, "  bering discover --input-type ebpf-obi --source-domain <deployment> --input <OTLP JSON|JSONL|protobuf|dir> --out model.json [--snapshot-out snapshot.json]")
-	fmt.Fprintln(r.stdout, "  bering discover --input-type ebpf-otlp --collector <name> --source-domain <deployment> --input <OTLP JSON|JSONL|protobuf|dir> --out model.json [--snapshot-out snapshot.json]")
+	fmt.Fprintln(r.stdout, "  bering discover --input-type ebpf-otlp [--source-id <logical-source>] --source-domain <deployment> --input <OTLP JSON|JSONL|protobuf|dir> --out model.json [--snapshot-out snapshot.json]")
 	fmt.Fprintln(r.stdout, "  bering discover --input <trace-file|topology-file|dir> [--out bering-model.json] [--snapshot-out bering-snapshot.json] [--quality-out bering-model.signal-quality.json] [--snapshot-quality-out bering-snapshot.signal-quality.json] [--replicas replicas.yaml|json] [--overlay overlay.yaml] [--discovered-at RFC3339]")
 	fmt.Fprintln(r.stdout, "  bering validate --input <bering-model.json|bering-snapshot.json>")
 	fmt.Fprintln(r.stdout, "  bering serve --config configs/serve.sample.yaml [--listen :4318] [--grpc-listen :4317] [--publication-mode windowed|on_shutdown] [--window-size 30s] [--flush-interval 5s] [--reconciliation-summary-path out/reconciliation-summary.md] [--signal-quality-path out/latest-signal-quality.json]")

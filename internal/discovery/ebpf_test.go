@@ -49,10 +49,10 @@ func TestEBPFClientOnlyNamedPeerHasStructuralEvidence(t *testing.T) {
 	}
 }
 
-func TestNamedCollectorProvenanceReachesPeerEdgeAndEvidence(t *testing.T) {
+func TestGenericSourceProvenanceReachesPeerEdgeAndEvidence(t *testing.T) {
 	client := ebpfClient("trace", "client", "reader")
-	client.SourceConnector = "collector-b"
-	client.SourceDomain = "ebpf:collector-b:installation"
+	client.SourceConnector = "ebpf-otlp"
+	client.SourceDomain = "ebpf-otlp:8:source-b:installation"
 	client.SourceRef = "receiver-b"
 	client.Attributes["peer.service"] = "catalog"
 	result := discoverObservations(t, []traces.Span{client}, Options{})
@@ -71,12 +71,12 @@ func TestNamedCollectorProvenanceReachesPeerEdgeAndEvidence(t *testing.T) {
 			peerConnector = record.Provenance[0].Connector
 		}
 	}
-	if edgeConnector != "collector-b" || peerConnector != "collector-b" {
-		t.Fatalf("named collector missing from graph provenance: edge=%q peer=%q", edgeConnector, peerConnector)
+	if edgeConnector != "ebpf-otlp" || peerConnector != "ebpf-otlp" {
+		t.Fatalf("generic source missing from graph provenance: edge=%q peer=%q", edgeConnector, peerConnector)
 	}
 	record := edgeEvidence(t, result, edges[0].ID)
-	if record.Relation == nil || len(record.Relation.Sources) != 1 || record.Relation.Sources[0].Connector != "collector-b" {
-		t.Fatalf("named collector missing from warning/evidence record: %+v", record)
+	if record.Relation == nil || len(record.Relation.Sources) != 1 || record.Relation.Sources[0].Connector != "ebpf-otlp" {
+		t.Fatalf("generic source missing from warning/evidence record: %+v", record)
 	}
 	if !containsString(record.Warnings, "server_receipt_unobserved") {
 		t.Fatalf("structural warning missing: %+v", record)

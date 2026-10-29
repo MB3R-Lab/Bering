@@ -102,18 +102,17 @@ config:
     latestPath: ""
   logging:
     structured: true
-  # Declared collector boundaries. Bering itself remains unprivileged; deploy
-  # OBI separately with the Linux capabilities it requires.
+  # Declared logical eBPF OTLP sources. Bering itself remains unprivileged;
+  # deploy any producer separately with the Linux capabilities it requires.
   sources: []
   # - id: obi-main
   #   type: ebpf-obi
   #   domain: production
   #   capture_directory: /var/lib/bering/obi-capture
-  # - id: collector-main
+  # - id: telemetry-main
   #   type: ebpf-otlp
-  #   collector: collector-name
   #   domain: production
-  #   capture_directory: /var/lib/bering/collector-capture
+  #   capture_directory: /var/lib/bering/ebpf-capture
   overlays: []
 
 serviceMonitor:

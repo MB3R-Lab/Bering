@@ -76,7 +76,7 @@ func TestServePublicationModeFlagRejectsInvalidValue(t *testing.T) {
 	}
 }
 
-func TestDiscoverGenericEBPFRequiresAndRetainsCollector(t *testing.T) {
+func TestDiscoverGenericEBPFUsesLogicalSourceWithoutProducerName(t *testing.T) {
 	root := repoRoot(t)
 	input := filepath.Join(root, "examples", "traces", "otel.sample.json")
 	dir := t.TempDir()
@@ -89,22 +89,6 @@ func TestDiscoverGenericEBPFRequiresAndRetainsCollector(t *testing.T) {
 		"--snapshot-out", filepath.Join(dir, "snapshot.json"),
 		"--discovered-at", "2026-03-03T00:00:00Z",
 	}
-	if code := runner.Run(args); code != ExitError || !bytes.Contains(stderr.Bytes(), []byte("--collector is required")) {
-		t.Fatalf("missing collector was not rejected: code=%d stderr=%s", code, stderr.String())
-	}
-	stderr.Reset()
-	legacyArgs := append([]string(nil), args...)
-	for i := range legacyArgs {
-		if legacyArgs[i] == "ebpf-otlp" {
-			legacyArgs[i] = "ebpf-obi"
-		}
-	}
-	legacyArgs = append(legacyArgs, "--collector", "collector-b")
-	if code := runner.Run(legacyArgs); code != ExitError || !bytes.Contains(stderr.Bytes(), []byte("only supports collector obi")) {
-		t.Fatalf("conflicting legacy collector was not rejected: code=%d stderr=%s", code, stderr.String())
-	}
-	stderr.Reset()
-	args = append(args, "--collector", "collector-b")
 	if code := runner.Run(args); code != ExitOK {
 		t.Fatalf("generic eBPF discovery failed: code=%d stderr=%s", code, stderr.String())
 	}
@@ -116,13 +100,18 @@ func TestDiscoverGenericEBPFRequiresAndRetainsCollector(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(artifact.Sources) != 1 || artifact.Sources[0].Type != "ebpf" || artifact.Sources[0].Connector != "collector-b" {
-		t.Fatalf("collector source summary missing: %+v", artifact.Sources)
+	if len(artifact.Sources) != 1 || artifact.Sources[0].Type != "ebpf" || artifact.Sources[0].Connector != "ebpf-otlp" {
+		t.Fatalf("generic source summary missing: %+v", artifact.Sources)
 	}
 	for _, service := range artifact.Discovery.Services {
-		if len(service.Provenance) == 0 || service.Provenance[0].Connector != "collector-b" {
-			t.Fatalf("collector service provenance missing: %+v", service)
+		if len(service.Provenance) == 0 || service.Provenance[0].Connector != "ebpf-otlp" {
+			t.Fatalf("generic source provenance missing: %+v", service)
 		}
+	}
+	stderr.Reset()
+	if code := runner.Run(append(args, "--collector", "anything")); code != ExitError ||
+		!bytes.Contains(stderr.Bytes(), []byte("flag parse error")) {
+		t.Fatalf("removed producer flag was accepted: code=%d stderr=%s", code, stderr.String())
 	}
 }
 

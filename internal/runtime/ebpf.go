@@ -59,7 +59,9 @@ func (s *Service) handleEBPF(source config.SourceConfig) http.HandlerFunc {
 				return
 			}
 		}
-		observations, err := ebpf.Normalize(spans, ebpf.Options{Collector: source.Collector, Domain: source.Domain}, ref)
+		observations, err := ebpf.Normalize(spans, ebpf.Options{
+			Type: source.Type, SourceID: source.ID, Domain: source.Domain,
+		}, ref)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return

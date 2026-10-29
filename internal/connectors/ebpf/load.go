@@ -1,5 +1,4 @@
-// Package ebpf loads OpenTelemetry spans exported by an explicitly declared
-// eBPF collector. The declaration is provenance, not proof of how spans were made.
+// Package ebpf loads OpenTelemetry spans from a declared eBPF OTLP source.
 package ebpf
 
 import (
@@ -25,13 +24,14 @@ const (
 )
 
 var (
-	domainPattern    = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$`)
-	collectorPattern = regexp.MustCompile(`^[a-z0-9][a-z0-9._-]{0,63}$`)
+	domainPattern   = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$`)
+	sourceIDPattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$`)
 )
 
 type Options struct {
-	Collector string
-	Domain    string
+	Type     string
+	SourceID string
+	Domain   string
 }
 
 type Result struct {
@@ -40,12 +40,21 @@ type Result struct {
 }
 
 func NormalizedOptions(opts Options) (Options, error) {
-	opts.Collector = strings.ToLower(strings.TrimSpace(opts.Collector))
-	if opts.Collector == "" {
-		opts.Collector = "obi"
+	opts.Type = strings.TrimSpace(opts.Type)
+	if opts.Type == "" {
+		opts.Type = "ebpf-obi"
 	}
-	if !collectorPattern.MatchString(opts.Collector) {
-		return Options{}, fmt.Errorf("invalid eBPF collector %q", opts.Collector)
+	if opts.Type != "ebpf-obi" && opts.Type != "ebpf-otlp" {
+		return Options{}, fmt.Errorf("invalid eBPF source type %q", opts.Type)
+	}
+	opts.SourceID = strings.TrimSpace(opts.SourceID)
+	if opts.Type == "ebpf-otlp" {
+		if opts.SourceID == "" {
+			opts.SourceID = "default"
+		}
+		if !sourceIDPattern.MatchString(opts.SourceID) {
+			return Options{}, fmt.Errorf("invalid eBPF source id %q", opts.SourceID)
+		}
 	}
 	opts.Domain = strings.TrimSpace(opts.Domain)
 	if opts.Domain == "" {
@@ -58,10 +67,12 @@ func NormalizedOptions(opts Options) (Options, error) {
 }
 
 func sourceDomain(opts Options) string {
-	if opts.Collector == "obi" {
+	if opts.Type == "ebpf-obi" {
 		return "ebpf:" + opts.Domain
 	}
-	return "ebpf-otlp:" + opts.Collector + ":" + opts.Domain
+	// Length-prefix the logical source ID so IDs and domains containing the same
+	// delimiter remain injective. The prefix is disjoint from legacy ebpf-obi.
+	return fmt.Sprintf("ebpf-otlp:%d:%s:%s", len(opts.SourceID), opts.SourceID, opts.Domain)
 }
 
 // Normalize annotates only declared source provenance. It does not modify IDs,
@@ -77,16 +88,20 @@ func Normalize(spans []traces.Span, opts Options, sourceRef string) (Result, err
 	}
 	out := make([]traces.Span, len(spans))
 	copy(out, spans)
+	connector := "obi"
+	if opts.Type == "ebpf-otlp" {
+		connector = "ebpf-otlp"
+	}
 	for i := range out {
 		out[i].SourceRef = sourceRef
 		out[i].SourceKind = "ebpf"
-		out[i].SourceConnector = opts.Collector
+		out[i].SourceConnector = connector
 		out[i].SourceDomain = sourceDomain(opts)
 	}
 	return Result{
 		Spans: out,
 		Sources: []snapshot.SourceSummary{{
-			Type: "ebpf", Connector: opts.Collector, Ref: sourceRef,
+			Type: "ebpf", Connector: connector, Ref: sourceRef,
 			Observations: len(out),
 		}},
 	}, nil

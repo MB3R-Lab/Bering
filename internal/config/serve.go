@@ -67,12 +67,11 @@ type ServeConfig struct {
 	Sources  []SourceConfig `json:"sources,omitempty" yaml:"sources,omitempty"`
 }
 
-// SourceConfig declares a collector boundary. Domain is shared by every agent
-// in one collection deployment; it is not a host or collector-instance ID.
+// SourceConfig declares one logical OTLP source. Domain is shared by every
+// agent in that source; it is not a host or process-instance ID.
 type SourceConfig struct {
 	ID               string `json:"id" yaml:"id"`
 	Type             string `json:"type" yaml:"type"`
-	Collector        string `json:"collector,omitempty" yaml:"collector,omitempty"`
 	Domain           string `json:"domain" yaml:"domain"`
 	CaptureDirectory string `json:"capture_directory,omitempty" yaml:"capture_directory,omitempty"`
 }
