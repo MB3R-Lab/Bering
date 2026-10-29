@@ -93,6 +93,17 @@ func TestDiscoverGenericEBPFRequiresAndRetainsCollector(t *testing.T) {
 		t.Fatalf("missing collector was not rejected: code=%d stderr=%s", code, stderr.String())
 	}
 	stderr.Reset()
+	legacyArgs := append([]string(nil), args...)
+	for i := range legacyArgs {
+		if legacyArgs[i] == "ebpf-otlp" {
+			legacyArgs[i] = "ebpf-obi"
+		}
+	}
+	legacyArgs = append(legacyArgs, "--collector", "collector-b")
+	if code := runner.Run(legacyArgs); code != ExitError || !bytes.Contains(stderr.Bytes(), []byte("only supports collector obi")) {
+		t.Fatalf("conflicting legacy collector was not rejected: code=%d stderr=%s", code, stderr.String())
+	}
+	stderr.Reset()
 	args = append(args, "--collector", "collector-b")
 	if code := runner.Run(args); code != ExitOK {
 		t.Fatalf("generic eBPF discovery failed: code=%d stderr=%s", code, stderr.String())

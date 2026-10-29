@@ -105,7 +105,7 @@ func TestMixedEBPFCollectorsKeepCollidingTraceIDsSourceIsolated(t *testing.T) {
 	cfg.Sink.LatestPath = filepath.Join(dir, "latest.json")
 	cfg.Sink.SignalQualityPath = filepath.Join(dir, "quality.json")
 	cfg.Sources = []config.SourceConfig{
-		{ID: "legacy", Type: "ebpf-obi", Domain: "shared"},
+		{ID: "legacy", Type: "ebpf-obi", Domain: "collector-b:shared"},
 		{ID: "generic", Type: "ebpf-otlp", Collector: "collector-b", Domain: "shared"},
 	}
 	service, err := NewService(cfg, nil, nil)

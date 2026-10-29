@@ -248,7 +248,7 @@ func TestNormalizeGenericCollectorPreservesIDsAndIsolatesDomain(t *testing.T) {
 	if span.TraceID != in[0].TraceID || span.SpanID != in[0].SpanID || span.ParentSpanID != in[0].ParentSpanID {
 		t.Fatalf("OTLP identity was rewritten: in=%+v out=%+v", in[0], span)
 	}
-	if span.SourceConnector != "collector-b" || span.SourceDomain != "ebpf:collector-b:shared" {
+	if span.SourceConnector != "collector-b" || span.SourceDomain != "ebpf-otlp:collector-b:shared" {
 		t.Fatalf("generic source provenance mismatch: %+v", span)
 	}
 	if got := result.Sources[0]; got.Type != "ebpf" || got.Connector != "collector-b" || got.Ref != "receiver-b" {
@@ -260,5 +260,12 @@ func TestNormalizeGenericCollectorPreservesIDsAndIsolatesDomain(t *testing.T) {
 	}
 	if legacy.Spans[0].SourceDomain != "ebpf:shared" || legacy.Sources[0].Connector != "obi" {
 		t.Fatalf("legacy OBI provenance changed: %+v %+v", legacy.Spans[0], legacy.Sources)
+	}
+	collision, err := Normalize(in, Options{Collector: "obi", Domain: "collector-b:shared"}, "receiver-c")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if collision.Spans[0].SourceDomain == span.SourceDomain {
+		t.Fatalf("legacy OBI and named collector domains collide: legacy=%q generic=%q", collision.Spans[0].SourceDomain, span.SourceDomain)
 	}
 }

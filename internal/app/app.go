@@ -123,6 +123,10 @@ func (r Runner) runDiscover(args []string) int {
 	case "auto":
 		result, err = loadDiscoveryResult(*input, discoveredAtValue, override, loadedOverlays)
 	case "ebpf-obi":
+		if value := strings.TrimSpace(*collector); value != "" && !strings.EqualFold(value, "obi") {
+			err = fmt.Errorf("input-type ebpf-obi only supports collector obi")
+			break
+		}
 		var observations ebpf.Result
 		observations, err = ebpf.Load(*input, ebpf.Options{Collector: "obi", Domain: *sourceDomain})
 		if err == nil {

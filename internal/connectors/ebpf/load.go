@@ -61,7 +61,7 @@ func sourceDomain(opts Options) string {
 	if opts.Collector == "obi" {
 		return "ebpf:" + opts.Domain
 	}
-	return "ebpf:" + opts.Collector + ":" + opts.Domain
+	return "ebpf-otlp:" + opts.Collector + ":" + opts.Domain
 }
 
 // Normalize annotates only declared source provenance. It does not modify IDs,
