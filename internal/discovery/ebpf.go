@@ -220,9 +220,9 @@ func ebpfOperation(span traces.Span) (*model.EdgeIdentity, bool) {
 	if isHTTPMethod(method) && normalizePath(route) != "" {
 		return &model.EdgeIdentity{Protocol: "http", Operation: method, Route: normalizePath(route), SpanKind: "client"}, true
 	}
-	protocol := strings.ToLower(firstAttr(span.Attributes, "rpc.system"))
+	protocol, protocolOK := oneObservedValue(span.Attributes, true, "rpc.system", "rpc.system.name")
 	operation := firstAttr(span.Attributes, "rpc.method")
-	if protocol != "" && operation != "" {
+	if protocolOK && protocol != "" && operation != "" {
 		return &model.EdgeIdentity{Protocol: protocol, Operation: operation, SpanKind: "client"}, true
 	}
 	return nil, false
