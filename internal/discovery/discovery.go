@@ -351,7 +351,14 @@ func edgeIdentity(parent, child traces.Span) *model.EdgeIdentity {
 }
 
 func inferDependencyProtocol(parent, child traces.Span) string {
-	if protocol := firstAttr(child.Attributes, "rpc.system", "network.protocol.name"); protocol != "" {
+	protocol, consistent := oneObservedValue(child.Attributes, true, "rpc.system", "rpc.system.name")
+	if !consistent {
+		return ""
+	}
+	if protocol != "" {
+		return protocol
+	}
+	if protocol := firstAttr(child.Attributes, "network.protocol.name"); protocol != "" {
 		return protocol
 	}
 	if hasHTTPIdentity(child) || hasHTTPIdentity(parent) {
@@ -427,7 +434,11 @@ func inferEndpointDetails(span, parent traces.Span, hasParent bool) (string, str
 		if !strings.EqualFold(span.Kind, "server") {
 			return "", "", false
 		}
-		if strings.EqualFold(firstAttr(span.Attributes, "rpc.system"), "grpc") {
+		protocol, consistent := oneObservedValue(span.Attributes, true, "rpc.system", "rpc.system.name")
+		if !consistent {
+			return "", "", false
+		}
+		if protocol == "grpc" {
 			method := firstAttr(span.Attributes, "rpc.method")
 			service := firstAttr(span.Attributes, "rpc.service")
 			if method != "" {
